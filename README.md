@@ -1,0 +1,2 @@
+# BuildForge_Banking_Team_1
+A repo for BuildForge Banking Team 1 - A collaborative Banking SE workstream focused on creating reusable AI-powered solution accelerators, architectures, demos, and deployment assets for the financial services industry. The team combines expertise across infrastructure, data, applications, security, and AI to solve real banking business challenges and produce customer-ready assets that can be leveraged across Microsoft Banking engagements.
