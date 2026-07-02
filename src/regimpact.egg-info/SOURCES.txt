@@ -1,7 +1,0 @@
-README.md
-pyproject.toml
-src/regimpact/__init__.py
-src/regimpact.egg-info/PKG-INFO
-src/regimpact.egg-info/SOURCES.txt
-src/regimpact.egg-info/dependency_links.txt
-src/regimpact.egg-info/top_level.txt
