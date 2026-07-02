@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 from pathlib import Path
 
 is_dry_run = '--dry-run' in sys.argv
 is_force = '--force' in sys.argv
+repo_root = Path.cwd().resolve()
 
 files = {
     '.specify/memory/constitution.md': """# Constitution\n\n## Mission\nA generic Python-based framework to assess regulatory change impact and score compliance using a synthetic 5-layer digital twin.\n\n## Scope & Boundaries\n- **In-Scope:** Core Python engine, Fabric-compatible numbered notebooks, synthetic data generation, local offline execution with Azure OpenAI fallback.\n- **Out-of-Scope:** Cloud infrastructure provisioning (IaC/Bicep/Terraform handled by another team). Real banking data ingestion.\n\n## Realism Requirements\n- Fabric Lakehouse Delta tables\n- Purview lineage/glossary exports\n- Fabric Data Agent readiness\n\n## Engineering Guardrails\n- **Quality Gates:** `ruff` for linting, `pytest` for unit testing, and secret scanning (TruffleHog/GHAS).\n- **Execution:** Must be runnable via CLI (`regimpact`) and Fabric notebooks.\n""",
@@ -30,7 +30,10 @@ skipped_count = 0
 overwritten_count = 0
 
 for file_path, content in files.items():
-    full_path = Path.cwd() / file_path
+    full_path = (repo_root / file_path).resolve()
+    if repo_root not in [full_path, *full_path.parents]:
+        raise ValueError(f"Refusing to write outside repository root: {file_path}")
+
     directory = full_path.parent
 
     if not is_dry_run:
