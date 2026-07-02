@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regulatory Change Impact Intelligence Framework — Demo Build & Talk Track</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --border: #d0d7de;
+    --accent: #0969da;
+    --code-bg: #f6f8fa;
+    --table-alt: #f6f8fa;
+    --quote-border: #d0d7de;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --border: #30363d;
+      --accent: #4493f8;
+      --code-bg: #161b22;
+      --table-alt: #161b22;
+      --quote-border: #30363d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1, h2, h3, h4 {
+    line-height: 1.25;
+    margin-top: 1.8em;
+    margin-bottom: 0.6em;
+    font-weight: 600;
+  }
+  h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; margin-top: 0; }
+  h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1.05rem; }
+  p { margin: 0 0 1em; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 85%;
+    background: var(--code-bg);
+    padding: .2em .4em;
+    border-radius: 6px;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 16px;
+    border-radius: 8px;
+    overflow: auto;
+    border: 1px solid var(--border);
+  }
+  pre code { background: none; padding: 0; font-size: 85%; }
+  blockquote {
+    margin: 0 0 1em;
+    padding: .4em 1em;
+    color: var(--muted);
+    border-left: 4px solid var(--quote-border);
+    background: var(--code-bg);
+    border-radius: 0 6px 6px 0;
+  }
+  blockquote p { margin: .3em 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0 0 1.2em;
+    display: block;
+    overflow-x: auto;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th { background: var(--table-alt); }
+  tbody tr:nth-child(even) { background: var(--table-alt); }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+  details {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin: 0 0 1.2em;
+    background: var(--code-bg);
+  }
+  summary { cursor: pointer; font-weight: 600; }
+  ul, ol { padding-left: 1.6em; }
+  li { margin: .25em 0; }
+  .mermaid { background: var(--bg); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="regulatory-change-impact-intelligence-framework-demo-build-talk-track">Regulatory Change Impact Intelligence Framework — Demo Build &amp; Talk Track</h1>
+<blockquote>
+<p><strong>Status:</strong> Living reference document. Last updated <strong>2026-07-02</strong>.
+This file is the <strong>technical demo talk track and how to build &amp; run the demo</strong>,
+plus the demo-related technical detail. The <strong>business context, overview and a
+summary of the technical architecture</strong> live in <a href="README.md"><code>README.md</code></a>.
+Running change history is in <a href="changedoc.md"><code>changedoc.md</code></a>; key decisions in
+<a href="decisions.md"><code>decisions.md</code></a>. "Update the reference docs" = update all of them.</p>
+</blockquote>
+<hr>
+<h2 id="1-demo-narrative-5-minute-talk-track">1. Demo narrative (5-minute talk track)</h2>
+<ol>
+<li><code>python -m regimpact list-changes</code> — "here are the incoming regulations".</li>
+<li><code>python -m regimpact interpret --file data/regulations/eu_ai_act_high_risk.txt
+   --regulation REG-AIACT --name "EU AI Act" --title "High-risk AI update"</code> —
+   the <strong>agents</strong> read the regulation, map controls, find gaps and score it.</li>
+<li><code>python -m regimpact score --change CHG-DORA</code> — show the compliance score
+   <strong>dip</strong> when the change lands and the <strong>recovery</strong> after remediation.</li>
+<li>Open <code>output/reports/impact_CHG-DORA.md</code> — the board-ready read-out.</li>
+<li>In Fabric, ask the <strong>Data Agent</strong>: <em>"Which products are affected by the DORA
+   change and what should we do first?"</em> and <em>"Which capability is weakest and
+   what technology enables it?"</em> — the maintained relationships answer in plain
+   English.</li>
+<li>Show <strong>Purview</strong> lineage: <em>"Customer PII flows into these obligations"</em> — the
+   governance/trust story.</li>
+</ol>
+<h2 id="2-quick-start-offline-poc">2. Quick start (offline POC)</h2>
+<pre><code class="language-powershell">python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+$env:PYTHONPATH = &quot;src&quot;
+python -m regimpact list-changes          # see incoming changes
+python -m regimpact analyze --change CHG-DORA
+python -m regimpact score   --change CHG-DORA   # before/after compliance score
+python -m regimpact interpret --file data/regulations/eu_ai_act_high_risk.txt `
+    --regulation REG-AIACT --name &quot;EU AI Act&quot; --title &quot;High-risk AI update&quot;
+python -m regimpact demo                   # generate + analyse all + score + export
+python -m regimpact gold                   # Gold star schema (dims + facts) for the semantic model
+python -m regimpact audit                  # data-type (Rule 3) + referential-integrity (Rule 4) audit
+</code></pre>
+<p>The agents use <strong>Azure OpenAI live</strong> when <code>AZURE_OPENAI_ENDPOINT</code>,
+<code>AZURE_OPENAI_API_KEY</code> and <code>AZURE_OPENAI_DEPLOYMENT</code> are set in <code>.env</code>; otherwise
+they fall back to deterministic logic and the whole POC still runs fully offline.</p>
+<p>Outputs land under <code>output/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>Contents</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output/tables/</code></td>
+<td><code>*.parquet</code> + <code>*.csv</code> per entity (incl. capabilities, technologies, evidence, compliance_scores), plus <code>relationships.*</code></td>
+<td>Fabric Lakehouse / Power BI</td>
+</tr>
+<tr>
+<td><code>output/gold/</code></td>
+<td>Gold star-schema dims + facts (<code>*.parquet</code>)</td>
+<td>Power BI semantic model</td>
+</tr>
+<tr>
+<td><code>output/graph/</code></td>
+<td><code>estate.graphml</code>, <code>estate.json</code></td>
+<td>Graph viz (Gephi, D3, Cytoscape)</td>
+</tr>
+<tr>
+<td><code>output/reports/</code></td>
+<td><code>impact_&lt;change&gt;.md</code></td>
+<td>Stakeholder read-outs</td>
+</tr>
+<tr>
+<td><code>output/purview/</code></td>
+<td><code>glossary_terms.json</code>, <code>lineage.csv</code></td>
+<td>Microsoft Purview</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-worked-example-follow-one-change-through-the-data-flow">3. Worked example — follow one change through the data flow</h2>
+<p>This traces a single real chain from the generated DORA analysis, so you can see
+exactly how one obligation becomes a gap, a remediation and a score movement.</p>
+<p><img alt="Worked example — DORA obligation traced to gap, remediation and score" src="assets/data_flow_example.png"></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Layer / stage</th>
+<th>What happens</th>
+<th>Concrete value (this run)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Regulation</td>
+<td>The law in scope</td>
+<td><code>REG-DORA</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Change</td>
+<td>An incoming update lands</td>
+<td><code>CHG-DORA</code> — Critical, effective 2027-04-15</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Obligation</td>
+<td>Atomic requirement of the change</td>
+<td><code>OBL-DORA-01</code>, theme <code>ICT_RESILIENCE</code>, <strong>target maturity 4</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Control</td>
+<td>The bank's responding control</td>
+<td><code>CTL-OR-3</code> ICT Continuity &amp; Recovery — <strong>as-is maturity 1</strong>, owner <code>BU-OPS</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Capability</td>
+<td>What the control realises</td>
+<td><code>CAP-RES</code> Operational Resilience</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Technology</td>
+<td>What enables the capability</td>
+<td>ServiceNow</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Evidence</td>
+<td>The artefact that would prove it</td>
+<td><code>EV-BCP</code> — status <strong>Missing</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Gap</td>
+<td>Shortfall is raised</td>
+<td><code>GAP-OBL-DORA-01-CTL-OR-3</code> — <strong>Critical</strong>, shortfall 3 (target 4 − maturity 1); Missing evidence compounds it</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Remediation</td>
+<td>Costed, owned fix</td>
+<td>Uplift the control — <strong>110 person-days</strong>, owner <code>BU-OPS</code>, priority Critical</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Score</td>
+<td>Board-level before/after</td>
+<td>As-is <strong>54.8%</strong> → Post-change <strong>53.3%</strong> → Post-remediation <strong>59.6%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reading it:</strong> the obligation demands maturity 4, but <code>CTL-OR-3</code> sits at
+maturity 1 <em>and</em> its business-continuity evidence (<code>EV-BCP</code>) is Missing — so the
+engine raises a Critical gap, attaches a 110-day remediation, and the compliance
+score dips when the change lands (54.8 → 53.3) then recovers above baseline once
+remediation is applied (→ 59.6). Every arrow is a typed edge in the
+<code>relationships</code> table, so the same chain is queryable as both tables and a graph.</p>
+<h2 id="4-the-correlated-data-model">4. The correlated data model</h2>
+<p>Every relationship is an explicit, typed edge — this is what makes impact
+traceable and the demo compelling.</p>
+<p><img alt="Correlated data model — typed-edge digital twin" src="assets/data_model.png"></p>
+<details>
+<summary>Mermaid source (data model)</summary>
+
+
+<div class="mermaid">
+flowchart TD
+    REG[Regulation] --> CHG[Regulatory Change]
+    CHG --> OBL[Obligation]
+    OBL -->|requires| CTL[Control]
+    OBL -->|concerns| DD[Data Domain]
+    CTL -->|realizes| CAP[Capability]
+    CTL -->|evidenced by| EV[Evidence]
+    CAP -->|enabled by| TEC[Technology]
+    EV -->|produced by| TEC
+    CTL -->|implemented in| SYS[System]
+    CTL -->|operates in| PRC[Business Process]
+    CTL -->|mitigates| RSK[Risk]
+    PRC -->|uses| SYS
+    PRC -->|supports| PRD[Product]
+    SYS -->|stores| DD
+    PRD -->|owned by| BU[Business Unit]
+    GAP[Gap] -->|for| OBL
+    GAP -->|against| CTL
+    REM[Remediation] -->|resolves| GAP
+
+</div>
+
+
+</details>
+
+<p><strong>Correlation backbone (why the demo joins cleanly):</strong>
+<code>obligation.theme → control_families → controls</code>;
+<code>control.family → capability</code>; <code>capability → technologies</code>;
+<code>control.family → evidence</code>; <code>control → systems → processes → products → units</code>.
+Every relationship is an explicit <strong>typed edge</strong> (<code>relationships</code> table), so the
+data is simultaneously <strong>tabular</strong> and a <strong>graph</strong>.</p>
+<p><strong>How a gap is found:</strong> each obligation has a <code>target_maturity</code>; each control
+has an as-is <code>maturity</code> (0–5) and a set of <code>evidence</code> artefacts. Where a
+required control falls short on maturity <em>or</em> evidence, a <code>Gap</code> is raised with
+severity (escalated by obligation criticality), its blast radius
+(systems/processes/products/data), and a costed <code>RemediationAction</code>.</p>
+<h2 id="5-project-layout">5. Project layout</h2>
+<pre><code>config/settings.py              configuration (seed, paths, Azure OpenAI)
+data/regulations/               sample regulation text for the Interpreter agent
+src/regimpact/
+  catalog.yaml                  bank taxonomy + 5 layers + regulations (extend here)
+  models.py                     entity + relationship (edge) models
+  generator.py                  builds the correlated estate (digital twin)
+  impact.py                     gap + remediation engine (maturity + evidence)
+  scoring.py                    compliance scoring (as-is / post-change / post-remediation)
+  graph.py                      NetworkX graph builder
+  export.py                     tables / graph / report export
+  purview.py                    glossary + lineage export
+  cli.py                        command-line interface
+  agents/                       4-agent pipeline (Azure OpenAI + fallback)
+fabric/                         Lakehouse load notebook + Data Agent grounding
+purview/                        Purview governance guidance
+</code></pre>
+<h2 id="6-run-as-fabric-notebooks-manual-cell-by-cell">6. Run as Fabric notebooks (manual, cell by cell)</h2>
+<p>The same pipeline is also packaged as <strong>numbered notebooks</strong> you execute <strong>in
+folder order, cell by cell</strong>. Each notebook documents every runnable cell with a
+markdown step above it, and is self-contained (it rebuilds the seeded estate), so
+you can run them independently. The <code>regimpact</code> package in <code>src/</code> stays the
+importable engine — the notebooks call into it.</p>
+<pre><code>01_setup/    01 install_dependencies · 02 configure_environment
+02_inputs/   01 explore_catalog · 02 explore_regulation_documents
+03_build/    01 generate_estate
+04_analyze/  01 impact_gap_analysis · 02 compliance_scoring
+05_agents/   01 run_agent_pipeline · 02 interpret_uploaded_regulation
+06_export/   01 entity_tables · 02 gold_star_schema · 03 graph · 04 purview_assets · 05 impact_reports
+07_audit/    01 audit_data_quality
+08_fabric/   01 load_lakehouse (PySpark) · 02 publish_semantic_model_and_data_agent
+</code></pre>
+<blockquote>
+<p><strong>Why the bootstrap cell is in every notebook:</strong> each notebook runs in its own
+kernel (locally and in Fabric), so <code>sys.path</code> set in one notebook is not visible
+to the next. The bootstrap cell makes each notebook standalone and is the single
+place to hard-set <code>ROOT</code> on Fabric if auto-detection fails. Keep it.</p>
+</blockquote>
+<h3 id="61-demo-run-sheet">6.1 Demo run sheet</h3>
+<p>Run the notebooks <strong>in folder order, top to bottom, one cell at a time</strong>. This is
+the dependency order. For a first run you can skip the <em>optional</em> stages and still
+get a complete, audited demo.</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Notebook</th>
+<th>What it does</th>
+<th>Required?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>01_setup/01_install_dependencies</code></td>
+<td>Installs Python packages</td>
+<td>Once per environment</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>01_setup/02_configure_environment</code></td>
+<td>Confirms root resolves; prints settings</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>02_inputs/01_explore_catalog</code></td>
+<td>Shows the seed catalog</td>
+<td>Optional (narrative)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>02_inputs/02_explore_regulation_documents</code></td>
+<td>Shows raw regulation text</td>
+<td>Optional (narrative)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>03_build/01_generate_estate</code></td>
+<td>Builds the correlated synthetic estate</td>
+<td>✅ <strong>core</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>04_analyze/01_impact_gap_analysis</code></td>
+<td>Impact + gap detection</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>04_analyze/02_compliance_scoring</code></td>
+<td>As-is / post-change / post-remediation scores</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>05_agents/01_run_agent_pipeline</code></td>
+<td>4-agent pipeline</td>
+<td>Optional (needs LLM)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>05_agents/02_interpret_uploaded_regulation</code></td>
+<td>Interpret a newly uploaded regulation</td>
+<td>Optional (needs LLM)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>06_export/01…05</code></td>
+<td>Entity tables → gold → graph → Purview → reports</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>07_audit/01_audit_data_quality</code></td>
+<td>Integrity audit (expect 122/122 PASS)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>08_fabric/01_load_lakehouse</code></td>
+<td>Load Parquet into the Lakehouse (PySpark)</td>
+<td>Fabric only</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>08_fabric/02_publish_semantic_model_and_data_agent</code></td>
+<td>Publish model + Data Agent</td>
+<td>Fabric only</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommended first run:</strong> <code>1 → 2 → 5 → 6 → 7 → 10 → 11</code>. That builds the estate,
+finds gaps, computes scores, exports every output and proves integrity — no LLM key
+or Fabric workspace needed. Add stages 3–4, 8–9 and 12–13 once the core run is green.</p>
+<h2 id="7-running-inside-a-microsoft-fabric-workspace">7. Running inside a Microsoft Fabric workspace</h2>
+<h3 id="71-what-git-syncs-vs-what-you-importclone">7.1 What Git syncs vs. what you import/clone</h3>
+<p>Fabric Git integration only materialises folders that are <strong>Fabric items</strong> (a
+folder containing a <code>.platform</code> file). Everything else in the repo is invisible to
+the workspace. So the repo is split across two delivery mechanisms:</p>
+<table>
+<thead>
+<tr>
+<th>Repo content</th>
+<th>Is it a Fabric item?</th>
+<th>How it gets into Fabric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fabric/semantic_model/RegImpact.SemanticModel/</code></td>
+<td>✅ yes</td>
+<td><strong>Git</strong> (Update)</td>
+</tr>
+<tr>
+<td><code>**/*.Notebook/</code> (generated notebook items)</td>
+<td>✅ yes</td>
+<td><strong>Git</strong> (Update)</td>
+</tr>
+<tr>
+<td><code>src/</code>, <code>config/</code>, <code>data/</code> (the <code>regimpact</code> engine)</td>
+<td>❌ no</td>
+<td><strong>clone into Lakehouse <code>Files/</code></strong></td>
+</tr>
+<tr>
+<td><code>*.ipynb</code>, <code>diagrams/</code>, <code>output/</code>, docs</td>
+<td>❌ no</td>
+<td>not synced (local-only source)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>The plain <code>.ipynb</code> files stay as the <strong>editable source</strong> for local VS Code work.
+The Fabric-runnable copies are the generated <code>*.Notebook/</code> items.</p>
+</blockquote>
+<h3 id="72-bulk-import-the-notebooks-preserving-the-folder-structure-via-git">7.2 Bulk-import the notebooks (preserving the folder structure) via Git</h3>
+<p>Each <code>.ipynb</code> has a matching Fabric <strong>notebook item</strong> (<code>&lt;name&gt;.Notebook/</code> with a
+<code>.platform</code> + <code>notebook-content.py</code>) generated alongside it. Because each item sits
+in its numbered folder, a single Git <strong>Update</strong> recreates the whole
+<code>01_setup … 08_fabric</code> tree as workspace folders — no one-by-one upload.</p>
+<p>Workflow whenever you change a notebook:</p>
+<pre><code class="language-powershell"># 1. edit the .ipynb locally, then regenerate the Fabric items
+.\.venv\Scripts\python.exe tools\build_fabric_items.py
+# 2. commit + push
+git add .
+git commit -m &quot;Update notebooks&quot;
+git push
+</code></pre>
+<p>Then in Fabric: <strong>Source control → Update</strong>. All 17 notebooks appear under their
+numbered workspace folders.</p>
+<blockquote>
+<p><code>tools/build_fabric_items.py</code> uses a deterministic <code>logicalId</code> per notebook, so
+re-running and re-syncing <strong>updates</strong> the same items instead of creating
+duplicates.</p>
+</blockquote>
+<h3 id="73-clone-the-engine-into-the-lakehouse-files">7.3 Clone the engine into the Lakehouse <code>Files/</code></h3>
+<p>Git won't place <code>src/</code>, <code>config/</code>, <code>data/</code> into the Lakehouse, so the first setup
+notebook (<code>01_setup/01_install_dependencies</code>) includes a <strong>Fabric-only clone cell</strong>
+that runs:</p>
+<pre><code class="language-python">git clone https://github.com/muthukr1/RegulatoryChange /lakehouse/default/Files/RegulatoryChange
+</code></pre>
+<p>It is skipped automatically when running locally and re-pulls if already present.</p>
+<h3 id="74-make-the-bootstrap-find-the-code">7.4 Make the bootstrap find the code</h3>
+<p>Auto-detection walks up from the notebook's working directory looking for
+<code>src/regimpact</code> + <code>config/</code>. If that fails on Fabric, set <code>ROOT</code> explicitly in the
+bootstrap cell:</p>
+<pre><code class="language-python">ROOT = Path('/lakehouse/default/Files/RegulatoryChange')
+</code></pre>
+<h3 id="75-lakehouse-is-workspace-only-dont-let-git-overwrite-it">7.5 Lakehouse is workspace-only — don't let Git overwrite it</h3>
+<p>Create the Lakehouse as a <strong>workspace item</strong> (New → Lakehouse). Its <strong>data is never
+in Git</strong> (only metadata can be), so keep it out of the sync scope. When the initial
+Git connection asks for a sync direction with both sides populated, choose the
+direction that <strong>keeps</strong> workspace items — letting Git overwrite the workspace can
+delete an untracked Lakehouse, and there is no item-level recycle bin to restore it.</p>
+<h3 id="76-run-order-on-fabric">7.6 Run order on Fabric</h3>
+<p>Notebooks <code>01</code>–<code>07</code> run on a standard Python notebook attached to the Lakehouse.
+Notebook <code>08_fabric/01_load_lakehouse</code> must run on a <strong>Spark</strong> notebook attached to
+the Lakehouse (it uses the Fabric-provided <code>spark</code> session) — upload
+<code>output/tables/*.parquet</code> to <code>Files/regimpact_raw/</code> and <code>output/gold/*.parquet</code> to
+<code>Files/regimpact_gold/</code> first, then <em>Run all</em>. Finally follow
+<code>08_fabric/02_publish_semantic_model_and_data_agent</code> to publish the model and Data
+Agent.</p>
+<h2 id="8-taking-it-to-azure">8. Taking it to Azure</h2>
+<ol>
+<li><strong>Fabric</strong> — create a Lakehouse, upload <code>output/tables/*.parquet</code>, run
+   <a href="fabric/notebook_load_lakehouse.py"><code>fabric/notebook_load_lakehouse.py</code></a> to
+   create Delta tables + the <code>v_impact</code>, <code>v_compliance</code> and
+   <code>v_capability_health</code> views.</li>
+<li><strong>Data Agent</strong> — create a Fabric Data Agent over the Lakehouse and paste the
+   grounding from
+   <a href="fabric/data_agent_instructions.md"><code>fabric/data_agent_instructions.md</code></a>;
+   add the example questions from
+   <a href="fabric/data_agent_example_questions.md"><code>fabric/data_agent_example_questions.md</code></a>.</li>
+<li><strong>Azure OpenAI</strong> — set <code>AZURE_OPENAI_ENDPOINT</code>, <code>AZURE_OPENAI_API_KEY</code> and
+   <code>AZURE_OPENAI_DEPLOYMENT</code> in <code>.env</code> to make the Interpreter and Control
+   Mapper agents call the model live.</li>
+<li><strong>Purview</strong> — import the glossary and lineage per
+   <a href="purview/README.md"><code>purview/README.md</code></a>.</li>
+</ol>
+<h2 id="9-verified-platform-constraints-current-as-of-2026-06-25">9. Verified platform constraints (current as of 2026-06-25)</h2>
+<p>These are <strong>verified from Microsoft Learn</strong> and directly shape the demo:</p>
+<ul>
+<li><strong>Fabric Data Agent is GA</strong>, uses Azure OpenAI Assistant APIs, read-only,
+  generates NL2SQL / NL2DAX / NL2KQL. Requires <strong>F2+ Fabric capacity</strong>.</li>
+<li>It queries <strong>lakehouse <em>tables</em>, not standalone files</strong> (CSV/JSON must be
+  ingested/exposed as tables) and <strong>does not support unstructured data</strong>
+  (.pdf/.docx/.txt). → Our pipeline loads Parquet into <strong>managed Delta tables</strong>,
+  so it is compliant.</li>
+<li>Supports <strong>up to 5 data sources</strong>; <strong>ontologies and semantic models are
+  valid sources</strong> (aligns with our end goal).</li>
+<li>Responses are capped at <strong>25 rows × 25 columns</strong> and English-only.</li>
+<li>Respects <strong>Microsoft Purview</strong> DLP and access-restriction policies.</li>
+</ul>
+<h2 id="10-audit-items">10. Audit items</h2>
+<ol>
+<li><strong>Data-type uniformity (Rule 3) — VERIFIED 2026-06-25.</strong> An automated audit
+   (<a href="src/regimpact/audit.py"><code>src/regimpact/audit.py</code></a>) reads every exported
+   Parquet file and proves each logical column has the <strong>same physical dtype</strong>
+   everywhere it appears, and that key/numeric/bool columns match their expected
+   family (all <code>id</code>/<code>*_id</code>/<code>*_ids</code> are strings, <code>maturity</code>/<code>target_maturity</code>/
+   <code>maturity_shortfall</code>/<code>estimated_effort_days</code> are ints, <code>score</code>/<code>weight</code> are
+   floats, <code>contains_pii</code>/<code>is_microsoft</code> are bools). <strong>Result: 87/87 PASS.</strong></li>
+<li><strong>Referential integrity (Rule 4) — VERIFIED 2026-06-25.</strong> The same audit
+   validates primary-key uniqueness on all 15 entity tables and every foreign
+   key — including list-valued keys (<code>affected_*_ids</code>) and <strong>all 1,135 typed
+   edge endpoints</strong> — against the in-memory estate. <strong>Result: 35/35 PASS,
+   zero orphan/stale keys.</strong></li>
+<li><strong>Semantic model (GA) — BUILT 2026-06-25.</strong> A Gold star schema
+   (<a href="src/regimpact/gold.py"><code>src/regimpact/gold.py</code></a> → <code>output/gold/</code>, 13 dims +
+   3 facts + 1 bridge) feeds a source-controlled <strong>Power BI semantic model</strong>
+   (TMDL) at <a href="fabric/semantic_model/RegImpact.SemanticModel"><code>fabric/semantic_model/RegImpact.SemanticModel</code></a>
+   with the before/after score measures. Star fact→dimension integrity validated.</li>
+<li><strong>Ontology (preview) — DOCUMENTED 2026-06-25.</strong> Digital Twin Builder is in
+   preview; our typed-edge model maps 1:1 to its entity/relationship types —
+   see <a href="fabric/ontology_mapping.md"><code>fabric/ontology_mapping.md</code></a>. Build it when
+   the preview is adopted.</li>
+</ol>
+<p>Run the audit any time with:</p>
+<pre><code class="language-powershell">$env:PYTHONPATH = &quot;src&quot;
+.\.venv\Scripts\python.exe -m regimpact audit   # exits non-zero if anything fails
+</code></pre>
+<blockquote>
+<p>Items 1 and 2 are closed (logged in <code>changedoc.md</code> / <code>decisions.md</code>). The demo
+is <strong>data-type clean and joinable end to end</strong>. Item 3 (semantic model) is built
+(GA); item 4 (ontology) is documented and staged on the preview.</p>
+</blockquote>
+<h2 id="11-references-verified-2026-06-25">11. References (verified 2026-06-25)</h2>
+<ul>
+<li>Fabric Data Agent (concept): https://learn.microsoft.com/en-us/fabric/data-science/concept-data-agent</li>
+<li>Foundry / Azure OpenAI models: https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure</li>
+<li>Microsoft Purview (hub): https://learn.microsoft.com/en-us/purview/</li>
+<li>Microsoft Purview Unified Catalog: https://learn.microsoft.com/en-us/purview/unified-catalog</li>
+<li>Microsoft Purview Data Map: https://learn.microsoft.com/en-us/purview/data-map</li>
+</ul>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+</script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regulatory Change Impact Intelligence Framework — Azure POC</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --border: #d0d7de;
+    --accent: #0969da;
+    --code-bg: #f6f8fa;
+    --table-alt: #f6f8fa;
+    --quote-border: #d0d7de;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --border: #30363d;
+      --accent: #4493f8;
+      --code-bg: #161b22;
+      --table-alt: #161b22;
+      --quote-border: #30363d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1, h2, h3, h4 {
+    line-height: 1.25;
+    margin-top: 1.8em;
+    margin-bottom: 0.6em;
+    font-weight: 600;
+  }
+  h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; margin-top: 0; }
+  h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1.05rem; }
+  p { margin: 0 0 1em; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 85%;
+    background: var(--code-bg);
+    padding: .2em .4em;
+    border-radius: 6px;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 16px;
+    border-radius: 8px;
+    overflow: auto;
+    border: 1px solid var(--border);
+  }
+  pre code { background: none; padding: 0; font-size: 85%; }
+  blockquote {
+    margin: 0 0 1em;
+    padding: .4em 1em;
+    color: var(--muted);
+    border-left: 4px solid var(--quote-border);
+    background: var(--code-bg);
+    border-radius: 0 6px 6px 0;
+  }
+  blockquote p { margin: .3em 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0 0 1.2em;
+    display: block;
+    overflow-x: auto;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th { background: var(--table-alt); }
+  tbody tr:nth-child(even) { background: var(--table-alt); }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+  details {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin: 0 0 1.2em;
+    background: var(--code-bg);
+  }
+  summary { cursor: pointer; font-weight: 600; }
+  ul, ol { padding-left: 1.6em; }
+  li { margin: .25em 0; }
+  .mermaid { background: var(--bg); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="regulatory-change-impact-intelligence-framework-azure-poc">Regulatory Change Impact Intelligence Framework — Azure POC</h1>
+<p>A generic, data-driven framework that ingests an <strong>incoming regulatory change</strong>
+and produces an <strong>impact + gap assessment</strong> across a bank's controls,
+capabilities, technologies, evidence, systems, business processes, products and
+data — then <strong>scores compliance before and after</strong> the change and recommends
+<strong>remediation</strong> to close each gap.</p>
+<p>Because no real systems are available, the framework generates a <strong>fully
+correlated synthetic bank estate</strong> (a <em>digital twin</em> — referential integrity
+maintained as an explicit relationship graph) so the analysis is realistic and
+easy to demo. The data is shaped to land in <strong>Microsoft Fabric</strong>, be queried in
+natural language by a <strong>Fabric Data Agent</strong>, reasoned over by <strong>agents on Azure
+OpenAI</strong>, and governed by <strong>Microsoft Purview</strong>.</p>
+<blockquote>
+<p><strong>Reference docs.</strong> This README covers the <strong>business context, an overview of
+what we are trying to do, and a summary of the technical architecture</strong>. The
+<strong>technical demo talk track and how to build &amp; run the demo</strong> live in
+<a href="demodocbuild.md"><code>demodocbuild.md</code></a>. Running change history is in
+<a href="changedoc.md"><code>changedoc.md</code></a>; key decisions in <a href="decisions.md"><code>decisions.md</code></a>.</p>
+</blockquote>
+<hr>
+<h2 id="what-we-are-trying-to-do">What we are trying to do</h2>
+<p>Build a <strong>generic, reusable framework</strong> that takes an <strong>incoming regulatory
+change</strong> and produces an <strong>impact + gap assessment</strong> across a bank's controls,
+capabilities, technologies, evidence, systems, processes, products and data —
+then <strong>scores compliance before and after</strong> the change and recommends
+<strong>remediation</strong>. The framework is built on <strong>Azure data + AI services</strong> (Microsoft
+Fabric, Microsoft Purview, Azure OpenAI / Foundry, Fabric Data Agent) and is
+designed to generalise to <em>any</em> regulation, not a single hard-coded one.</p>
+<p>It is intentionally <strong>demoable offline</strong> (deterministic synthetic data + agent
+fallback) while being <strong>wireable to live Azure</strong> services.</p>
+<h2 id="business-outcomes">Business outcomes</h2>
+<table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Faster impact assessment</td>
+<td>Turn a regulatory change into a quantified gap/impact view in minutes, not weeks.</td>
+</tr>
+<tr>
+<td>Provable compliance</td>
+<td>Move from "we claim we comply" to "we can evidence it" via the Evidence layer.</td>
+</tr>
+<tr>
+<td>Board-level narrative</td>
+<td>A compliance score with a clear <strong>As-is → Post-change (dip) → Post-remediation (recovery)</strong> story.</td>
+</tr>
+<tr>
+<td>Prioritised remediation</td>
+<td>Costed, owner-assigned actions ranked by severity and criticality.</td>
+</tr>
+<tr>
+<td>Generic &amp; extensible</td>
+<td>Add any regulation by editing the catalog or uploading regulation text — no code change.</td>
+</tr>
+<tr>
+<td>Trust &amp; governance</td>
+<td>Lineage + glossary in Microsoft Purview; natural-language Q&amp;A via Fabric Data Agent.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Primary audience:</strong> Financial Services (bank) — Risk, Compliance, Data
+Governance and the CDO/CISO office.</p>
+<h2 id="scope-regulations-covered-out-of-the-box">Scope — regulations covered out of the box</h2>
+<p>EU AI Act, NIST AI RMF, DORA, Basel, BCBS 239, GDPR, PSD2, Consumer Duty,
+FCA Operational Resilience, SEC, OCC, MAS, AMLD (13 total). Extensible via
+<a href="src/regimpact/catalog.yaml"><code>src/regimpact/catalog.yaml</code></a> or the Regulation
+Interpreter agent.</p>
+<h2 id="how-it-works-overview">How it works (overview)</h2>
+<h3 id="the-five-layer-model">The five-layer model</h3>
+<p>The framework models compliance as five correlated layers, so a change can be
+traced from the law all the way down to the artefact that proves you comply:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it is</th>
+<th>Entities</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Regulation</td>
+<td>the law and what it requires</td>
+<td><code>regulations</code>, <code>regulatory_changes</code>, <code>obligations</code></td>
+</tr>
+<tr>
+<td>2. Control</td>
+<td>how the bank responds</td>
+<td><code>controls</code> (+ control families)</td>
+</tr>
+<tr>
+<td>3. Capability</td>
+<td>the compliance capability a control realises</td>
+<td><code>capabilities</code></td>
+</tr>
+<tr>
+<td>4. Technology</td>
+<td>the platform/tool that enables the capability</td>
+<td><code>technologies</code></td>
+</tr>
+<tr>
+<td>5. Evidence</td>
+<td>the artefact that proves the control operates</td>
+<td><code>evidence</code></td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>gap</strong> is raised when a control is too immature <strong>or</strong> when it is mature but
+its evidence is Missing/Partial/Stale — i.e. compliance cannot be <em>proven</em>.</p>
+<h3 id="the-four-agents">The four agents</h3>
+<p>Mirroring the analyst workflow, four cooperating agents run the assessment.
+Agents 1–2 call <strong>Azure OpenAI live when configured</strong>, and fall back to
+deterministic logic so the POC always runs offline.</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Input → Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Regulation Interpreter</td>
+<td>regulation text → structured obligations</td>
+</tr>
+<tr>
+<td>2. Control Mapper</td>
+<td>obligations → required controls / capabilities</td>
+</tr>
+<tr>
+<td>3. Gap Analysis</td>
+<td>current state → gaps (maturity + evidence)</td>
+</tr>
+<tr>
+<td>4. Remediation</td>
+<td>gaps → prioritised, costed remediation plan</td>
+</tr>
+</tbody>
+</table>
+<h3 id="compliance-scoring-the-beforeafter-story">Compliance scoring (the before/after story)</h3>
+<p>Every change is scored 0–100 across three scenarios so you can tell the
+board-level narrative: <strong>As-is</strong> (baseline) → <strong>Post-change</strong> (the new
+obligation exposes the gap, score dips) → <strong>Post-remediation</strong> (after the
+recommended actions, score recovers).</p>
+<h3 id="why-this-is-generic">Why this is generic</h3>
+<p>You extend it to <em>any</em> regulation by editing one file —
+<a href="src/regimpact/catalog.yaml"><code>src/regimpact/catalog.yaml</code></a> — or by uploading raw
+regulation text to the <strong>Regulation Interpreter</strong> agent. Add a regulation with
+obligation templates that reference existing capability <em>themes</em>; the generator,
+impact engine and scorer need <strong>no code changes</strong>. Themes are the join that
+keeps every requirement traceable to concrete controls, capabilities,
+technologies and evidence.</p>
+<h2 id="technical-architecture-summary">Technical architecture (summary)</h2>
+<p>The pipeline runs as a Python framework (also packaged as numbered Fabric
+notebooks): a seed catalog builds a correlated synthetic estate, four agents
+interpret and map the change, an impact + scoring engine raises gaps and scores
+compliance, and the results are exported to tables, a graph, a Gold star schema,
+Purview assets and reports. The exports land in <strong>Microsoft Fabric</strong> (Delta
+tables + a Power BI semantic model), are queried in natural language by a
+<strong>Fabric Data Agent</strong>, and are governed by <strong>Microsoft Purview</strong>.</p>
+<p><img alt="Architecture — pipeline stages feeding Microsoft Azure services" src="assets/architecture.png"></p>
+<details>
+<summary>Mermaid source (architecture)</summary>
+
+
+<div class="mermaid">
+flowchart LR
+    subgraph Local["Python framework + numbered Fabric notebooks (this repo)"]
+        direction TB
+        CAT["catalog.yaml<br/>taxonomy + regulations"]
+        GEN["03_build · generator.py<br/>correlated estate / digital twin"]
+        AG["05_agents · 4-agent pipeline<br/>interpret · map · gap · remediate"]
+        IMP["04_analyze · impact.py + scoring.py<br/>gaps · remediation · score"]
+        EXP["06_export · tables · gold · graph<br/>purview · reports"]
+        AUD["07_audit · audit.py<br/>Rule 3 + Rule 4 gate"]
+        CAT --> GEN --> AG --> IMP --> EXP --> AUD
+    end
+
+    subgraph Azure["Microsoft Azure"]
+        AOAI{{"Azure OpenAI / Foundry<br/>Interpreter + Mapper"}}
+        LH[("08_fabric · Lakehouse<br/>Delta tables + views")]
+        SM["Power BI<br/>semantic model TMDL"]
+        DA{{"Fabric Data Agent"}}
+        PV["Microsoft Purview<br/>glossary · lineage"]
+        PBI["Power BI report"]
+    end
+
+    AG -. live calls .-> AOAI
+    EXP -->|Parquet to Delta| LH
+    EXP -->|glossary + lineage| PV
+    LH --> SM
+    SM --> DA
+    LH --> DA
+    SM --> PBI
+    PV -. governs .- LH
+    User(["Business user"]) -->|natural language| DA
+
+</div>
+
+
+</details>
+
+<p>Every relationship in the estate is an explicit, <strong>typed edge</strong>, so the same data
+is simultaneously <strong>tabular</strong> and a <strong>graph</strong> — this is what makes impact
+traceable end to end. The detailed data model, the worked example and the build
+steps are in <a href="demodocbuild.md"><code>demodocbuild.md</code></a>.</p>
+<h3 id="end-goal-agents-over-an-ontology-semantic-model">End goal: agents over an ontology / semantic model</h3>
+<p>The end goal is <strong>agents supported by an ontology and/or semantic models</strong>. The
+platform supports this: a Fabric Data Agent can use up to <strong>five data sources</strong>
+including lakehouses, warehouses, Power BI <strong>semantic models</strong>, KQL databases,
+<strong>ontologies</strong>, and Microsoft Graph. The typed-edge model in this POC is the
+precursor to that ontology.</p>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul>
+<li><strong>Build &amp; run the demo</strong>, the demo talk track, notebook run order and Fabric
+  setup → <a href="demodocbuild.md"><code>demodocbuild.md</code></a>.</li>
+<li><strong>Change history</strong> → <a href="changedoc.md"><code>changedoc.md</code></a>; <strong>key decisions</strong> →
+  <a href="decisions.md"><code>decisions.md</code></a>.</li>
+</ul>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+</script>
+</body>
+</html>
