@@ -1,0 +1,1 @@
+Generate a HANDOFF.md summarizing current state, open PRs, failing tests, and instructions for the next agent or engineer picking up this feature.

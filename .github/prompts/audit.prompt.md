@@ -1,0 +1,1 @@
+Audit the codebase to ensure all exported Parquet schemas pass Rule 3 (Data type uniformity) and Rule 4 (Referential integrity) as specified in the docs.
