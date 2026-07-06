@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1080" viewBox="0 0 1280 1080" role="img" aria-labelledby="title desc">
+<title id="title">Regulatory Change Impact Intelligence Azure Architecture</title>
+<desc id="desc">Azure architecture diagram with service icon-style badges for Entra ID, Azure AI Foundry, Agent Framework adapter, Python core, Fabric, Purview, observability, and offline fallback.</desc>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e1e1e" /></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff" />
+<text x="60" y="72" fill="#1e1e1e" font-size="30" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="60" dy="0">Regulatory Change Impact Intelligence - Azure Architecture</tspan></text>
+<text x="62" y="104" fill="#495057" font-size="16" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="62" dy="0">Azure service icon-style view: Entra-only Foundry Hosted Agent, Agent Framework adapter, deterministic Python engine, Fabric/Purview outputs</tspan></text>
+<rect x="60" y="150" width="250" height="120" rx="12" ry="12" fill="#e3fafc" stroke="#0b7285" stroke-width="2"/>
+<circle cx="94" cy="187" r="7" fill="#0078d4"/><circle cx="112" cy="187" r="7" fill="#0078d4"/><rect x="84" y="200" width="36" height="12" fill="#0078d4" rx="5"/>
+<text x="138" y="195" fill="#0b7285" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="138" dy="0">Business / Risk Users</tspan></text>
+<text x="82" y="246" fill="#0b7285" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="82" dy="0">- Compliance analyst</tspan><tspan x="82" dy="17.5">- Executive stakeholder</tspan><tspan x="82" dy="17.5">- Local CLI demo</tspan></text>
+<rect x="365" y="145" width="250" height="130" rx="12" ry="12" fill="#e7f3ff" stroke="#0078d4" stroke-width="2"/>
+<polygon points="407,167 431,191 407,215 383,191" fill="#0078d4"/><circle cx="407" cy="182" r="7" fill="#ffffff"/><rect x="396" y="195" width="22" height="10" fill="#ffffff" rx="3"/>
+<text x="443" y="190" fill="#0078d4" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="443" dy="0">Microsoft Entra ID</tspan></text>
+<text x="387" y="241" fill="#0078d4" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="387" dy="0">- User auth / OBO</tspan><tspan x="387" dy="17.5">- Managed identity</tspan><tspan x="387" dy="17.5">- No API keys</tspan></text>
+<rect x="675" y="120" width="360" height="175" rx="12" ry="12" fill="#f3f0ff" stroke="#5f3dc4" stroke-width="2"/>
+<rect x="693" y="142" width="48" height="48" rx="8" fill="#0078d4"/><circle cx="708" cy="157" r="5" fill="#ffffff"/><circle cx="727" cy="157" r="5" fill="#ffffff"/><circle cx="717" cy="176" r="5" fill="#ffffff"/><path d="M20 159 L29 159 M18 162 L23 172 M32 162 L26 172" stroke="#ffffff" stroke-width="2" fill="none"/>
+<text x="753" y="165" fill="#5f3dc4" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="753" dy="0">Azure AI Foundry</tspan></text>
+<text x="697" y="216" fill="#5f3dc4" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="697" dy="0">Hosted Agent + model deployment</tspan><tspan x="697" dy="17.5">- Microsoft Agent Framework</tspan><tspan x="697" dy="17.5">- FoundryChatClient</tspan><tspan x="697" dy="17.5">- OpenTelemetry-ready</tspan></text>
+<rect x="650" y="380" width="405" height="150" rx="12" ry="12" fill="#f3f0ff" stroke="#5f3dc4" stroke-width="2"/>
+<rect x="668" y="402" width="48" height="48" rx="8" fill="#0078d4"/><ellipse cx="692" cy="423" rx="16" ry="9" fill="#ffffff"/><polygon points="685,430 693,430 686,438" fill="#ffffff"/>
+<text x="728" y="425" fill="#5f3dc4" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="728" dy="0">Foundry Interpreter Adapter</tspan></text>
+<text x="672" y="476" fill="#5f3dc4" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="672" dy="0">src/regimpact/agents/foundry_interpreter.py</tspan><tspan x="672" dy="17.5">- Entra credential only</tspan><tspan x="672" dy="17.5">- Validates model JSON</tspan><tspan x="672" dy="17.5">- Falls back deterministically</tspan></text>
+<rect x="80" y="365" width="480" height="210" rx="12" ry="12" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2"/>
+<rect x="98" y="387" width="48" height="48" rx="8" fill="#2b8a3e"/><text x="122" y="417" fill="#ffffff" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="122" dy="0">Py</tspan></text>
+<text x="158" y="410" fill="#2b8a3e" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="158" dy="0">Portable Python Core</tspan></text>
+<text x="102" y="461" fill="#2b8a3e" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="102" dy="0">- contracts.py: InterpretRequest/Response</tspan><tspan x="102" dy="17.5">- catalog.yaml + catalog.py</tspan><tspan x="102" dy="17.5">- deterministic interpreter fallback</tspan><tspan x="102" dy="17.5">- control mapper, gaps, remediation, scoring</tspan><tspan x="102" dy="17.5">- pytest + ruff quality gates</tspan></text>
+<rect x="90" y="665" width="325" height="150" rx="12" ry="12" fill="#fff4e6" stroke="#e67700" stroke-width="2"/>
+<ellipse cx="132" cy="695" rx="24" ry="8" fill="#0078d4"/><rect x="108" y="695" width="48" height="30" fill="#0078d4"/><ellipse cx="132" cy="725" rx="24" ry="8" fill="#0078d4"/><path d="M108 704 H156 M108 716 H156" stroke="#ffffff" stroke-width="2"/>
+<text x="168" y="710" fill="#e67700" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="168" dy="0">Generated Artifacts</tspan></text>
+<text x="112" y="761" fill="#e67700" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="112" dy="0">- Parquet tables</tspan><tspan x="112" dy="17.5">- Gold star schema</tspan><tspan x="112" dy="17.5">- graph JSON / GraphML</tspan><tspan x="112" dy="17.5">- reports + audit results</tspan></text>
+<rect x="505" y="650" width="330" height="180" rx="12" ry="12" fill="#f8f0fc" stroke="#9c36b5" stroke-width="2"/>
+<rect x="523" y="672" width="48" height="48" rx="8" fill="#9c36b5"/><rect x="532" y="681" width="13" height="13" fill="#ffffff" rx="2"/><rect x="532" y="698" width="13" height="13" fill="#ffffff" rx="2"/><rect x="549" y="681" width="13" height="13" fill="#ffffff" rx="2"/><rect x="549" y="698" width="13" height="13" fill="#ffffff" rx="2"/>
+<text x="583" y="695" fill="#9c36b5" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="583" dy="0">Microsoft Fabric / OneLake</tspan></text>
+<text x="527" y="746" fill="#9c36b5" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="527" dy="0">- Lakehouse Delta tables</tspan><tspan x="527" dy="17.5">- Power BI semantic model</tspan><tspan x="527" dy="17.5">- Fabric Data Agent Q&amp;A</tspan><tspan x="527" dy="17.5">- Data products for demo</tspan></text>
+<rect x="925" y="650" width="285" height="180" rx="12" ry="12" fill="#e7f3ff" stroke="#0078d4" stroke-width="2"/>
+<circle cx="967" cy="696" r="24" fill="#0078d4"/><path d="M951 696 H983 M967 679 V713" stroke="#ffffff" stroke-width="2"/><ellipse cx="967" cy="696" rx="12" ry="17" fill="none" stroke="#ffffff" stroke-width="2"/>
+<text x="1003" y="695" fill="#0078d4" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="1003" dy="0">Microsoft Purview</tspan></text>
+<text x="947" y="746" fill="#0078d4" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="947" dy="0">- Glossary terms</tspan><tspan x="947" dy="17.5">- Lineage CSV</tspan><tspan x="947" dy="17.5">- Data domain context</tspan><tspan x="947" dy="17.5">- Governance evidence</tspan></text>
+<rect x="865" y="885" width="300" height="135" rx="12" ry="12" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="883" y="913" width="48" height="32" rx="4" fill="#0078d4"/><path d="M891 931 H900 L906 922 L914 937 H923" stroke="#ffffff" stroke-width="2" fill="none"/><rect x="903" y="946" width="8" height="8" fill="#0078d4"/>
+<text x="943" y="930" fill="#495057" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="943" dy="0">Operations / Observability</tspan></text>
+<text x="887" y="981" fill="#495057" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="887" dy="0">- App Insights / Log Analytics</tspan><tspan x="887" dy="17.5">- Audit trails</tspan><tspan x="887" dy="17.5">- CI quality gate</tspan><tspan x="887" dy="17.5">- Secret scan posture</tspan></text>
+<rect x="85" y="895" width="560" height="135" rx="12" ry="12" fill="#fff5f5" stroke="#c92a2a" stroke-width="2"/>
+<polygon points="127,917 147,931 141,957 127,965 113,957 107,931" fill="#c92a2a"/><text x="127" y="948" fill="#ffffff" font-size="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="127" dy="0">✓</tspan></text>
+<text x="163" y="940" fill="#c92a2a" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="163" dy="0">Offline / Failure Path</tspan></text>
+<text x="107" y="991" fill="#c92a2a" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="107" dy="0">If Foundry is disabled, missing, unavailable, malformed, or contract-invalid:</tspan><tspan x="107" dy="17.5">return deterministic catalog/rule output with traceable notes.</tspan></text>
+<polyline points="310,210 365,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="615,210 675,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="185,270 255,365" fill="none" stroke="#0b7285" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="850,295 850,380" fill="none" stroke="#5f3dc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="650,455 560,455" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="560,500 650,500" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="285,575 285,665" fill="none" stroke="#e67700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="415,740 505,740" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="415,780 925,720" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="610,650 260,270" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="925,730 835,730" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="940,295 1015,885" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="560,540 865,925" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="690,530 450,895" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="360,895 360,575" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="337.5" y="200.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="337.5" dy="0">auth</tspan></text>
+<text x="645.0" y="200.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="645.0" dy="0">token</tspan></text>
+<text x="220.0" y="307.5" fill="#0b7285" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="220.0" dy="0">local CLI</tspan></text>
+<text x="850.0" y="327.5" fill="#5f3dc4" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="850.0" dy="0">agent call</tspan></text>
+<text x="605.0" y="445.0" fill="#2b8a3e" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="605.0" dy="0">typed request</tspan></text>
+<text x="605.0" y="490.0" fill="#2b8a3e" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="605.0" dy="0">validated response</tspan></text>
+<text x="285.0" y="610.0" fill="#e67700" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="285.0" dy="0">exports</tspan></text>
+<text x="460.0" y="730.0" fill="#9c36b5" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="460.0" dy="0">Parquet</tspan></text>
+<text x="670.0" y="740.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="670.0" dy="0">lineage</tspan></text>
+<text x="435.0" y="450.0" fill="#9c36b5" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="435.0" dy="0">Q&amp;A / reports</tspan></text>
+<text x="880.0" y="720.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="880.0" dy="0">governance</tspan></text>
+<text x="977.5" y="580.0" fill="#495057" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="977.5" dy="0">telemetry</tspan></text>
+<text x="712.5" y="722.5" fill="#495057" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="712.5" dy="0">audit</tspan></text>
+<text x="570.0" y="702.5" fill="#c92a2a" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="570.0" dy="0">fallback</tspan></text>
+<text x="360.0" y="725.0" fill="#c92a2a" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="360.0" dy="0">deterministic</tspan></text>
+</svg>
