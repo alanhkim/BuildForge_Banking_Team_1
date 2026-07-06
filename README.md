@@ -144,6 +144,20 @@ Future deployment documentation should include:
 - Purview import or publication process.
 - CI/CD workflow and environment configuration.
 
+## Azure infrastructure placeholder
+
+Infrastructure-as-code assets will live under [`infra/`](infra/). The folder currently contains a placeholder so future Azure deployment work has an agreed location.
+
+Expected future contents include:
+
+- Azure resource group and naming definitions.
+- Microsoft Entra app registration, managed identity, and RBAC assignments.
+- Azure AI Foundry project/model/Hosted Agent deployment assets.
+- Microsoft Fabric workspace, Lakehouse, and data ingestion deployment assets.
+- Microsoft Purview account, glossary, and lineage publication assets.
+- Observability resources such as Application Insights or Log Analytics.
+- Environment parameter files for local, demo, and customer-ready deployments.
+
 ## CI/CD and GitHub Actions design placeholder
 
 The repository has quality gates, but the full CI/CD design still needs to be defined. Required GitHub Actions work includes:
