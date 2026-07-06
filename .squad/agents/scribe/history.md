@@ -13,4 +13,4 @@ Agent Scribe initialized and ready for work.
 
 ## Learnings
 
-Initial setup complete.
+- 2026-07-06: Team cast finalized for portable deterministic Regulation Interpreter core work.

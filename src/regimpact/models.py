@@ -56,6 +56,10 @@ class Obligation:
     theme: str
     target_maturity: int
     data_domain_ids: List[str] = field(default_factory=list)
+    summary: Optional[str] = None
+    criticality: Optional[str] = None
+    source_refs: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
 
 @dataclass
 class Technology:

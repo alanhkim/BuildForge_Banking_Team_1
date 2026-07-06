@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "universe_allowlist": ["Alien"],
+  "assignment_strategy": "deterministic"
+}

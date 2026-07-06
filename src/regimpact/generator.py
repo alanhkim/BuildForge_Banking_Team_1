@@ -122,7 +122,11 @@ class EstateGenerator:
             change_id="CHG-DORA",
             theme="ICT_RESILIENCE",
             target_maturity=4,
-            data_domain_ids=["DD-PII"]
+            data_domain_ids=["DD-PII"],
+            summary="Maintain mature ICT continuity and recovery controls.",
+            criticality="Critical",
+            source_refs=["catalog:REG-DORA:OBL-DORA-01"],
+            notes=[]
         )
         self.obligations.append(obl_dora_01)
         

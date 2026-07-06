@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "assignments": [
+    {
+      "assignment_id": "2026-07-06-forge-alien",
+      "universe": "Alien",
+      "created_at": "2026-07-06T10:19:36.984-05:00",
+      "members": ["Ripley", "Bishop", "Hicks", "Lambert", "Scribe", "Ralph"]
+    }
+  ]
+}

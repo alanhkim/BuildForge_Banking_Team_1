@@ -1,9 +1,9 @@
 ---
-updated_at: 2026-07-02T19:39:17.115Z
-focus_area: Initial setup
+updated_at: 2026-07-06T10:19:36.984-05:00
+focus_area: Portable deterministic Regulation Interpreter core tasks 1-4
 active_issues: []
 ---
 
 # What We're Focused On
 
-Getting started. Updated by coordinator at session start.
+Implementing interpreter contracts, deterministic DORA catalog fixture, offline fallback, and schema validation without Foundry Hosted Agent wrapper work.
