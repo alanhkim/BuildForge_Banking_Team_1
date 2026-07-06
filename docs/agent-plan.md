@@ -2,7 +2,7 @@
 
 ## Recommendation
 
-Build the regulatory impact agents as Python, Agent Framework-compatible code first, with deterministic offline fallbacks. Use Microsoft Foundry Agent Service later as a deployment surface, preferably through a Hosted Agent for the orchestrator.
+Build the regulatory impact agents with Microsoft Agent Framework for both Python and C#, with deterministic offline fallbacks. Use Microsoft Foundry Agent Service later as a deployment surface, preferably through a Hosted Agent for the orchestrator.
 
 Prompt Agents are useful for fast prompt-only interpretation and narrative work, but this use case needs deterministic scoring, traceability, auditability, and Fabric-ready Parquet output contracts. Gap analysis and scoring should remain source-of-truth Python engines, not prompt-only agents.
 
@@ -10,8 +10,8 @@ Prompt Agents are useful for fast prompt-only interpretation and narrative work,
 
 | Layer | Recommendation | Rationale |
 | --- | --- | --- |
-| Core implementation | Python classes with Agent Framework-style contracts | Keeps local/offline demo testable and repeatable. |
-| Live LLM calls | Foundry Responses API from Python | Adds Foundry models only when configured. |
+| Core implementation | Microsoft Agent Framework for Python and C# | Keeps local/offline demo testable while allowing selected C# agents or hosts where useful. |
+| Live LLM calls | Foundry Responses API with Entra authentication only | Adds Foundry models only when configured without API keys. |
 | Deployment option | Foundry Hosted Agent | Best fit for custom code, orchestration, identity, and observability. |
 | Prompt-only agents | Use selectively | Good for interpretation prototypes and narration, not deterministic truth. |
 | Fabric Data Agent | Separate downstream consumer | Queries exported Lakehouse/Semantic Model data after the pipeline runs. |
@@ -28,7 +28,7 @@ Prompt Agents are useful for fast prompt-only interpretation and narrative work,
 - Preserve traceability back to source text or seed catalog IDs.
 - Avoid hallucinating obligations.
 - Return schema-valid output every time.
-- Fall back to deterministic catalog/rule logic when Foundry is unavailable.
+- Fall back to deterministic catalog/rule logic when Foundry is unavailable or Entra auth is not configured.
 
 **System prompt:**
 
@@ -45,7 +45,7 @@ If the source text is incomplete, mark uncertainty explicitly in the `notes` fie
 **Plan:**
 1. Create a typed obligation contract.
 2. Implement deterministic DORA catalog fallback first.
-3. Add optional Foundry call behind configuration.
+3. Add optional Foundry call behind Entra authentication; do not support API-key authentication.
 4. Validate model output against schema before returning.
 5. Add tests for DORA interpretation and malformed text fallback.
 
@@ -183,13 +183,13 @@ Return concise Markdown with three sections: As-is, Post-change, Post-remediatio
 | 4 | Gap Analysis | Python engineer + QA | Deterministic gaps |
 | 5 | Remediation | Python engineer + domain analyst | Costed actions |
 | 6 | Scoring Engine | Python engineer + QA | Before/after score movement |
-| 7 | Foundry adapter | Data/Fabric engineer + Python engineer | Optional live LLM calls |
+| 7 | Foundry adapter | Data/Fabric engineer + Python/C# engineer | Optional live LLM calls using Entra auth only |
 | 8 | Regression suite | QA | Ruff/pytest-backed confidence |
 
 ## Deployment Path
 
 1. Build local Python agents and deterministic engines first.
-2. Add optional Foundry Responses API adapter for Interpreter and Remediation narration.
+2. Add optional Foundry Responses API adapter for Interpreter and Remediation narration using Entra auth only.
 3. Package the orchestrator as a Foundry Hosted Agent only when a managed endpoint is needed.
 4. Keep Gap Analysis and Scoring deterministic and audited.
 5. Use Fabric Data Agent separately after exports exist and are loaded into Fabric.
