@@ -46,21 +46,21 @@
 <polygon points="127,917 147,931 141,957 127,965 113,957 107,931" fill="#c92a2a"/><text x="127" y="948" fill="#ffffff" font-size="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="127" dy="0">✓</tspan></text>
 <text x="163" y="940" fill="#c92a2a" font-size="18" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="163" dy="0">Offline / Failure Path</tspan></text>
 <text x="107" y="991" fill="#c92a2a" font-size="14" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="start"><tspan x="107" dy="0">If Foundry is disabled, missing, unavailable, malformed, or contract-invalid:</tspan><tspan x="107" dy="17.5">return deterministic catalog/rule output with traceable notes.</tspan></text>
-<polyline points="310,210 365,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="615,210 675,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="185,270 255,365" fill="none" stroke="#0b7285" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="850,295 850,380" fill="none" stroke="#5f3dc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="650,455 560,455" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="560,500 650,500" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="285,575 285,665" fill="none" stroke="#e67700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="415,740 505,740" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="415,780 925,720" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="610,650 260,270" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="925,730 835,730" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="940,295 1015,885" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="560,540 865,925" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="690,530 450,895" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
-<polyline points="360,895 360,575" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="310,210 337,210 337,210 365,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="615,210 645,210 645,210 675,210" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="185,270 185,315 255,315 255,365" fill="none" stroke="#0b7285" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="850,295 850,335 850,335 850,380" fill="none" stroke="#5f3dc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="650,455 610,455 610,455 560,455" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="560,500 605,500 605,500 650,500" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="285,575 285,620 285,620 285,665" fill="none" stroke="#e67700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="415,740 460,740 460,740 505,740" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="415,780 465,780 465,605 925,605 925,720" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="610,650 610,615 35,615 35,250 60,250" fill="none" stroke="#9c36b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="925,730 880,730 880,730 835,730" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="940,295 1215,295 1215,952 1165,952" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="560,540 735,540 735,955 865,955" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="690,530 690,855 450,855 450,895" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<polyline points="360,895 360,845 40,845 40,575 360,575" fill="none" stroke="#c92a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
 <text x="337.5" y="200.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="337.5" dy="0">auth</tspan></text>
 <text x="645.0" y="200.0" fill="#1971c2" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="645.0" dy="0">token</tspan></text>
 <text x="220.0" y="307.5" fill="#0b7285" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" text-anchor="middle"><tspan x="220.0" dy="0">local CLI</tspan></text>

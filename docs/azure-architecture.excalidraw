@@ -2399,7 +2399,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5073,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5073,
       "isDeleted": false,
       "boundElements": null,
@@ -2409,6 +2409,14 @@
       "points": [
         [
           0,
+          0
+        ],
+        [
+          27,
+          0
+        ],
+        [
+          27,
           0
         ],
         [
@@ -2477,7 +2485,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5075,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5075,
       "isDeleted": false,
       "boundElements": null,
@@ -2487,6 +2495,14 @@
       "points": [
         [
           0,
+          0
+        ],
+        [
+          30,
+          0
+        ],
+        [
+          30,
           0
         ],
         [
@@ -2555,7 +2571,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5077,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5077,
       "isDeleted": false,
       "boundElements": null,
@@ -2566,6 +2582,14 @@
         [
           0,
           0
+        ],
+        [
+          0,
+          45
+        ],
+        [
+          70,
+          45
         ],
         [
           70,
@@ -2633,7 +2657,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5079,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5079,
       "isDeleted": false,
       "boundElements": null,
@@ -2644,6 +2668,14 @@
         [
           0,
           0
+        ],
+        [
+          0,
+          40
+        ],
+        [
+          0,
+          40
         ],
         [
           0,
@@ -2695,9 +2727,9 @@
     {
       "id": "a-adapter-core",
       "type": "arrow",
-      "x": 650,
+      "x": 560,
       "y": 455,
-      "width": -90,
+      "width": 90,
       "height": 0,
       "angle": 0,
       "strokeColor": "#2b8a3e",
@@ -2711,7 +2743,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5081,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5081,
       "isDeleted": false,
       "boundElements": null,
@@ -2720,11 +2752,19 @@
       "locked": false,
       "points": [
         [
-          0,
+          90,
           0
         ],
         [
-          -90,
+          50,
+          0
+        ],
+        [
+          50,
+          0
+        ],
+        [
+          0,
           0
         ]
       ],
@@ -2789,7 +2829,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5083,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5083,
       "isDeleted": false,
       "boundElements": null,
@@ -2799,6 +2839,14 @@
       "points": [
         [
           0,
+          0
+        ],
+        [
+          45,
+          0
+        ],
+        [
+          45,
           0
         ],
         [
@@ -2867,7 +2915,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5085,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5085,
       "isDeleted": false,
       "boundElements": null,
@@ -2878,6 +2926,14 @@
         [
           0,
           0
+        ],
+        [
+          0,
+          45
+        ],
+        [
+          0,
+          45
         ],
         [
           0,
@@ -2945,7 +3001,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5087,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5087,
       "isDeleted": false,
       "boundElements": null,
@@ -2955,6 +3011,14 @@
       "points": [
         [
           0,
+          0
+        ],
+        [
+          45,
+          0
+        ],
+        [
+          45,
           0
         ],
         [
@@ -3008,9 +3072,9 @@
       "id": "a-storage-purview",
       "type": "arrow",
       "x": 415,
-      "y": 780,
+      "y": 605,
       "width": 510,
-      "height": -60,
+      "height": 175,
       "angle": 0,
       "strokeColor": "#1971c2",
       "backgroundColor": "transparent",
@@ -3023,7 +3087,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5089,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5089,
       "isDeleted": false,
       "boundElements": null,
@@ -3033,11 +3097,23 @@
       "points": [
         [
           0,
+          175
+        ],
+        [
+          50,
+          175
+        ],
+        [
+          50,
           0
         ],
         [
           510,
-          -60
+          0
+        ],
+        [
+          510,
+          115
         ]
       ],
       "lastCommittedPoint": null,
@@ -3085,10 +3161,10 @@
     {
       "id": "a-fabric-users",
       "type": "arrow",
-      "x": 610,
-      "y": 650,
-      "width": -350,
-      "height": -380,
+      "x": 35,
+      "y": 250,
+      "width": 575,
+      "height": 400,
       "angle": 0,
       "strokeColor": "#9c36b5",
       "backgroundColor": "transparent",
@@ -3101,7 +3177,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5091,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5091,
       "isDeleted": false,
       "boundElements": null,
@@ -3110,12 +3186,24 @@
       "locked": false,
       "points": [
         [
+          575,
+          400
+        ],
+        [
+          575,
+          365
+        ],
+        [
+          0,
+          365
+        ],
+        [
           0,
           0
         ],
         [
-          -350,
-          -380
+          25,
+          0
         ]
       ],
       "lastCommittedPoint": null,
@@ -3163,9 +3251,9 @@
     {
       "id": "a-purview-fabric",
       "type": "arrow",
-      "x": 925,
+      "x": 835,
       "y": 730,
-      "width": -90,
+      "width": 90,
       "height": 0,
       "angle": 0,
       "strokeColor": "#1971c2",
@@ -3179,7 +3267,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5093,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5093,
       "isDeleted": false,
       "boundElements": null,
@@ -3188,11 +3276,19 @@
       "locked": false,
       "points": [
         [
-          0,
+          90,
           0
         ],
         [
-          -90,
+          45,
+          0
+        ],
+        [
+          45,
+          0
+        ],
+        [
+          0,
           0
         ]
       ],
@@ -3243,8 +3339,8 @@
       "type": "arrow",
       "x": 940,
       "y": 295,
-      "width": 75,
-      "height": 590,
+      "width": 275,
+      "height": 657,
       "angle": 0,
       "strokeColor": "#495057",
       "backgroundColor": "transparent",
@@ -3257,7 +3353,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5095,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5095,
       "isDeleted": false,
       "boundElements": null,
@@ -3270,8 +3366,16 @@
           0
         ],
         [
-          75,
-          590
+          275,
+          0
+        ],
+        [
+          275,
+          657
+        ],
+        [
+          225,
+          657
         ]
       ],
       "lastCommittedPoint": null,
@@ -3322,7 +3426,7 @@
       "x": 560,
       "y": 540,
       "width": 305,
-      "height": 385,
+      "height": 415,
       "angle": 0,
       "strokeColor": "#495057",
       "backgroundColor": "transparent",
@@ -3335,7 +3439,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5097,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5097,
       "isDeleted": false,
       "boundElements": null,
@@ -3348,8 +3452,16 @@
           0
         ],
         [
+          175,
+          0
+        ],
+        [
+          175,
+          415
+        ],
+        [
           305,
-          385
+          415
         ]
       ],
       "lastCommittedPoint": null,
@@ -3397,9 +3509,9 @@
     {
       "id": "a-adapter-offline",
       "type": "arrow",
-      "x": 690,
+      "x": 450,
       "y": 530,
-      "width": -240,
+      "width": 240,
       "height": 365,
       "angle": 0,
       "strokeColor": "#c92a2a",
@@ -3413,7 +3525,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5099,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5099,
       "isDeleted": false,
       "boundElements": null,
@@ -3422,11 +3534,19 @@
       "locked": false,
       "points": [
         [
-          0,
+          240,
           0
         ],
         [
-          -240,
+          240,
+          325
+        ],
+        [
+          0,
+          325
+        ],
+        [
+          0,
           365
         ]
       ],
@@ -3475,10 +3595,10 @@
     {
       "id": "a-offline-core",
       "type": "arrow",
-      "x": 360,
-      "y": 895,
-      "width": 0,
-      "height": -320,
+      "x": 40,
+      "y": 575,
+      "width": 320,
+      "height": 320,
       "angle": 0,
       "strokeColor": "#c92a2a",
       "backgroundColor": "transparent",
@@ -3491,7 +3611,7 @@
       "frameId": null,
       "roundness": null,
       "seed": 5101,
-      "version": 1,
+      "version": 2,
       "versionNonce": 5101,
       "isDeleted": false,
       "boundElements": null,
@@ -3500,12 +3620,24 @@
       "locked": false,
       "points": [
         [
+          320,
+          320
+        ],
+        [
+          320,
+          270
+        ],
+        [
+          0,
+          270
+        ],
+        [
           0,
           0
         ],
         [
-          0,
-          -320
+          320,
+          0
         ]
       ],
       "lastCommittedPoint": null,
