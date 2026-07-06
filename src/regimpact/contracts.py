@@ -132,7 +132,7 @@ class Obligation:
             errors.append("Obligation summary is required")
 
         # Maturity range validation
-        if not isinstance(self.target_maturity, int):
+        if type(self.target_maturity) is not int:
             errors.append("target_maturity must be an integer")
         elif not (MIN_MATURITY <= self.target_maturity <= MAX_MATURITY):
             raise InvalidMaturityError(

@@ -28,11 +28,28 @@ class Settings:
     fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID", "")
     fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID", "")
     purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME", "")
+    regimpact_foundry_enabled: bool = os.getenv(
+        "REGIMPACT_FOUNDRY_ENABLED",
+        "",
+    ).lower() in {"1", "true", "yes", "on"}
+    foundry_project_endpoint: str = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
+    foundry_model_deployment_name: str = os.getenv(
+        "FOUNDRY_MODEL_DEPLOYMENT_NAME",
+        "",
+    )
+    foundry_api_version: str = os.getenv(
+        "FOUNDRY_API_VERSION",
+        "2025-05-01-preview",
+    )
 
     @property
     def foundry_enabled(self) -> bool:
         """Whether live Foundry/Azure OpenAI integration is configured."""
-        return bool(self.azure_openai_endpoint)
+        return (
+            self.regimpact_foundry_enabled
+            and bool(self.foundry_project_endpoint)
+            and bool(self.foundry_model_deployment_name)
+        )
 
     @property
     def tables_dir(self) -> Path:

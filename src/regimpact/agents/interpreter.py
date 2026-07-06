@@ -9,6 +9,12 @@ from ..contracts import (
     InterpretResponse,
 )
 from ..catalog import CatalogFixture
+from ..settings import Settings, settings
+from .foundry_interpreter import (
+    FoundryInterpreterAdapter,
+    FoundryInterpreterError,
+    foundry_runtime_error_types,
+)
 
 
 class InterpreterAgent:
@@ -19,9 +25,16 @@ class InterpreterAgent:
     deterministic catalog fallback for known regulations like DORA.
     """
 
-    def __init__(self, use_offline_fallback: bool = True):
+    def __init__(
+        self,
+        use_offline_fallback: bool = True,
+        foundry_adapter: FoundryInterpreterAdapter | None = None,
+        app_settings: Settings = settings,
+    ):
         self.use_offline_fallback = use_offline_fallback
         self.catalog = CatalogFixture()
+        self.foundry_adapter = foundry_adapter
+        self.settings = app_settings
 
     def interpret(self, request: InterpretRequest) -> InterpretResponse:
         """
@@ -43,8 +56,15 @@ class InterpreterAgent:
         if self.use_offline_fallback or request.offline_mode:
             return self._deterministic_interpretation(request)
 
-        # TODO: Implement Foundry model path when Entra auth is available
-        # For now, fall back to deterministic
+        if self.settings.foundry_enabled:
+            try:
+                adapter = self.foundry_adapter or FoundryInterpreterAdapter()
+                return adapter.interpret(request)
+            except (FoundryInterpreterError, *foundry_runtime_error_types()) as exc:
+                response = self._deterministic_interpretation(request)
+                response.notes.append(f"Foundry unavailable; deterministic fallback used: {exc}")
+                return response
+
         return self._deterministic_interpretation(request)
 
     def _deterministic_interpretation(self, request: InterpretRequest) -> InterpretResponse:

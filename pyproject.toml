@@ -18,6 +18,12 @@ dependencies = [
     "typer>=0.12",
 ]
 
+[project.optional-dependencies]
+foundry = [
+    "agent-framework",
+    "azure-identity>=1.16",
+]
+
 [project.scripts]
 regimpact = "regimpact.cli:app"
 
