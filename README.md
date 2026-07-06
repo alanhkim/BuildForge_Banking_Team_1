@@ -144,6 +144,28 @@ Future deployment documentation should include:
 - Purview import or publication process.
 - CI/CD workflow and environment configuration.
 
+## CI/CD and GitHub Actions design placeholder
+
+The repository has quality gates, but the full CI/CD design still needs to be defined. Required GitHub Actions work includes:
+
+- **Pull request quality gate:** run `python -m ruff check .`, `python -m pytest`, dependency installation, and artifact-free working-tree checks.
+- **Package validation:** verify editable install, optional `.[foundry]` dependency install, and `python -m regimpact` CLI entry points.
+- **Demo smoke workflow:** run `generate`, `interpret`, `analyze`, `score`, `audit`, and `gold` commands against temporary output directories.
+- **Security checks:** scan for secrets, API-key references, disallowed Semantic Kernel dependencies, and unsafe generated artifacts.
+- **Diagram validation:** parse Excalidraw JSON and SVG XML for committed architecture diagrams.
+- **Fabric artifact validation:** verify Parquet files can be generated and read before publishing to Fabric.
+- **Foundry integration workflow:** define a manually triggered or environment-gated workflow for live Entra-based Foundry smoke tests.
+- **Release workflow:** package the Python engine, publish build artifacts, and attach generated docs/diagrams if needed.
+- **Deployment workflow placeholders:** add future jobs for Fabric Lakehouse publishing, Power BI semantic model deployment, Purview import, and Hosted Agent deployment.
+
+Open CI/CD design questions:
+
+- Which workflows run on every PR versus manual dispatch?
+- Which Azure/Fabric/Foundry checks require protected environments?
+- What branch, tag, or release process promotes demo assets?
+- Where should generated Parquet and report artifacts be retained, if at all?
+- What status checks should be required before merge?
+
 ## Application development placeholder
 
 The current project is an engine and CLI, not yet a full application. A functional application still needs:
