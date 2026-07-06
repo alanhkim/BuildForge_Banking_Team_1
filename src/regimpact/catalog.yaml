@@ -1,0 +1,632 @@
+# =========================================================================== #
+# Regulatory Change Impact Intelligence Framework — Reference Catalog
+# ---------------------------------------------------------------------------
+# Five-layer model (a "digital twin" of the enterprise compliance posture):
+#
+#   Layer 1  Regulation Knowledge Base   regulations + changes + obligations
+#   Layer 2  Control Ontology            control_families / controls
+#   Layer 3  Capability Model            capabilities
+#   Layer 4  Technology Mapping          technologies
+#   Layer 5  Evidence Layer              evidence_types  (instantiated per control)
+#
+# Correlation backbone:
+#   obligation.theme -> themes[*].control_families -> controls
+#   control.family   -> control_families[*].capability  -> capabilities
+#   capability       -> capabilities[*].technologies     -> technologies
+#   control.family   -> control_families[*].evidence      -> evidence (instances)
+#   obligation.theme -> themes[*].data_domains            -> data_domains
+#
+# To support a NEW regulation: add an entry under `regulations` that references
+# existing `themes`. No code changes required.
+# =========================================================================== #
+
+business_units:
+  - { id: BU-RETAIL,   name: "Retail Banking",        division: "Customer" }
+  - { id: BU-COMM,     name: "Commercial Banking",    division: "Customer" }
+  - { id: BU-WEALTH,   name: "Wealth Management",     division: "Customer" }
+  - { id: BU-MARKETS,  name: "Markets & Treasury",    division: "Wholesale" }
+  - { id: BU-OPS,      name: "Operations",            division: "COO" }
+  - { id: BU-RISK,     name: "Risk & Compliance",     division: "CRO" }
+  - { id: BU-TECH,     name: "Technology",            division: "CIO" }
+  - { id: BU-DATA,     name: "Chief Data Office",     division: "CDO" }
+  - { id: BU-FIN,      name: "Finance",               division: "CFO" }
+
+data_domains:
+  - { id: DD-CUSTPII,  name: "Customer PII",          classification: "Restricted",    contains_pii: true }
+  - { id: DD-KYC,      name: "KYC / CDD Data",        classification: "Confidential",  contains_pii: true }
+  - { id: DD-TXN,      name: "Transactions",          classification: "Confidential",  contains_pii: false }
+  - { id: DD-ACCT,     name: "Account Data",          classification: "Confidential",  contains_pii: false }
+  - { id: DD-CREDIT,   name: "Credit & Risk Data",    classification: "Confidential",  contains_pii: false }
+  - { id: DD-TRADE,    name: "Trade & Position Data", classification: "Confidential",  contains_pii: false }
+  - { id: DD-MODEL,    name: "AI / Model Data",       classification: "Confidential",  contains_pii: false }
+  - { id: DD-REF,      name: "Reference Data",        classification: "Internal",      contains_pii: false }
+  - { id: DD-FIN,      name: "Financial / GL Data",   classification: "Confidential",  contains_pii: false }
+  - { id: DD-PAYMT,    name: "Payments Data",         classification: "Confidential",  contains_pii: false }
+
+risks:
+  - { id: RK-FINCRIME, name: "Financial Crime / AML",     category: "Compliance",     inherent_rating: "Critical" }
+  - { id: RK-OPRES,    name: "Operational Resilience",    category: "Operational",    inherent_rating: "High" }
+  - { id: RK-CYBER,    name: "Cyber & ICT",               category: "Technology",     inherent_rating: "Critical" }
+  - { id: RK-CREDIT,   name: "Credit Risk",               category: "Financial",      inherent_rating: "High" }
+  - { id: RK-MARKET,   name: "Market Risk",               category: "Financial",      inherent_rating: "High" }
+  - { id: RK-PRIV,     name: "Data Privacy",              category: "Compliance",     inherent_rating: "High" }
+  - { id: RK-CONDUCT,  name: "Conduct Risk",              category: "Compliance",     inherent_rating: "High" }
+  - { id: RK-REPORT,   name: "Regulatory Reporting",      category: "Compliance",     inherent_rating: "High" }
+  - { id: RK-TPR,      name: "Third-Party Risk",          category: "Operational",    inherent_rating: "High" }
+  - { id: RK-MODEL,    name: "Model / AI Risk",           category: "Compliance",     inherent_rating: "High" }
+
+# --------------------------------------------------------------------------- #
+# Layer 4 — Technologies (enabling platforms / tooling).
+# --------------------------------------------------------------------------- #
+technologies:
+  - { id: TEC-FABRIC,      name: "Microsoft Fabric",            vendor: "Microsoft",   category: "Analytics",   is_microsoft: true }
+  - { id: TEC-ONELAKE,     name: "OneLake",                     vendor: "Microsoft",   category: "Storage",     is_microsoft: true }
+  - { id: TEC-PURVIEW,     name: "Microsoft Purview",           vendor: "Microsoft",   category: "Governance",  is_microsoft: true }
+  - { id: TEC-FOUNDRY,     name: "Azure AI Foundry",            vendor: "Microsoft",   category: "AI",          is_microsoft: true }
+  - { id: TEC-POLICY,      name: "Azure Policy",                vendor: "Microsoft",   category: "Policy",      is_microsoft: true }
+  - { id: TEC-ENTRA,       name: "Microsoft Entra ID",          vendor: "Microsoft",   category: "Identity",    is_microsoft: true }
+  - { id: TEC-DEFENDER,    name: "Microsoft Defender/Sentinel", vendor: "Microsoft",   category: "Security",    is_microsoft: true }
+  - { id: TEC-DATABRICKS,  name: "Databricks",                  vendor: "Databricks",  category: "Analytics",   is_microsoft: false }
+  - { id: TEC-SNOWFLAKE,   name: "Snowflake",                   vendor: "Snowflake",   category: "Storage",     is_microsoft: false }
+  - { id: TEC-INFORMATICA, name: "Informatica",                 vendor: "Informatica", category: "Data Mgmt",   is_microsoft: false }
+  - { id: TEC-SERVICENOW,  name: "ServiceNow",                  vendor: "ServiceNow",  category: "Workflow",    is_microsoft: false }
+  - { id: TEC-COLLIBRA,    name: "Collibra",                    vendor: "Collibra",    category: "Governance",  is_microsoft: false }
+
+# --------------------------------------------------------------------------- #
+# Layer 3 — Capabilities. Each capability is enabled by one or more
+# technologies (Layer 4).
+# --------------------------------------------------------------------------- #
+capabilities:
+  - { id: CAP-DG,      name: "Data Governance",               domain: "Data",        technologies: [TEC-PURVIEW, TEC-FABRIC] }
+  - { id: CAP-LIN,     name: "Data Lineage",                  domain: "Data",        technologies: [TEC-PURVIEW, TEC-FABRIC] }
+  - { id: CAP-DQ,      name: "Data Quality",                  domain: "Data",        technologies: [TEC-FABRIC, TEC-INFORMATICA] }
+  - { id: CAP-MDM,     name: "Metadata & Catalog",            domain: "Data",        technologies: [TEC-PURVIEW, TEC-COLLIBRA] }
+  - { id: CAP-PII,     name: "PII Protection",                domain: "Privacy",     technologies: [TEC-PURVIEW, TEC-DEFENDER] }
+  - { id: CAP-RET,     name: "Data Retention",                domain: "Data",        technologies: [TEC-PURVIEW, TEC-POLICY] }
+  - { id: CAP-AC,      name: "Access Control",                domain: "Security",    technologies: [TEC-ENTRA] }
+  - { id: CAP-AUD,     name: "Auditability & Evidence",       domain: "Governance",  technologies: [TEC-FABRIC, TEC-PURVIEW] }
+  - { id: CAP-REP,     name: "Regulatory Reporting",          domain: "Finance",     technologies: [TEC-FABRIC] }
+  - { id: CAP-MRM,     name: "Model Risk Management",         domain: "AI",          technologies: [TEC-FOUNDRY, TEC-FABRIC] }
+  - { id: CAP-AIG,     name: "AI Governance",                 domain: "AI",          technologies: [TEC-FOUNDRY, TEC-PURVIEW] }
+  - { id: CAP-TDQ,     name: "Training Data Quality",         domain: "AI",          technologies: [TEC-FABRIC, TEC-FOUNDRY] }
+  - { id: CAP-TRACE,   name: "Traceability & Explainability", domain: "AI",          technologies: [TEC-FOUNDRY, TEC-PURVIEW] }
+  - { id: CAP-RES,     name: "Operational Resilience",        domain: "Resilience",  technologies: [TEC-SERVICENOW, TEC-FABRIC] }
+  - { id: CAP-INC,     name: "Incident Management",           domain: "Resilience",  technologies: [TEC-SERVICENOW, TEC-DEFENDER] }
+  - { id: CAP-TPR,     name: "Third-Party / ICT Dependency",  domain: "Resilience",  technologies: [TEC-SERVICENOW] }
+  - { id: CAP-CYBER,   name: "Cyber Security",                domain: "Security",    technologies: [TEC-DEFENDER, TEC-ENTRA] }
+  - { id: CAP-FC,      name: "Financial Crime Detection",     domain: "FinCrime",    technologies: [TEC-FABRIC] }
+  - { id: CAP-SANCT,   name: "Sanctions Screening",           domain: "FinCrime",    technologies: [TEC-FABRIC] }
+  - { id: CAP-AUTH,    name: "Strong Authentication",         domain: "Security",    technologies: [TEC-ENTRA] }
+  - { id: CAP-CAPITAL, name: "Capital & RWA",                 domain: "Prudential",  technologies: [TEC-FABRIC] }
+  - { id: CAP-COND,    name: "Conduct & Fair Value",          domain: "Conduct",     technologies: [TEC-FABRIC] }
+
+# --------------------------------------------------------------------------- #
+# Layer 5 — Evidence types. Each is produced by a technology and proves a
+# control is operating. Instantiated per control by the generator with a status.
+# --------------------------------------------------------------------------- #
+evidence_types:
+  - { id: EV-LINEAGE,   name: "Purview Lineage Graph",        technology_id: TEC-PURVIEW }
+  - { id: EV-CLASS,     name: "Data Classification Report",   technology_id: TEC-PURVIEW }
+  - { id: EV-AUDIT,     name: "Fabric Audit Log",             technology_id: TEC-FABRIC }
+  - { id: EV-AGENTEVAL, name: "Agent Evaluation Report",      technology_id: TEC-FOUNDRY }
+  - { id: EV-MODELCARD, name: "Model Card",                   technology_id: TEC-FOUNDRY }
+  - { id: EV-DLP,       name: "DLP Policy Attestation",       technology_id: TEC-DEFENDER }
+  - { id: EV-ACCESS,    name: "Access Review",                technology_id: TEC-ENTRA }
+  - { id: EV-DQ,        name: "Data Quality Dashboard",       technology_id: TEC-FABRIC }
+  - { id: EV-BCP,       name: "Resilience Test Report",       technology_id: TEC-SERVICENOW }
+  - { id: EV-RETENTION, name: "Retention Policy Attestation", technology_id: TEC-PURVIEW }
+  - { id: EV-INCIDENT,  name: "Incident Register",            technology_id: TEC-SERVICENOW }
+  - { id: EV-SAR,       name: "SAR Filing Log",               technology_id: TEC-FABRIC }
+  - { id: EV-CAPREC,    name: "Capital Calc Reconciliation",  technology_id: TEC-FABRIC }
+  - { id: EV-MONITOR,   name: "Model Monitoring Report",      technology_id: TEC-FOUNDRY }
+
+systems:
+  - { id: SYS-CORE,    name: "Core Banking Platform",     category: "Core",      vendor: "Temenos",      criticality: "Critical", data_domains: [DD-ACCT, DD-TXN, DD-CUSTPII] }
+  - { id: SYS-KYC,     name: "KYC / CDD Platform",        category: "Risk",      vendor: "Fenergo",      criticality: "Critical", data_domains: [DD-KYC, DD-CUSTPII] }
+  - { id: SYS-SANCT,   name: "Sanctions Screening",       category: "Risk",      vendor: "FircoSoft",    criticality: "Critical", data_domains: [DD-CUSTPII, DD-PAYMT] }
+  - { id: SYS-TM,      name: "Transaction Monitoring",    category: "Risk",      vendor: "NICE Actimize",criticality: "Critical", data_domains: [DD-TXN, DD-PAYMT] }
+  - { id: SYS-PAY,     name: "Payment Gateway",           category: "Channel",   vendor: "ACI",          criticality: "Critical", data_domains: [DD-PAYMT, DD-TXN] }
+  - { id: SYS-CARD,    name: "Card Management",           category: "Channel",   vendor: "FIS",          criticality: "High",     data_domains: [DD-TXN, DD-CUSTPII] }
+  - { id: SYS-LOS,     name: "Loan Origination",          category: "Channel",   vendor: "nCino",        criticality: "High",     data_domains: [DD-CREDIT, DD-CUSTPII] }
+  - { id: SYS-CREDIT,  name: "Credit Risk Engine",        category: "Risk",      vendor: "SAS",          criticality: "High",     data_domains: [DD-CREDIT, DD-MODEL] }
+  - { id: SYS-LAKE,    name: "Data Lakehouse (Fabric)",   category: "Data",      vendor: "Microsoft",    criticality: "High",     data_domains: [DD-REF, DD-TXN, DD-CREDIT, DD-FIN, DD-MODEL] }
+  - { id: SYS-REGRPT,  name: "Regulatory Reporting",      category: "Reporting", vendor: "AxiomSL",      criticality: "Critical", data_domains: [DD-FIN, DD-CREDIT, DD-TRADE] }
+  - { id: SYS-CRM,     name: "CRM",                       category: "Channel",   vendor: "Salesforce",   criticality: "Medium",   data_domains: [DD-CUSTPII] }
+  - { id: SYS-TRADE,   name: "Trading & Surveillance",    category: "Risk",      vendor: "Bloomberg",    criticality: "High",     data_domains: [DD-TRADE] }
+  - { id: SYS-GL,      name: "General Ledger / Finance",  category: "Core",      vendor: "Oracle",       criticality: "Critical", data_domains: [DD-FIN] }
+  - { id: SYS-IAM,     name: "Identity & Access Mgmt",    category: "Data",      vendor: "Microsoft",    criticality: "Critical", data_domains: [DD-CUSTPII, DD-REF] }
+  - { id: SYS-AIP,     name: "AI / ML Platform",          category: "Data",      vendor: "Microsoft",    criticality: "High",     data_domains: [DD-MODEL, DD-CREDIT, DD-CUSTPII] }
+
+processes:
+  - { id: PR-ONBOARD,  name: "Customer Onboarding",       value_chain: "Acquire",  owner_unit_id: BU-RETAIL, systems: [SYS-KYC, SYS-CRM, SYS-CORE, SYS-IAM], products: [PRD-CURR, PRD-SAV, PRD-CARD] }
+  - { id: PR-PAYMENTS, name: "Payments Processing",       value_chain: "Service",  owner_unit_id: BU-OPS,    systems: [SYS-PAY, SYS-SANCT, SYS-TM, SYS-CORE], products: [PRD-CURR, PRD-CARD] }
+  - { id: PR-LENDING,  name: "Lending & Credit Decision", value_chain: "Acquire",  owner_unit_id: BU-RETAIL, systems: [SYS-LOS, SYS-CREDIT, SYS-CORE, SYS-AIP], products: [PRD-MORT, PRD-PLOAN, PRD-BLOAN] }
+  - { id: PR-TRADING,  name: "Trading & Settlement",      value_chain: "Service",  owner_unit_id: BU-MARKETS,systems: [SYS-TRADE, SYS-REGRPT, SYS-GL], products: [PRD-FX, PRD-DERIV] }
+  - { id: PR-REGRPT,   name: "Regulatory Reporting",      value_chain: "Control",  owner_unit_id: BU-FIN,    systems: [SYS-REGRPT, SYS-LAKE, SYS-GL], products: [] }
+  - { id: PR-FRAUD,    name: "Fraud & Financial Crime",   value_chain: "Control",  owner_unit_id: BU-RISK,   systems: [SYS-TM, SYS-SANCT, SYS-CARD], products: [PRD-CARD, PRD-CURR] }
+  - { id: PR-SERVICE,  name: "Customer Servicing",        value_chain: "Service",  owner_unit_id: BU-RETAIL, systems: [SYS-CRM, SYS-CORE, SYS-IAM], products: [PRD-CURR, PRD-SAV] }
+  - { id: PR-DATAGOV,  name: "Data Governance & Quality", value_chain: "Control",  owner_unit_id: BU-DATA,   systems: [SYS-LAKE, SYS-IAM], products: [] }
+  - { id: PR-AILIFE,   name: "AI Model Lifecycle",        value_chain: "Control",  owner_unit_id: BU-DATA,   systems: [SYS-AIP, SYS-CREDIT, SYS-LAKE], products: [PRD-MORT, PRD-PLOAN] }
+
+products:
+  - { id: PRD-CURR,   name: "Current Accounts",     product_line: "Deposits",   owner_unit_id: BU-RETAIL }
+  - { id: PRD-SAV,    name: "Savings Accounts",     product_line: "Deposits",   owner_unit_id: BU-RETAIL }
+  - { id: PRD-MORT,   name: "Mortgages",            product_line: "Lending",    owner_unit_id: BU-RETAIL }
+  - { id: PRD-PLOAN,  name: "Personal Loans",       product_line: "Lending",    owner_unit_id: BU-RETAIL }
+  - { id: PRD-CARD,   name: "Credit Cards",         product_line: "Cards",      owner_unit_id: BU-RETAIL }
+  - { id: PRD-BLOAN,  name: "Business Loans",       product_line: "Lending",    owner_unit_id: BU-COMM }
+  - { id: PRD-FX,     name: "FX & Spot",            product_line: "Markets",    owner_unit_id: BU-MARKETS }
+  - { id: PRD-DERIV,  name: "Derivatives",         product_line: "Markets",    owner_unit_id: BU-MARKETS }
+  - { id: PRD-INVEST, name: "Investment Products",  product_line: "Wealth",     owner_unit_id: BU-WEALTH }
+
+# --------------------------------------------------------------------------- #
+# Layer 2 — Control families and controls.
+#   capability      : the Layer-3 capability the control realises
+#   evidence        : Layer-5 evidence types that prove the control operates
+#   maturity_bias   : nudge to generated as-is maturity (0 weak .. 2 strong)
+# --------------------------------------------------------------------------- #
+control_families:
+  - id: CF-CDD
+    name: "Customer Due Diligence"
+    owner_unit_id: BU-RISK
+    risk_id: RK-FINCRIME
+    capability: CAP-FC
+    evidence: [EV-AUDIT, EV-CLASS]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-CDD-1, name: "Identity Verification & KYC", systems: [SYS-KYC] }
+      - { id: CTL-CDD-2, name: "Beneficial Ownership Checks", systems: [SYS-KYC] }
+      - { id: CTL-CDD-3, name: "Ongoing Customer Risk Rating", systems: [SYS-KYC, SYS-TM] }
+  - id: CF-SANCT
+    name: "Sanctions Screening"
+    owner_unit_id: BU-RISK
+    risk_id: RK-FINCRIME
+    capability: CAP-SANCT
+    evidence: [EV-AUDIT]
+    maturity_bias: 2
+    controls:
+      - { id: CTL-SAN-1, name: "Real-time Payment Screening", systems: [SYS-SANCT, SYS-PAY] }
+      - { id: CTL-SAN-2, name: "Watchlist Management", systems: [SYS-SANCT] }
+  - id: CF-TM
+    name: "Transaction Monitoring"
+    owner_unit_id: BU-RISK
+    risk_id: RK-FINCRIME
+    capability: CAP-FC
+    evidence: [EV-SAR, EV-AUDIT]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-TM-1, name: "Behavioural Monitoring Scenarios", systems: [SYS-TM] }
+      - { id: CTL-TM-2, name: "Alert Triage & Investigation", systems: [SYS-TM] }
+      - { id: CTL-TM-3, name: "Suspicious Activity Reporting (SAR)", systems: [SYS-TM] }
+  - id: CF-OPRES
+    name: "Operational Resilience"
+    owner_unit_id: BU-OPS
+    risk_id: RK-OPRES
+    capability: CAP-RES
+    evidence: [EV-BCP]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-OR-1, name: "Important Business Service Mapping", systems: [SYS-CORE, SYS-PAY] }
+      - { id: CTL-OR-2, name: "Impact Tolerances & Scenario Testing", systems: [SYS-CORE] }
+      - { id: CTL-OR-3, name: "ICT Continuity & Recovery", systems: [SYS-LAKE, SYS-CORE] }
+  - id: CF-ICTSEC
+    name: "ICT Security & Incident Mgmt"
+    owner_unit_id: BU-TECH
+    risk_id: RK-CYBER
+    capability: CAP-INC
+    evidence: [EV-INCIDENT, EV-DLP]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-IC-1, name: "ICT Incident Detection & Response", systems: [SYS-IAM, SYS-LAKE] }
+      - { id: CTL-IC-2, name: "Major Incident Regulatory Notification", systems: [SYS-IAM] }
+      - { id: CTL-IC-3, name: "Threat-Led Penetration Testing", systems: [SYS-IAM] }
+  - id: CF-TPR
+    name: "Third-Party / Outsourcing Risk"
+    owner_unit_id: BU-RISK
+    risk_id: RK-TPR
+    capability: CAP-TPR
+    evidence: [EV-AUDIT]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-TP-1, name: "Critical Provider Register", systems: [SYS-LAKE] }
+      - { id: CTL-TP-2, name: "Concentration & Exit Strategy", systems: [SYS-LAKE] }
+  - id: CF-CYBER
+    name: "Cyber Security"
+    owner_unit_id: BU-TECH
+    risk_id: RK-CYBER
+    capability: CAP-CYBER
+    evidence: [EV-DLP, EV-ACCESS]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-CY-1, name: "Security Monitoring & SIEM", systems: [SYS-IAM, SYS-LAKE] }
+      - { id: CTL-CY-2, name: "Vulnerability Management", systems: [SYS-IAM] }
+  - id: CF-ACCESS
+    name: "Access Control"
+    owner_unit_id: BU-TECH
+    risk_id: RK-CYBER
+    capability: CAP-AC
+    evidence: [EV-ACCESS]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-AC-1, name: "Role-Based Access & Least Privilege", systems: [SYS-IAM] }
+      - { id: CTL-AC-2, name: "Privileged Access Reviews", systems: [SYS-IAM] }
+  - id: CF-CAPITAL
+    name: "Capital & RWA"
+    owner_unit_id: BU-FIN
+    risk_id: RK-CREDIT
+    capability: CAP-CAPITAL
+    evidence: [EV-CAPREC, EV-AUDIT]
+    maturity_bias: 2
+    controls:
+      - { id: CTL-CAP-1, name: "RWA Calculation Engine", systems: [SYS-CREDIT, SYS-REGRPT] }
+      - { id: CTL-CAP-2, name: "Capital Adequacy Reporting", systems: [SYS-REGRPT] }
+  - id: CF-DATAQ
+    name: "Data Quality & Governance"
+    owner_unit_id: BU-DATA
+    risk_id: RK-REPORT
+    capability: CAP-DQ
+    evidence: [EV-DQ, EV-CLASS]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-DQ-1, name: "Data Quality Rules & Monitoring", systems: [SYS-LAKE] }
+      - { id: CTL-DQ-2, name: "Critical Data Element Catalog", systems: [SYS-LAKE] }
+  - id: CF-LINEAGE
+    name: "Risk Data Aggregation & Lineage"
+    owner_unit_id: BU-DATA
+    risk_id: RK-REPORT
+    capability: CAP-LIN
+    evidence: [EV-LINEAGE, EV-AUDIT]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-LIN-1, name: "End-to-End Data Lineage", systems: [SYS-LAKE, SYS-REGRPT] }
+      - { id: CTL-LIN-2, name: "Reconciliation & Aggregation Controls", systems: [SYS-REGRPT, SYS-GL] }
+  - id: CF-METADATA
+    name: "Metadata & Catalog"
+    owner_unit_id: BU-DATA
+    risk_id: RK-REPORT
+    capability: CAP-MDM
+    evidence: [EV-CLASS, EV-LINEAGE]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-MD-1, name: "Enterprise Data Catalog", systems: [SYS-LAKE] }
+      - { id: CTL-MD-2, name: "Business Glossary", systems: [SYS-LAKE] }
+  - id: CF-RETENTION
+    name: "Data Retention"
+    owner_unit_id: BU-DATA
+    risk_id: RK-PRIV
+    capability: CAP-RET
+    evidence: [EV-RETENTION]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-RT-1, name: "Retention Schedule Enforcement", systems: [SYS-LAKE, SYS-CORE] }
+  - id: CF-PRIV
+    name: "Data Privacy"
+    owner_unit_id: BU-RISK
+    risk_id: RK-PRIV
+    capability: CAP-PII
+    evidence: [EV-CLASS, EV-DLP]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-PR-1, name: "Consent & Lawful Basis Management", systems: [SYS-CRM, SYS-IAM] }
+      - { id: CTL-PR-2, name: "Data Subject Rights (DSAR)", systems: [SYS-CRM, SYS-CORE] }
+      - { id: CTL-PR-3, name: "Personal Data Breach Management", systems: [SYS-IAM] }
+  - id: CF-SCA
+    name: "Strong Customer Authentication"
+    owner_unit_id: BU-TECH
+    risk_id: RK-CYBER
+    capability: CAP-AUTH
+    evidence: [EV-ACCESS, EV-AUDIT]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-SCA-1, name: "Multi-Factor Authentication", systems: [SYS-IAM, SYS-PAY] }
+      - { id: CTL-SCA-2, name: "Transaction Risk Analysis (TRA)", systems: [SYS-PAY, SYS-TM] }
+  - id: CF-CONDUCT
+    name: "Product Governance & Conduct"
+    owner_unit_id: BU-RISK
+    risk_id: RK-CONDUCT
+    capability: CAP-COND
+    evidence: [EV-AUDIT]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-CO-1, name: "Product Approval & Target Market", systems: [SYS-CRM] }
+      - { id: CTL-CO-2, name: "Fair Value Assessment", systems: [SYS-LAKE] }
+      - { id: CTL-CO-3, name: "Customer Outcomes Monitoring", systems: [SYS-LAKE, SYS-CRM] }
+  - id: CF-MRM
+    name: "Model Risk Management"
+    owner_unit_id: BU-RISK
+    risk_id: RK-MODEL
+    capability: CAP-MRM
+    evidence: [EV-MODELCARD, EV-MONITOR]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-MR-1, name: "Model Inventory & Versioning", systems: [SYS-AIP] }
+      - { id: CTL-MR-2, name: "Model Validation & Backtesting", systems: [SYS-AIP, SYS-CREDIT] }
+      - { id: CTL-MR-3, name: "Model Performance Monitoring", systems: [SYS-AIP] }
+  - id: CF-AIGOV
+    name: "AI Governance"
+    owner_unit_id: BU-DATA
+    risk_id: RK-MODEL
+    capability: CAP-AIG
+    evidence: [EV-AGENTEVAL, EV-MODELCARD]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-AI-1, name: "AI System Risk Classification", systems: [SYS-AIP] }
+      - { id: CTL-AI-2, name: "Human Oversight & Approval", systems: [SYS-AIP] }
+      - { id: CTL-AI-3, name: "Bias & Fairness Testing", systems: [SYS-AIP, SYS-LAKE] }
+  - id: CF-TDQ
+    name: "Training Data Quality"
+    owner_unit_id: BU-DATA
+    risk_id: RK-MODEL
+    capability: CAP-TDQ
+    evidence: [EV-DQ, EV-LINEAGE]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-TD-1, name: "Training Data Governance", systems: [SYS-AIP, SYS-LAKE] }
+      - { id: CTL-TD-2, name: "Dataset Documentation & Provenance", systems: [SYS-AIP] }
+  - id: CF-TRACE
+    name: "Traceability & Explainability"
+    owner_unit_id: BU-DATA
+    risk_id: RK-MODEL
+    capability: CAP-TRACE
+    evidence: [EV-MODELCARD, EV-AUDIT]
+    maturity_bias: 0
+    controls:
+      - { id: CTL-TR-1, name: "Decision Logging & Traceability", systems: [SYS-AIP, SYS-LAKE] }
+      - { id: CTL-TR-2, name: "Model Explainability Reporting", systems: [SYS-AIP] }
+  - id: CF-AUDIT
+    name: "Auditability & Evidence"
+    owner_unit_id: BU-RISK
+    risk_id: RK-REPORT
+    capability: CAP-AUD
+    evidence: [EV-AUDIT]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-AU-1, name: "Immutable Audit Trail", systems: [SYS-LAKE, SYS-IAM] }
+      - { id: CTL-AU-2, name: "Evidence Repository", systems: [SYS-LAKE] }
+  - id: CF-REPORT
+    name: "Regulatory Reporting"
+    owner_unit_id: BU-FIN
+    risk_id: RK-REPORT
+    capability: CAP-REP
+    evidence: [EV-AUDIT, EV-CAPREC]
+    maturity_bias: 1
+    controls:
+      - { id: CTL-RP-1, name: "Regulatory Report Production", systems: [SYS-REGRPT] }
+      - { id: CTL-RP-2, name: "Report Review & Sign-off", systems: [SYS-REGRPT, SYS-GL] }
+
+# --------------------------------------------------------------------------- #
+# Capability themes — the join between obligations and controls/data.
+# --------------------------------------------------------------------------- #
+themes:
+  KYC_CDD:           { control_families: [CF-CDD],      data_domains: [DD-KYC, DD-CUSTPII] }
+  SANCTIONS:         { control_families: [CF-SANCT],    data_domains: [DD-CUSTPII, DD-PAYMT] }
+  TXN_MONITORING:    { control_families: [CF-TM],       data_domains: [DD-TXN, DD-PAYMT] }
+  SAR_REPORTING:     { control_families: [CF-TM],       data_domains: [DD-TXN] }
+  ICT_RESILIENCE:    { control_families: [CF-OPRES],    data_domains: [DD-REF] }
+  ICT_SECURITY:      { control_families: [CF-ICTSEC, CF-CYBER], data_domains: [DD-REF, DD-CUSTPII] }
+  INCIDENT_MGMT:     { control_families: [CF-ICTSEC],   data_domains: [DD-REF] }
+  THIRD_PARTY_RISK:  { control_families: [CF-TPR],      data_domains: [DD-REF] }
+  ACCESS_CONTROL:    { control_families: [CF-ACCESS],   data_domains: [DD-CUSTPII, DD-REF] }
+  CYBER:             { control_families: [CF-CYBER],    data_domains: [DD-REF, DD-CUSTPII] }
+  CAPITAL_ADEQUACY:  { control_families: [CF-CAPITAL],  data_domains: [DD-CREDIT, DD-FIN] }
+  DATA_QUALITY:      { control_families: [CF-DATAQ],    data_domains: [DD-REF, DD-FIN] }
+  DATA_LINEAGE:      { control_families: [CF-LINEAGE],  data_domains: [DD-FIN, DD-CREDIT, DD-TRADE] }
+  METADATA:          { control_families: [CF-METADATA], data_domains: [DD-REF] }
+  RETENTION:         { control_families: [CF-RETENTION],data_domains: [DD-CUSTPII, DD-ACCT] }
+  PRIVACY:           { control_families: [CF-PRIV],     data_domains: [DD-CUSTPII] }
+  SCA:               { control_families: [CF-SCA],      data_domains: [DD-PAYMT, DD-CUSTPII] }
+  CONDUCT:           { control_families: [CF-CONDUCT],  data_domains: [DD-CUSTPII, DD-ACCT] }
+  MODEL_RISK:        { control_families: [CF-MRM],      data_domains: [DD-MODEL, DD-CREDIT] }
+  AI_GOVERNANCE:     { control_families: [CF-AIGOV],    data_domains: [DD-MODEL] }
+  TRAINING_DATA:     { control_families: [CF-TDQ],      data_domains: [DD-MODEL, DD-CREDIT] }
+  TRACEABILITY:      { control_families: [CF-TRACE],    data_domains: [DD-MODEL] }
+  AUDITABILITY:      { control_families: [CF-AUDIT],    data_domains: [DD-REF] }
+  REG_REPORTING:     { control_families: [CF-REPORT],   data_domains: [DD-FIN, DD-CREDIT] }
+
+# --------------------------------------------------------------------------- #
+# Demo cohort (Rule 14 / P-30..P-33) — a curated, NAMED cohort with FIXED
+# baseline values so the flagship DORA narrative is deterministic BY DESIGN
+# (not seed-dependent). Only these named controls/evidence are pinned; the rest
+# of the estate stays seeded for scale. Isolation is by explicit named
+# membership (P-31). "Reset to baseline" = re-run `regimpact generate`, which is
+# deterministic (P-32). The pins give a graded, narratable story: one strong
+# control, one partial, one critical.
+# --------------------------------------------------------------------------- #
+demo_cohort:
+  name: "DORA Operational Resilience"
+  regulation: REG-DORA
+  # Pinned as-is maturity (0..5); control status is derived from maturity.
+  # Covers ALL controls behind DORA's four obligations so the flagship
+  # before/after story (dip when the change lands, recover after remediation)
+  # is deterministic and assertable (P-30), not seed-dependent.
+  controls:
+    # ICT resilience (CF-OPRES, obligation target 4) — the flagship graded chain
+    CTL-OR-1: { maturity: 2 }
+    CTL-OR-2: { maturity: 2 }
+    CTL-OR-3: { maturity: 1 }   # the critical gap: target 4 - maturity 1 = shortfall 3
+    # Incident management + ICT security (CF-ICTSEC, target 4)
+    CTL-IC-1: { maturity: 2 }
+    CTL-IC-2: { maturity: 1 }
+    CTL-IC-3: { maturity: 2 }
+    # Cyber (CF-CYBER, ICT security target 4)
+    CTL-CY-1: { maturity: 2 }
+    CTL-CY-2: { maturity: 2 }
+    # Third-party / outsourcing risk (CF-TPR, target 3)
+    CTL-TP-1: { maturity: 1 }
+    CTL-TP-2: { maturity: 2 }
+  # Pinned evidence status per control + evidence type (drives "provable" compliance).
+  evidence:
+    CTL-OR-1: { EV-BCP: Partial }
+    CTL-OR-2: { EV-BCP: Missing }
+    CTL-OR-3: { EV-BCP: Missing }
+    CTL-IC-1: { EV-INCIDENT: Partial, EV-DLP: Missing }
+    CTL-IC-2: { EV-INCIDENT: Missing, EV-DLP: Missing }
+    CTL-IC-3: { EV-INCIDENT: Stale, EV-DLP: Partial }
+    CTL-CY-1: { EV-DLP: Partial, EV-ACCESS: Missing }
+    CTL-CY-2: { EV-DLP: Missing, EV-ACCESS: Stale }
+    CTL-TP-1: { EV-AUDIT: Missing }
+    CTL-TP-2: { EV-AUDIT: Partial }
+
+# --------------------------------------------------------------------------- #
+# Layer 1 — Regulations + obligation templates.
+# `article` records the source clause for the Evidence / audit trail.
+# --------------------------------------------------------------------------- #
+regulations:
+  - id: REG-AIACT
+    name: "EU AI Act"
+    short_code: "EUAIACT"
+    regulator: "European Commission"
+    jurisdiction: "EU"
+    domain: "AI Governance"
+    description: "Risk-based rules for AI systems: data governance, transparency, human oversight and record-keeping for high-risk AI."
+    obligation_templates:
+      - { theme: TRAINING_DATA, article: "Art. 10", criticality: Critical, target_maturity: 4, statement: "Ensure high-risk AI training, validation and testing data sets are relevant, representative and subject to data governance." }
+      - { theme: DATA_LINEAGE,  article: "Art. 10", criticality: High,     target_maturity: 4, statement: "Maintain documented provenance and lineage of data used to train high-risk AI systems." }
+      - { theme: TRACEABILITY,  article: "Art. 12", criticality: High,     target_maturity: 4, statement: "Automatically record events over the lifetime of high-risk AI systems to ensure traceability." }
+      - { theme: AI_GOVERNANCE, article: "Art. 14", criticality: Critical, target_maturity: 4, statement: "Provide effective human oversight of high-risk AI systems during their use." }
+      - { theme: MODEL_RISK,    article: "Art. 15", criticality: High,     target_maturity: 4, statement: "Ensure accuracy, robustness and cybersecurity of high-risk AI systems and monitor performance." }
+
+  - id: REG-NIST
+    name: "NIST AI Risk Management Framework"
+    short_code: "NISTAIRMF"
+    regulator: "NIST"
+    jurisdiction: "US"
+    domain: "AI Governance"
+    description: "Voluntary framework to govern, map, measure and manage risks of AI systems."
+    obligation_templates:
+      - { theme: AI_GOVERNANCE, article: "GOVERN",  criticality: High,   target_maturity: 4, statement: "Establish AI governance structures, policies and accountability for AI risk." }
+      - { theme: MODEL_RISK,    article: "MEASURE", criticality: High,   target_maturity: 4, statement: "Measure AI system performance, robustness and trustworthiness over time." }
+      - { theme: TRACEABILITY,  article: "MANAGE",  criticality: Medium, target_maturity: 3, statement: "Document and trace AI system decisions to support contestability and oversight." }
+
+  - id: REG-DORA
+    name: "Digital Operational Resilience Act"
+    short_code: "DORA"
+    regulator: "European Commission / ESAs"
+    jurisdiction: "EU"
+    domain: "Operational Resilience"
+    description: "ICT risk management, incident reporting, resilience testing and third-party risk for financial entities."
+    obligation_templates:
+      - { theme: ICT_RESILIENCE,   article: "Art. 6",  criticality: Critical, target_maturity: 4, statement: "Maintain a documented ICT risk management framework with mapped important business services and impact tolerances." }
+      - { theme: INCIDENT_MGMT,    article: "Art. 17", criticality: Critical, target_maturity: 4, statement: "Detect, manage and classify ICT-related incidents and report major incidents to regulators within mandated timeframes." }
+      - { theme: ICT_SECURITY,     article: "Art. 24", criticality: High,     target_maturity: 4, statement: "Perform advanced digital operational resilience testing including threat-led penetration testing." }
+      - { theme: THIRD_PARTY_RISK, article: "Art. 28", criticality: High,     target_maturity: 3, statement: "Maintain a register of ICT third-party providers and document exit strategies for critical providers." }
+
+  - id: REG-BASEL
+    name: "Basel III/IV Capital Framework (CRR)"
+    short_code: "BASEL"
+    regulator: "BCBS / EBA"
+    jurisdiction: "Global/EU"
+    domain: "Prudential"
+    description: "Capital adequacy, risk-weighted assets and prudential reporting requirements."
+    obligation_templates:
+      - { theme: CAPITAL_ADEQUACY, article: "CRR Art. 92",  criticality: Critical, target_maturity: 4, statement: "Calculate risk-weighted assets under the revised approaches and maintain required capital ratios." }
+      - { theme: DATA_QUALITY,     article: "CRR Art. 174", criticality: High,     target_maturity: 3, statement: "Ensure data feeding capital calculations meets defined data quality thresholds." }
+      - { theme: REG_REPORTING,    article: "CRR Art. 430", criticality: High,     target_maturity: 3, statement: "Produce accurate prudential reporting with auditable sign-off." }
+
+  - id: REG-BCBS239
+    name: "BCBS 239 Risk Data Aggregation"
+    short_code: "BCBS239"
+    regulator: "BCBS"
+    jurisdiction: "Global"
+    domain: "Risk Data"
+    description: "Principles for effective risk data aggregation and risk reporting."
+    obligation_templates:
+      - { theme: DATA_QUALITY, article: "Principle 3", criticality: High,   target_maturity: 4, statement: "Govern critical data elements with accuracy, completeness and timeliness controls." }
+      - { theme: DATA_LINEAGE, article: "Principle 2", criticality: High,   target_maturity: 4, statement: "Aggregate risk data accurately across the group with full traceability and reconciliation." }
+      - { theme: METADATA,     article: "Principle 1", criticality: Medium, target_maturity: 3, statement: "Maintain an enterprise catalog and glossary of critical risk data elements." }
+
+  - id: REG-GDPR
+    name: "General Data Protection Regulation"
+    short_code: "GDPR"
+    regulator: "EDPB / National DPAs"
+    jurisdiction: "EU"
+    domain: "Data Privacy"
+    description: "Lawful processing, data subject rights and breach notification for personal data."
+    obligation_templates:
+      - { theme: PRIVACY,   article: "Art. 6",  criticality: High,     target_maturity: 4, statement: "Maintain lawful basis and consent records for all processing of personal data." }
+      - { theme: PRIVACY,   article: "Art. 15", criticality: High,     target_maturity: 3, statement: "Fulfil data subject access and erasure requests within statutory timeframes." }
+      - { theme: PRIVACY,   article: "Art. 33", criticality: Critical, target_maturity: 4, statement: "Detect and notify personal data breaches to authorities within 72 hours." }
+      - { theme: RETENTION, article: "Art. 5",  criticality: Medium,   target_maturity: 3, statement: "Retain personal data no longer than necessary and enforce retention schedules." }
+
+  - id: REG-PSD2
+    name: "Payment Services Directive 2"
+    short_code: "PSD2"
+    regulator: "EBA"
+    jurisdiction: "EU"
+    domain: "Payments"
+    description: "Strong customer authentication and secure communication for electronic payments."
+    obligation_templates:
+      - { theme: SCA,            article: "Art. 97",     criticality: Critical, target_maturity: 4, statement: "Apply strong customer authentication to electronic payment transactions." }
+      - { theme: SCA,            article: "RTS Art. 18", criticality: High,     target_maturity: 3, statement: "Support transaction risk analysis exemptions with monitored fraud thresholds." }
+      - { theme: TXN_MONITORING, article: "Art. 96",     criticality: High,     target_maturity: 3, statement: "Monitor payment fraud rates and report against regulatory reference fraud rates." }
+
+  - id: REG-CONSDUTY
+    name: "FCA Consumer Duty"
+    short_code: "CONSDUTY"
+    regulator: "FCA"
+    jurisdiction: "UK"
+    domain: "Conduct"
+    description: "Deliver good outcomes for retail customers across products, price, understanding and support."
+    obligation_templates:
+      - { theme: CONDUCT, article: "PRIN 2A.4", criticality: High, target_maturity: 4, statement: "Assess and evidence fair value across the product lifecycle for retail customers." }
+      - { theme: CONDUCT, article: "PRIN 2A.9", criticality: High, target_maturity: 3, statement: "Monitor customer outcomes and act on evidence of foreseeable harm." }
+
+  - id: REG-FCAOPRES
+    name: "FCA Operational Resilience"
+    short_code: "FCAOPRES"
+    regulator: "FCA / PRA"
+    jurisdiction: "UK"
+    domain: "Operational Resilience"
+    description: "Identify important business services, set impact tolerances and remain within them through severe disruption."
+    obligation_templates:
+      - { theme: ICT_RESILIENCE, article: "SYSC 15A", criticality: High, target_maturity: 4, statement: "Identify important business services and set impact tolerances for severe disruption." }
+      - { theme: INCIDENT_MGMT,  article: "SYSC 15A", criticality: High, target_maturity: 3, statement: "Test the ability to remain within impact tolerances and remediate vulnerabilities." }
+
+  - id: REG-SEC
+    name: "SEC Cybersecurity Disclosure"
+    short_code: "SEC"
+    regulator: "US SEC"
+    jurisdiction: "US"
+    domain: "Cyber Disclosure"
+    description: "Disclosure of material cybersecurity incidents and governance of cybersecurity risk."
+    obligation_templates:
+      - { theme: INCIDENT_MGMT, article: "Item 1.05",   criticality: Critical, target_maturity: 4, statement: "Disclose material cybersecurity incidents promptly after determining materiality." }
+      - { theme: CYBER,         article: "Reg S-K 106", criticality: High,     target_maturity: 3, statement: "Describe processes for assessing, identifying and managing material cybersecurity risks." }
+      - { theme: AUDITABILITY,  article: "Reg S-K 106", criticality: Medium,   target_maturity: 3, statement: "Maintain board oversight evidence of cybersecurity risk governance." }
+
+  - id: REG-OCC
+    name: "OCC Heightened Standards"
+    short_code: "OCC"
+    regulator: "US OCC"
+    jurisdiction: "US"
+    domain: "Risk Governance"
+    description: "Heightened standards for risk governance frameworks of large national banks."
+    obligation_templates:
+      - { theme: MODEL_RISK,   article: "12 CFR 30 App D", criticality: High,   target_maturity: 4, statement: "Maintain an effective model risk management framework with independent validation." }
+      - { theme: AUDITABILITY, article: "12 CFR 30 App D", criticality: High,   target_maturity: 3, statement: "Provide independent audit assurance over the risk governance framework." }
+      - { theme: DATA_QUALITY, article: "12 CFR 30 App D", criticality: Medium, target_maturity: 3, statement: "Ensure risk data supporting the framework is accurate and complete." }
+
+  - id: REG-MAS
+    name: "MAS Technology Risk Management"
+    short_code: "MASTRM"
+    regulator: "MAS (Singapore)"
+    jurisdiction: "SG"
+    domain: "Technology Risk"
+    description: "Guidelines on technology risk management, resilience and cyber security for financial institutions."
+    obligation_templates:
+      - { theme: CYBER,          article: "TRM 9",  criticality: High, target_maturity: 4, statement: "Implement robust cyber security controls and continuous security monitoring." }
+      - { theme: ICT_RESILIENCE, article: "TRM 8",  criticality: High, target_maturity: 4, statement: "Ensure system resilience, availability and recoverability of critical systems." }
+      - { theme: ACCESS_CONTROL, article: "TRM 11", criticality: High, target_maturity: 3, statement: "Enforce strong access controls and privileged access management." }
+
+  - id: REG-AMLD
+    name: "Anti-Money Laundering Directive"
+    short_code: "AMLD"
+    regulator: "FATF / National FIU"
+    jurisdiction: "EU/Global"
+    domain: "Financial Crime"
+    description: "Customer due diligence, ongoing monitoring, sanctions and suspicious activity reporting obligations."
+    obligation_templates:
+      - { theme: KYC_CDD,        article: "Art. 13", criticality: Critical, target_maturity: 4, statement: "Apply risk-based customer due diligence including verified beneficial ownership." }
+      - { theme: TXN_MONITORING, article: "Art. 18", criticality: Critical, target_maturity: 4, statement: "Monitor transactions for suspicious patterns using risk-tuned detection scenarios." }
+      - { theme: SANCTIONS,      article: "Art. 9",  criticality: Critical, target_maturity: 4, statement: "Screen customers and payments against current sanctions and watchlists in real time." }
+      - { theme: SAR_REPORTING,  article: "Art. 33", criticality: High,     target_maturity: 3, statement: "Investigate alerts and file suspicious activity reports within regulatory deadlines." }

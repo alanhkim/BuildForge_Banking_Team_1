@@ -1,18 +1,16 @@
+"""Agent 3 — Gap Analysis. Wraps the deterministic impact engine."""
+from __future__ import annotations
+
+from ..impact import ImpactEngine
+from ..models import Estate
+
+
 class GapAnalysisAgent:
-    def __init__(self, use_offline_fallback: bool = True):
-        self.use_offline_fallback = use_offline_fallback
+    name = "Gap Analysis"
 
-    def perform_analysis(self, mapped_controls: dict, current_state: dict) -> dict:
-        """
-        Performs gap analysis between mapped controls and current state.
-        """
-        if self.use_offline_fallback:
-            return self._offline_fallback_logic(mapped_controls, current_state)
-        # TODO: Implement Azure OpenAI integration
-        pass
+    def __init__(self, estate: Estate):
+        self.est = estate
 
-    def _offline_fallback_logic(self, mapped_controls: dict, current_state: dict) -> dict:
-        """
-        Offline fallback logic for gap analysis.
-        """
-        return {"status": "offline_analysis", "gaps": []}
+    def run(self, change_id: str) -> dict:
+        engine = ImpactEngine(self.est)
+        return engine.analyze_change(change_id)

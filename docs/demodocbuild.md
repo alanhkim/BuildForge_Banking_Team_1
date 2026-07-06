@@ -36,9 +36,9 @@ python -m regimpact gold                   # Gold star schema (dims + facts) for
 python -m regimpact audit                  # data-type (Rule 3) + referential-integrity (Rule 4) audit
 ```
 
-The agents use **Azure OpenAI live** when `AZURE_OPENAI_ENDPOINT`,
-`AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_DEPLOYMENT` are set in `.env`; otherwise they
-fall back to deterministic logic and the whole POC still runs fully offline.
+The agents run deterministic offline by default. Live Azure OpenAI or Foundry
+integration must use Microsoft Entra authentication with `AZURE_OPENAI_ENDPOINT`
+and `AZURE_OPENAI_DEPLOYMENT`; API-key authentication is intentionally unsupported.
 
 Outputs land under `output/`:
 
@@ -277,7 +277,7 @@ Agent.
 
 1. **Fabric** — create a Lakehouse, upload `output/tables/*.parquet`, run [`fabric/notebook_load_lakehouse.py`](fabric/notebook_load_lakehouse.py) to create Delta tables + the `v_impact`, `v_compliance` and `v_capability_health` views.
 2. **Data Agent** — create a Fabric Data Agent over the Lakehouse and paste the grounding from [`fabric/data_agent_instructions.md`](fabric/data_agent_instructions.md); add the example questions from [`fabric/data_agent_example_questions.md`](fabric/data_agent_example_questions.md).
-3. **Azure OpenAI** — set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_DEPLOYMENT` in `.env` to make the Interpreter and Control Mapper agents call the model live.
+3. **Azure OpenAI / Foundry** — use Microsoft Entra authentication only. Set `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` for live integration; keep deterministic offline fallback enabled for demos and tests.
 4. **Purview** — import the glossary and lineage per [`purview/README.md`](purview/README.md).
 
 ## 9. Verified platform constraints (current as of 2026-06-25)

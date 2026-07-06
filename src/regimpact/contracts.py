@@ -36,12 +36,30 @@ class MissingSourceRefsError(ValidationError):
 
 # Known themes for validation
 KNOWN_THEMES = {
+    "ACCESS_CONTROL",
+    "AI_GOVERNANCE",
+    "AUDITABILITY",
+    "CAPITAL_ADEQUACY",
+    "CONDUCT",
+    "CYBER",
     "ICT_RESILIENCE",
-    "DATA_PROTECTION",
-    "OPERATIONAL_RESILIENCE",
-    "CYBER_SECURITY",
+    "ICT_SECURITY",
+    "INCIDENT_MGMT",
+    "KYC_CDD",
+    "METADATA",
+    "MODEL_RISK",
+    "PRIVACY",
+    "REG_REPORTING",
+    "RETENTION",
+    "SANCTIONS",
+    "SAR_REPORTING",
+    "SCA",
     "THIRD_PARTY_RISK",
-    "INCIDENT_REPORTING",
+    "TRACEABILITY",
+    "TRAINING_DATA",
+    "TXN_MONITORING",
+    "DATA_LINEAGE",
+    "DATA_QUALITY",
 }
 
 # Valid maturity range
