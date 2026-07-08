@@ -32,7 +32,7 @@ def test_generate_cli_writes_parquet_to_configured_output(tmp_path, monkeypatch)
     assert (tmp_path / "tables" / "relationships.parquet").exists()
 
 
-def test_interpret_cli_runs_uploaded_regulation_fixture(tmp_path, monkeypatch):
+def test_interpret_cli_surfaces_missing_foundry_configuration(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "settings", Settings(output_dir=tmp_path))
 
     result = runner.invoke(
@@ -50,8 +50,7 @@ def test_interpret_cli_runs_uploaded_regulation_fixture(tmp_path, monkeypatch):
         ],
     )
 
-    assert result.exit_code == 0
-    assert "Agent pipeline" in result.stdout
-    assert "Interpreted obligations" in result.stdout
-    assert (tmp_path / "tables" / "obligations.parquet").exists()
-    assert (tmp_path / "reports" / "impact_CHG-AIACT-UPLOAD.md").exists()
+    assert result.exit_code == 1
+    assert "Foundry interpreter failed" in result.stdout
+    assert "Missing Foundry configuration" in result.stdout
+    assert not (tmp_path / "tables" / "obligations.parquet").exists()

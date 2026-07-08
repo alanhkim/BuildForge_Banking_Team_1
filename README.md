@@ -2,29 +2,29 @@
 
 BuildForge Banking Team 1 is building a reusable financial-services accelerator for regulatory change impact analysis. The current focus is a Python-based framework that turns an incoming regulation or regulatory update into structured obligations, maps those obligations to a synthetic bank estate, identifies compliance gaps, scores the impact, and exports Fabric/Purview-ready data products.
 
-The project is designed to run fully offline for reliable demos while remaining ready for Azure integration through Microsoft Agent Framework, Azure AI Foundry, Microsoft Entra ID, Microsoft Fabric, and Microsoft Purview.
+The project is a Foundry/Fabric-first agentic application built on Microsoft Agent Framework, Azure AI Foundry, Microsoft Entra ID, Microsoft Fabric, Fabric Data Agent, and Microsoft Purview.
 
 ## Overall goals
 
 - Convert regulatory change text or catalog entries into traceable obligations.
 - Map obligations to bank controls, capabilities, systems, processes, products, data domains, technologies, and evidence.
-- Detect maturity and evidence gaps deterministically.
+- Detect maturity and evidence gaps through the agentic assessment workflow.
 - Produce prioritized remediation actions and before/after compliance scores.
 - Export explicit Parquet and Gold star-schema data suitable for Microsoft Fabric Delta Lake ingestion.
 - Support Fabric Data Agent and Purview governance scenarios downstream.
-- Add optional Azure AI Foundry Hosted Agent execution with Entra-only authentication.
-- Preserve deterministic fallback for local demos, tests, and cloud failure recovery.
+- Run Azure AI Foundry Hosted Agent execution with Entra-only authentication.
+- Surface Foundry/Fabric configuration or availability failures explicitly instead of masking them with fallback behavior.
 
 ## Current design
 
-The framework is organized around a deterministic Python core with optional hosted AI boundaries.
+The framework is organized around a Foundry/Fabric-first agentic workflow with explicit data contracts for Fabric ingestion.
 
 | Layer | Current design |
 | --- | --- |
-| Input | Deterministic catalog changes from `src/regimpact/catalog.yaml` plus uploaded regulation text fixtures under `data/regulations/`. |
-| Interpreter | `InterpreterAgent` validates `InterpretRequest`, optionally calls a Foundry adapter, and falls back to catalog/rule output. |
-| Foundry adapter | `src/regimpact/agents/foundry_interpreter.py` uses optional Microsoft Agent Framework + Entra credential setup. API keys and Semantic Kernel are not supported. |
-| Core engine | Catalog-driven synthetic estate generation, control mapping, gap analysis, remediation, and scoring. |
+| Input | Catalog changes from `src/regimpact/catalog.yaml` plus uploaded regulation text fixtures under `data/regulations/`. |
+| Interpreter | `InterpreterAgent` validates `InterpretRequest` and uses Microsoft Agent Framework / Foundry as the agent execution path. |
+| Foundry adapter | `src/regimpact/agents/foundry_interpreter.py` uses Microsoft Agent Framework + Entra credential setup. API keys and Semantic Kernel are not supported. |
+| Core engine | Synthetic estate generation, control mapping, gap analysis, remediation, and scoring. |
 | Outputs | CSV/Parquet entity tables, relationships, Gold star schema, graph artifacts, Markdown reports, and Purview glossary/lineage assets. |
 | Consumers | Microsoft Fabric Lakehouse, Power BI semantic model, Fabric Data Agent, Microsoft Purview, and local CLI demos. |
 | Quality gates | `python -m ruff check .` and `python -m pytest`. |
@@ -40,10 +40,9 @@ Architecture diagrams:
 
 - Python package scaffold under `src/regimpact`.
 - Typed interpreter contracts in `src/regimpact/contracts.py`.
-- Deterministic regulation catalog in `src/regimpact/catalog.yaml`.
+- Regulation catalog in `src/regimpact/catalog.yaml`.
 - Synthetic bank estate generator in `src/regimpact/generator.py`.
-- Regulation Interpreter with deterministic fallback.
-- Optional Foundry interpreter adapter using Microsoft Agent Framework and Entra-only configuration.
+- Regulation Interpreter target architecture using Microsoft Agent Framework / Foundry with Entra-only configuration.
 - Control Mapper, Gap Analysis, Remediation, and Scoring engines.
 - CLI entry point:
 
@@ -67,9 +66,9 @@ Architecture diagrams:
 - Uploaded-regulation demo fixture:
   - `data/regulations/eu_ai_act_high_risk.txt`
 - Regression coverage for:
-  - offline interpreter behavior
+  - interpreter contract behavior
   - schema validation
-  - Foundry fallback paths
+  - Foundry integration boundaries
   - CLI commands
   - impact/scoring invariants
   - export/audit behavior
@@ -82,7 +81,7 @@ Install the package in editable mode:
 python -m pip install -e .
 ```
 
-Install optional Foundry dependencies only when working on live Azure integration:
+Install Foundry dependencies when working on agent integration:
 
 ```bash
 python -m pip install -e ".[foundry]"
@@ -100,7 +99,7 @@ python -m pytest
 - Use Microsoft Entra authentication only for Azure AI Foundry integration.
 - Do not add API-key authentication, API-key settings, or API-key documentation.
 - Do not use Semantic Kernel.
-- Keep deterministic offline fallback available for local and hosted execution.
+- Do not mask Foundry/Fabric failures with deterministic or offline fallback behavior.
 - Validate model output before returning it to downstream engines.
 - Export data explicitly in Parquet for Fabric ingestion.
 
@@ -127,9 +126,9 @@ python -m pytest
 
 Deployment has not been finalized. The intended target architecture is:
 
-1. Local deterministic CLI for development and demos.
-2. Optional Azure AI Foundry integration through Microsoft Agent Framework.
-3. Foundry Hosted Agent wrapper using Entra authentication.
+1. Azure AI Foundry integration through Microsoft Agent Framework.
+2. Foundry Hosted Agent wrapper using Entra authentication.
+3. Fabric-backed local/developer workflow that surfaces missing cloud configuration explicitly.
 4. Fabric Lakehouse ingestion for generated Parquet outputs.
 5. Power BI semantic model and Fabric Data Agent over curated Gold outputs.
 6. Purview glossary and lineage publishing.

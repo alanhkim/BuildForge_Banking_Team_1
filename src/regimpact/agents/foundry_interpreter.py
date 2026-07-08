@@ -1,4 +1,4 @@
-"""Optional Microsoft Agent Framework / Foundry boundary for interpretation."""
+"""Microsoft Agent Framework / Foundry boundary for interpretation."""
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +22,7 @@ _BASE_FOUNDRY_RUNTIME_ERRORS = (
 
 
 def foundry_runtime_error_types() -> tuple[type[BaseException], ...]:
-    """Return explicit exception types that should trigger deterministic fallback."""
+    """Return explicit exception types from optional Foundry dependencies."""
     try:
         azure_core_exceptions = import_module("azure.core.exceptions")
     except ImportError:
@@ -43,7 +43,7 @@ If the source text is incomplete, mark uncertainty in notes rather than guessing
 
 
 class FoundryInterpreterError(Exception):
-    """Raised when the optional Foundry path cannot produce a valid response."""
+    """Raised when the Foundry path cannot produce a valid response."""
 
 
 @dataclass(frozen=True)

@@ -2,14 +2,14 @@
 
 ## Decision
 
-The Regulation Interpreter should exist as a Microsoft Foundry **Hosted Agent** built with **Microsoft Agent Framework**, backed by a portable core interpreter service in this repository.
+The Regulation Interpreter should exist as a Microsoft Foundry **Hosted Agent** built with **Microsoft Agent Framework**, backed by typed contracts in this repository.
 
-The Hosted Agent is the deployment target, but the implementation must not be Hosted-only. The same interpreter core must run:
+The Hosted Agent is the deployment target. Developer and test entry points should exercise the same Foundry-oriented contract and surface missing configuration explicitly:
 
-- locally through `python -m regimpact interpret`
-- in tests with no network access
+- locally through `python -m regimpact interpret` when Foundry configuration is available
+- in tests through mocked Foundry/Agent Framework boundaries
 - inside Foundry as a Hosted Agent
-- with deterministic fallback whenever live model execution is unavailable
+- with explicit errors when live model execution, Entra auth, or Fabric configuration is unavailable
 
 Authentication must use **Microsoft Entra only**. Do not implement API-key authentication.
 
@@ -18,10 +18,10 @@ Authentication must use **Microsoft Entra only**. Do not implement API-key authe
 ```text
 src/regimpact/
   agents/
-    interpreter.py              # portable core interpreter service
+    interpreter.py              # interpreter contract boundary
     foundry_interpreter.py      # Agent Framework Hosted Agent adapter
   contracts.py                  # typed request/response contracts
-  catalog.py                    # deterministic catalog fixtures
+  catalog.py                    # catalog/context fixtures for grounding
 ```
 
 ## Runtime Flow
@@ -36,9 +36,9 @@ Agent Framework wrapper
 RegulationInterpreterService
         |
         +--> validate input
-        +--> use Foundry model path only when enabled and Entra auth is available
+        +--> use Foundry model path with Entra auth
         +--> validate model JSON
-        +--> fall back to deterministic catalog/rule interpreter when needed
+        +--> fail explicitly on missing configuration, auth, or invalid model output
         +--> return structured obligations
 ```
 
@@ -48,12 +48,12 @@ Convert raw regulation text or catalog change entries into structured, traceable
 
 ## Agent Responsibilities
 
-- Read regulation change text, uploaded files, or deterministic catalog entries.
+- Read regulation change text, uploaded files, or catalog entries as grounding context.
 - Extract obligation IDs, themes, summaries, target maturity, criticality, affected data domains, and source references.
 - Preserve traceability to source text or catalog metadata.
 - Return schema-valid JSON every time.
 - Avoid hallucinating regulations, controls, systems, technologies, products, or evidence.
-- Use deterministic fallback for offline demos and failure recovery.
+- Surface Foundry/Fabric failures explicitly instead of masking them with fallback behavior.
 - Use Entra authentication only for Foundry calls.
 
 ## Non-Goals
@@ -74,7 +74,7 @@ Your job is to convert regulatory change text into structured obligations. Extra
 
 Return only JSON matching the required schema. Each obligation must include: id, change_id, theme, summary, target_maturity, criticality, affected_data_domain_ids, and source_refs.
 
-If the source text is incomplete, mark uncertainty explicitly in the `notes` field rather than guessing. Prefer deterministic catalog identifiers when present.
+If the source text is incomplete, mark uncertainty explicitly in the `notes` field rather than guessing. Prefer supplied catalog identifiers when present.
 
 Authentication and service configuration are handled by the host. Never request, emit, or rely on API keys.
 ```
@@ -88,8 +88,7 @@ Authentication and service configuration are handled by the host. Never request,
   "name": "DORA",
   "title": "Critical ICT Resilience Update",
   "source_text": "optional regulation text",
-  "source_path": "optional local path",
-  "offline_mode": true
+  "source_path": "optional local path"
 }
 ```
 
@@ -112,7 +111,7 @@ Authentication and service configuration are handled by the host. Never request,
       "notes": []
     }
   ],
-  "mode": "deterministic-fallback"
+  "mode": "foundry-model"
 }
 ```
 
@@ -121,12 +120,12 @@ Authentication and service configuration are handled by the host. Never request,
 | Order | Task ID | Task | Output |
 | --- | --- | --- | --- |
 | 1 | `interpreter-contracts` | Define typed request/response contracts and validation errors. | Stable interpreter contract module. |
-| 2 | `interpreter-catalog-fixture` | Add deterministic DORA fixture data. | Stable `REG-DORA`, `CHG-DORA`, `OBL-DORA-01` seed. |
-| 3 | `interpreter-fallback` | Implement offline deterministic interpretation. | Network-free interpreter path. |
-| 4 | `interpreter-foundry-adapter` | Add Microsoft Agent Framework / Foundry Hosted Agent adapter. | Hosted Agent boundary using Entra auth only. |
+| 2 | `interpreter-catalog-fixture` | Add DORA fixture data for grounding and tests. | Stable `REG-DORA`, `CHG-DORA`, `OBL-DORA-01` seed. |
+| 3 | `interpreter-foundry-adapter` | Add Microsoft Agent Framework / Foundry Hosted Agent adapter. | Hosted Agent boundary using Entra auth only. |
+| 4 | `interpreter-error-paths` | Fail explicitly on missing Foundry config, auth failures, or invalid model output. | No masked agent failures. |
 | 5 | `interpreter-schema-validation` | Validate all outputs before returning. | Rejection of invalid IDs, themes, maturity, and missing source refs. |
 | 6 | `interpreter-cli-wireup` | Wire `python -m regimpact interpret`. | CLI path using the same core service. |
-| 7 | `interpreter-tests` | Add regression tests. | Tests for DORA fixture, malformed input, validation failures, and offline fallback. |
+| 7 | `interpreter-tests` | Add regression tests. | Tests for DORA grounding, malformed input, validation failures, and Foundry error paths. |
 
 ## Dependency Plan
 
@@ -137,8 +136,6 @@ demo-catalog-seed
         |
 interpreter-contracts + interpreter-catalog-fixture
         |
-interpreter-fallback
-        |
 interpreter-schema-validation
         |
 interpreter-cli-wireup
@@ -148,12 +145,12 @@ interpreter-tests
 agent-regulation-interpreter complete
 ```
 
-`interpreter-foundry-adapter` can proceed after `interpreter-contracts`, but it must not block local deterministic CLI/demo execution.
+`interpreter-foundry-adapter` should proceed after `interpreter-contracts`; local CLI/demo execution should require valid Foundry configuration or return a clear configuration error.
 
 ## Acceptance Criteria
 
 - `python -m regimpact interpret --file ... --regulation REG-DORA --name DORA --title "Critical ICT Resilience Update"` returns structured obligations.
-- Local execution works without network access and without Foundry configuration.
+- Local execution uses Foundry configuration when running agent behavior.
 - Foundry integration uses Entra authentication only.
 - Invalid model JSON never escapes the service boundary.
 - Every returned obligation includes source references.
@@ -161,8 +158,8 @@ agent-regulation-interpreter complete
 
 ## Deployment Path
 
-1. Build and test the portable Python core.
+1. Build and test the typed Python contracts.
 2. Add the Agent Framework adapter.
-3. Package as a Foundry Hosted Agent when a managed endpoint is needed.
-4. Keep deterministic fallback available in both local and Hosted Agent runtimes.
+3. Package as a Foundry Hosted Agent.
+4. Surface missing Foundry/Fabric configuration as actionable errors.
 5. Ground downstream demos on the validated JSON contract, not free-form model output.

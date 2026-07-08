@@ -2,19 +2,19 @@
 
 ## Recommendation
 
-Build the regulatory impact agents with Microsoft Agent Framework for both Python and C#, with deterministic offline fallbacks. Use Microsoft Foundry Agent Service later as a deployment surface, preferably through a Hosted Agent for the orchestrator.
+Build the regulatory impact agents with Microsoft Agent Framework for both Python and C#, with Microsoft Foundry Agent Service as the primary execution surface and Fabric Data Agent as the governed analytics surface.
 
-Prompt Agents are useful for fast prompt-only interpretation and narrative work, but this use case needs deterministic scoring, traceability, auditability, and Fabric-ready Parquet output contracts. Gap analysis and scoring should remain source-of-truth Python engines, not prompt-only agents.
+Prompt-only agents are useful for fast interpretation and narrative work, but this use case needs traceability, auditability, and Fabric-ready Parquet output contracts. Agent outputs must be schema-validated and must surface Foundry/Fabric configuration failures instead of masking them.
 
 ## Architecture Decision
 
 | Layer | Recommendation | Rationale |
 | --- | --- | --- |
-| Core implementation | Microsoft Agent Framework for Python and C# | Keeps local/offline demo testable while allowing selected C# agents or hosts where useful. |
-| Live LLM calls | Foundry Responses API with Entra authentication only | Adds Foundry models only when configured without API keys. |
+| Core implementation | Microsoft Agent Framework for Python and C# | Keeps the application aligned to the Foundry/Fabric agentic architecture while allowing selected C# agents or hosts where useful. |
+| Live LLM calls | Foundry Responses API with Entra authentication only | Uses Foundry models without API keys. |
 | Deployment option | Foundry Hosted Agent | Best fit for custom code, orchestration, identity, and observability. |
-| Prompt-only agents | Use selectively | Good for interpretation prototypes and narration, not deterministic truth. |
-| Fabric Data Agent | Separate downstream consumer | Queries exported Lakehouse/Semantic Model data after the pipeline runs. |
+| Prompt-only agents | Use selectively | Good for interpretation prototypes and narration when governed by schema contracts. |
+| Fabric Data Agent | Governed analytics agent | Queries exported Lakehouse/Semantic Model data and can be exposed as a tool to the orchestrator. |
 
 ## Phase 3: Core Agent Chain
 
@@ -28,7 +28,7 @@ Prompt Agents are useful for fast prompt-only interpretation and narrative work,
 - Preserve traceability back to source text or seed catalog IDs.
 - Avoid hallucinating obligations.
 - Return schema-valid output every time.
-- Fall back to deterministic catalog/rule logic when Foundry is unavailable or Entra auth is not configured.
+- Surface Foundry or Entra configuration failures explicitly; do not hide them behind local fallback logic.
 
 **System prompt:**
 
@@ -39,15 +39,15 @@ Your job is to convert regulatory change text into structured obligations. Extra
 
 Return only JSON matching the required schema. Each obligation must include: id, change_id, theme, summary, target_maturity, criticality, affected_data_domain_ids, and source_refs.
 
-If the source text is incomplete, mark uncertainty explicitly in the `notes` field rather than guessing. Prefer deterministic catalog identifiers when present.
+If the source text is incomplete, mark uncertainty explicitly in the `notes` field rather than guessing. Prefer supplied catalog identifiers when present.
 ```
 
 **Plan:**
 1. Create a typed obligation contract.
-2. Implement deterministic DORA catalog fallback first.
-3. Add optional Foundry call behind Entra authentication; do not support API-key authentication.
+2. Implement the Foundry-backed interpreter path behind Entra authentication; do not support API-key authentication.
+3. Keep catalog fixtures as test/demo inputs, not as agent fallback behavior.
 4. Validate model output against schema before returning.
-5. Add tests for DORA interpretation and malformed text fallback.
+5. Add tests for DORA interpretation, malformed model output, and missing Foundry/Fabric configuration errors.
 
 ### Control Mapper Agent
 
@@ -74,16 +74,16 @@ Return only schema-valid JSON.
 ```
 
 **Plan:**
-1. Implement deterministic theme mapping, starting with `ICT_RESILIENCE -> Operational Resilience -> CTL-OR-3`.
-2. Add a catalog-driven mapping table.
-3. Add optional LLM-assisted ranking later.
+1. Implement the Foundry-backed mapping path with catalog/context grounding.
+2. Add a catalog-driven context table for grounding.
+3. Add LLM-assisted ranking through Microsoft Agent Framework.
 4. Test exact match, no-match, and multiple-candidate behavior.
 
 ### Gap Analysis Agent
 
 **Goal:** Determine whether mapped controls satisfy obligations based on maturity and evidence.
 
-This should be mostly deterministic code, not prompt-led.
+This should be agentic but constrained by auditable contracts, supplied estate context, and validation.
 
 **Tasks:**
 - Compare `target_maturity` to control `maturity`.
@@ -93,20 +93,20 @@ This should be mostly deterministic code, not prompt-led.
 - Build blast radius across systems, processes, products, data domains, and risks.
 - Produce traceable gap records.
 
-**Prompt usage:** Use a prompt only for explanation, never for source-of-truth gap calculation.
+**Prompt usage:** Use Foundry for assessment and explanation while validating that every returned gap references supplied obligations, controls, evidence, and estate IDs.
 
 ```text
 You are the Gap Analysis explainer for a regulatory impact engine.
 
-The gap records have already been calculated deterministically. Your job is only to explain them in business-readable language. Do not change severity, shortfall, evidence status, affected entities, or IDs.
+Assess and explain the supplied gap context in business-readable language. Do not invent severity, shortfall, evidence status, affected entities, or IDs outside the provided context.
 
 If a gap has missing evidence or maturity shortfall, explain both factors. Return concise JSON with `gap_id` and `explanation`.
 ```
 
 **Plan:**
-1. Build deterministic `impact.py`.
-2. Keep `GapAnalysisAgent` as a wrapper over the deterministic engine.
-3. Use LLM only for explanations.
+1. Build the Foundry-backed `GapAnalysisAgent` with explicit input/output contracts.
+2. Validate all IDs and evidence references against the supplied estate.
+3. Use Fabric Data Agent where analytical context is needed from Fabric.
 4. Test maturity gap, missing evidence gap, no gap, and blast-radius traceability.
 
 ### Remediation Agent
@@ -119,7 +119,7 @@ If a gap has missing evidence or maturity shortfall, explain both factors. Retur
 - Estimate effort using severity, maturity shortfall, and evidence state.
 - Rank priority.
 - Produce board-ready remediation narrative.
-- Keep cost and duration deterministic for repeatable demos.
+- Return cost and duration estimates with rationale and confidence, grounded in supplied gap context.
 
 **System prompt:**
 
@@ -130,13 +130,13 @@ Create practical remediation actions from supplied gap records. Use only supplie
 
 Each remediation must include: id, gap_id, owner, priority, estimated_effort_days, action, dependencies, and expected outcome. Keep recommendations concise, auditable, and suitable for risk/compliance stakeholders.
 
-If deterministic effort estimates are supplied, preserve them exactly.
+If effort estimates are supplied, treat them as grounding context and explain any recommended changes.
 ```
 
 **Plan:**
-1. Build deterministic remediation rules.
-2. Preserve known demo behavior, such as Critical + shortfall 3 + Missing evidence = 110 days.
-3. Add LLM narrative only after deterministic action exists.
+1. Build a Foundry-backed remediation planner.
+2. Ground effort, owner, dependency, and priority recommendations in supplied gap context.
+3. Validate returned remediation records before export.
 4. Test effort estimates, owner propagation, and priority ranking.
 
 ## Phase 4: Scoring Engine
@@ -145,7 +145,7 @@ If deterministic effort estimates are supplied, preserve them exactly.
 
 **Goal:** Produce the board-level score story: As-is -> Post-change dip -> Post-remediation recovery.
 
-This should be pure deterministic Python, not a Foundry agent.
+This should be part of the governed agentic workflow with auditable scoring contracts.
 
 **Tasks:**
 - Compute baseline score from current controls and evidence.
@@ -166,8 +166,8 @@ Return concise Markdown with three sections: As-is, Post-change, Post-remediatio
 
 **Plan:**
 1. Add `scoring.py`.
-2. Define a deterministic scoring formula.
-3. Lock DORA demo values or tolerances.
+2. Define a scoring contract that captures rationale, confidence, and traceability.
+3. Validate DORA demo values or tolerances against the agent output contract.
 4. Add invariant tests:
    - `post_change < as_is`
    - `post_remediation > post_change`
@@ -180,20 +180,19 @@ Return concise Markdown with three sections: As-is, Post-change, Post-remediatio
 | 1 | CLI contract + catalog seed prerequisite | Python engineer + domain analyst | Stable DORA input and command surface |
 | 2 | Regulation Interpreter | Domain analyst + Python engineer | Structured obligations |
 | 3 | Control Mapper | Python engineer | Obligation-control mappings |
-| 4 | Gap Analysis | Python engineer + QA | Deterministic gaps |
+| 4 | Gap Analysis | Python engineer + QA | Validated gaps |
 | 5 | Remediation | Python engineer + domain analyst | Costed actions |
 | 6 | Scoring Engine | Python engineer + QA | Before/after score movement |
-| 7 | Foundry adapter | Data/Fabric engineer + Python/C# engineer | Optional live LLM calls using Entra auth only |
+| 7 | Foundry adapter | Data/Fabric engineer + Python/C# engineer | Foundry agent calls using Entra auth only |
 | 8 | Regression suite | QA | Ruff/pytest-backed confidence |
 
 ## Deployment Path
 
-1. Build local Python agents and deterministic engines first.
-2. Add optional Foundry Responses API adapter for Interpreter and Remediation narration using Entra auth only.
-3. Package the orchestrator as a Foundry Hosted Agent only when a managed endpoint is needed.
-4. Keep Gap Analysis and Scoring deterministic and audited.
-5. Use Fabric Data Agent separately after exports exist and are loaded into Fabric.
+1. Build Foundry-backed Python agents using Microsoft Agent Framework and Entra auth only.
+2. Package the orchestrator as a Foundry Hosted Agent.
+3. Integrate Fabric Data Agent as the governed analytics/query surface over Fabric data.
+4. Keep all outputs audited through schema validation, source references, and Fabric-ready export contracts.
 
 ## Next Engineering Step
 
-Implement the prerequisite CLI contract and deterministic catalog seed, then start the Regulation Interpreter with offline fallback and schema tests.
+Implement the Foundry-backed Regulation Interpreter path, fail explicitly when Foundry/Fabric configuration is missing, and add schema/error-path tests.

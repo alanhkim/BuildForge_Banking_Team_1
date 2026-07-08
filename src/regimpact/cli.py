@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .agents import AgentPipeline
+from .agents.foundry_interpreter import FoundryInterpreterError
 from .audit import run_audit
 from .export import export_graph, export_report, export_tables
 from .generator import generate_estate
@@ -88,14 +89,23 @@ def interpret(
     name: str = typer.Option(..., help="Regulation name, e.g. 'EU AI Act'"),
     title: str = typer.Option("Uploaded regulatory change", help="Change title"),
 ) -> None:
-    """Run the offline-safe four-agent pipeline on a regulation document."""
+    """Run the Foundry-backed four-agent pipeline on a regulation document."""
     if not file.exists():
         console.print(f"[red]File not found:[/] {file}")
         raise typer.Exit(code=1)
     text = file.read_text(encoding="utf-8")
     est = _build()
     pipeline = AgentPipeline(est)
-    report = pipeline.run_text(text, regulation_id=regulation, regulation_name=name, change_title=title)
+    try:
+        report = pipeline.run_text(
+            text,
+            regulation_id=regulation,
+            regulation_name=name,
+            change_title=title,
+        )
+    except FoundryInterpreterError as exc:
+        console.print(f"[red]Foundry interpreter failed:[/] {exc}")
+        raise typer.Exit(code=1) from exc
 
     export_tables(est, settings.tables_dir)
     export_graph(est, settings.graph_dir)

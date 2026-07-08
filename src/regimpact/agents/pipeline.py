@@ -23,11 +23,12 @@ from ..models import (
     Regulation,
     RelType,
 )
+from ..contracts import InterpretRequest
 from ..scoring import score_change
 from .control_mapper import ControlMapperAgent
 from .gap_analysis import GapAnalysisAgent
+from .interpreter import InterpreterAgent
 from .remediation import RemediationAgent
-from .text_interpreter import TextRegulationInterpreterAgent
 
 _CRIT = {
     "Low": Criticality.LOW,
@@ -60,19 +61,26 @@ class AgentPipeline:
         effective_date: date | None = None,
     ) -> dict:
         """Interpret raw regulation text and inject + analyse it as a change."""
-        obligations = TextRegulationInterpreterAgent().interpret(
-            text,
-            regulation_name=regulation_name,
+        change_id = f"CHG-{regulation_id.replace('REG-', '')}-UPLOAD"
+        interpretation = InterpreterAgent().interpret(
+            InterpretRequest(
+                regulation_id=regulation_id,
+                change_id=change_id,
+                name=regulation_name,
+                title=change_title,
+                source_text=text,
+            )
         )
-        change_id = self._inject(
-            obligations,
+        self._inject(
+            interpretation.obligations,
             regulation_id=regulation_id,
             regulation_name=regulation_name,
             change_title=change_title,
             effective_date=effective_date or date(2026, 12, 31),
         )
         report = self.run(change_id)
-        report["interpreted_obligations"] = len(obligations)
+        report["llm_mode"] = interpretation.mode
+        report["interpreted_obligations"] = len(interpretation.obligations)
         return report
 
     # ------------------------------------------------------------------ #
@@ -103,9 +111,9 @@ class AgentPipeline:
             ob_id = f"OBL-{change_id}-{i:02d}"
             self.est.obligations.append(Obligation(
                 id=ob_id, change_id=change_id, regulation_id=regulation_id,
-                statement=ob["statement"], article=ob.get("article", ""), theme=ob["theme"],
-                criticality=_CRIT.get(ob.get("criticality"), Criticality.HIGH),
-                target_maturity=MaturityLevel(int(ob.get("target_maturity", 4))),
+                statement=ob.summary, article=", ".join(ob.source_refs), theme=ob.theme,
+                criticality=_CRIT.get(ob.criticality, Criticality.HIGH),
+                target_maturity=MaturityLevel(ob.target_maturity),
             ))
             self.est.edges.append(Edge(
                 source_id=change_id, source_type="RegulatoryChange", target_id=ob_id,
@@ -115,7 +123,7 @@ class AgentPipeline:
     def _report(self, change_id, mapping, gaps, remediation, scores) -> dict:
         return {
             "change_id": change_id,
-            "llm_mode": "Deterministic (offline)",
+            "llm_mode": "validated-assessment",
             "agents": [
                 {"agent": "Regulation Interpreter", "result": f"{gaps['obligations']} obligations"},
                 {"agent": "Control Mapper", "result": f"{mapping['edges_added']} new mappings"},

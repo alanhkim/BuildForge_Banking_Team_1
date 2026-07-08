@@ -31,8 +31,9 @@ before and after** the change and recommends **remediation**. The framework is b
 Foundry, Fabric Data Agent) and is designed to generalise to *any* regulation, not a
 single hard-coded one.
 
-It is intentionally **demoable offline** (deterministic synthetic data + agent fallback)
-while being **wireable to live Azure** services.
+It is intentionally **Foundry/Fabric-first**: the agent workflow is expected to use
+Microsoft Agent Framework, Azure AI Foundry, and Fabric Data Agent rather than masking
+cloud configuration issues with local fallback behavior.
 
 ## Business outcomes
 
@@ -75,9 +76,9 @@ evidence is Missing/Partial/Stale — i.e. compliance cannot be *proven*.
 
 ### The four agents
 
-Mirroring the analyst workflow, four cooperating agents run the assessment. Agents 1–2
-call **Azure OpenAI live when configured**, and fall back to deterministic logic so the
-POC always runs offline.
+Mirroring the analyst workflow, four cooperating agents run the assessment through
+the Foundry/Fabric agentic architecture. Foundry or Fabric configuration failures
+should surface explicitly so they can be fixed instead of hidden by local fallback logic.
 
 | Agent | Input → Output |
 | --- | --- |

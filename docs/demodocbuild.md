@@ -18,7 +18,7 @@
 5. In Fabric, ask the **Data Agent**: *"Which products are affected by the DORA change and what should we do first?"* and *"Which capability is weakest and what technology enables it?"* — the maintained relationships answer in plain English.
 6. Show **Purview** lineage: *"Customer PII flows into these obligations"* — the governance/trust story.
 
-## 2. Quick start (offline POC)
+## 2. Quick start (developer POC)
 
 ```powershell
 python -m venv .venv
@@ -36,9 +36,10 @@ python -m regimpact gold                   # Gold star schema (dims + facts) for
 python -m regimpact audit                  # data-type (Rule 3) + referential-integrity (Rule 4) audit
 ```
 
-The agents run deterministic offline by default. Live Azure OpenAI or Foundry
-integration must use Microsoft Entra authentication with `AZURE_OPENAI_ENDPOINT`
-and `AZURE_OPENAI_DEPLOYMENT`; API-key authentication is intentionally unsupported.
+The agents are intended to run through the Foundry/Fabric agentic path. Live Azure
+OpenAI or Foundry integration must use Microsoft Entra authentication with
+`AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`; API-key authentication is
+intentionally unsupported.
 
 Outputs land under `output/`:
 
@@ -136,7 +137,7 @@ src/regimpact/
   export.py                     tables / graph / report export
   purview.py                    glossary + lineage export
   cli.py                        command-line interface
-  agents/                       4-agent pipeline (Azure OpenAI + fallback)
+  agents/                       4-agent pipeline (Foundry/Fabric agentic path)
 fabric/                         Lakehouse load notebook + Data Agent grounding
 purview/                        Purview governance guidance
 ```
@@ -277,7 +278,7 @@ Agent.
 
 1. **Fabric** — create a Lakehouse, upload `output/tables/*.parquet`, run [`fabric/notebook_load_lakehouse.py`](fabric/notebook_load_lakehouse.py) to create Delta tables + the `v_impact`, `v_compliance` and `v_capability_health` views.
 2. **Data Agent** — create a Fabric Data Agent over the Lakehouse and paste the grounding from [`fabric/data_agent_instructions.md`](fabric/data_agent_instructions.md); add the example questions from [`fabric/data_agent_example_questions.md`](fabric/data_agent_example_questions.md).
-3. **Azure OpenAI / Foundry** — use Microsoft Entra authentication only. Set `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` for live integration; keep deterministic offline fallback enabled for demos and tests.
+3. **Azure OpenAI / Foundry** — use Microsoft Entra authentication only. Set `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` for live integration; do not hide missing or failing Foundry/Fabric configuration behind local fallback behavior.
 4. **Purview** — import the glossary and lineage per [`purview/README.md`](purview/README.md).
 
 ## 9. Verified platform constraints (current as of 2026-06-25)

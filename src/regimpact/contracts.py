@@ -79,7 +79,6 @@ class InterpretRequest:
     title: str
     source_text: Optional[str] = None
     source_path: Optional[str] = None
-    offline_mode: bool = True
 
     def validate(self) -> None:
         """Validate required fields."""
@@ -168,7 +167,7 @@ class InterpretResponse:
     regulation_id: str
     change_id: str
     obligations: List[Obligation]
-    mode: Literal["deterministic-fallback", "foundry-model"] = "deterministic-fallback"
+    mode: Literal["foundry-model"] = "foundry-model"
     notes: List[str] = field(default_factory=list)
 
     def validate(self) -> None:
