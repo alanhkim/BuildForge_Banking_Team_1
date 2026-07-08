@@ -1,0 +1,1 @@
+Please summarize the work completed in this session, map it against the acceptance criteria in the constitution, and list the pending incremental tasks.

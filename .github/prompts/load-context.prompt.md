@@ -1,0 +1,1 @@
+Read the constitution from `.specify/memory/constitution.md` and review the data model from the `docs/` folder before suggesting architectural changes.

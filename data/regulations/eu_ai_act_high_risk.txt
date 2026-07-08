@@ -1,0 +1,22 @@
+EU AI Act high-risk banking model update.
+
+Providers and deployers of high-risk AI systems used for creditworthiness,
+pricing, fraud detection, or customer eligibility decisions must establish data
+governance controls over training data, validation data, and testing data so
+datasets are relevant, representative, accurate, and complete.
+
+The bank must maintain documented lineage and provenance for data used to train
+high-risk AI systems, including source systems, transformation history, quality
+checks, approvals, and retained evidence for regulatory review.
+
+High-risk AI systems shall automatically record events and logs throughout the
+model lifecycle so decisions, model outputs, human interventions, and system
+changes remain traceable for audit and supervisory investigation.
+
+The bank must provide effective human oversight for high-risk AI decisions,
+including clear escalation paths, authority to override automated outcomes, and
+evidence that reviewers understand model limitations.
+
+The bank must ensure model robustness, accuracy, cybersecurity, and ongoing
+performance monitoring through validation, backtesting, drift detection, and
+documented remediation when model performance falls below approved thresholds.
