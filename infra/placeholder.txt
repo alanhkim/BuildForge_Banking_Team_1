@@ -1,1 +1,0 @@
-Azure infrastructure-as-code assets will be added here.
