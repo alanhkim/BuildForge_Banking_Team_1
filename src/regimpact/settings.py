@@ -27,6 +27,7 @@ class Settings:
     )
     fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID", "")
     fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID", "")
+    fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID", "")
     purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME", "")
     regimpact_foundry_enabled: bool = os.getenv(
         "REGIMPACT_FOUNDRY_ENABLED",
@@ -41,6 +42,8 @@ class Settings:
         "FOUNDRY_API_VERSION",
         "2025-05-01-preview",
     )
+    foundry_fabric_agent_name: str = os.getenv("FOUNDRY_FABRIC_AGENT_NAME", "")
+    foundry_fabric_agent_version: str = os.getenv("FOUNDRY_FABRIC_AGENT_VERSION", "")
 
     @property
     def foundry_enabled(self) -> bool:
@@ -49,6 +52,17 @@ class Settings:
             self.regimpact_foundry_enabled
             and bool(self.foundry_project_endpoint)
             and bool(self.foundry_model_deployment_name)
+        )
+
+    @property
+    def foundry_fabric_enabled(self) -> bool:
+        """Whether a Foundry agent backed by Fabric Data Agent is configured."""
+        return (
+            bool(self.foundry_project_endpoint)
+            and bool(self.foundry_fabric_agent_name)
+            and bool(self.foundry_fabric_agent_version)
+            and bool(self.fabric_workspace_id)
+            and bool(self.fabric_data_agent_id)
         )
 
     @property

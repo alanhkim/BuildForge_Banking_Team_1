@@ -15,6 +15,7 @@ Create a Foundry/Fabric-first agentic workflow that uses Microsoft Fabric as the
 - Live `FabricTest` metadata confirms an active prompt agent at version `2` using `gpt-5`, the `responses` protocol, Entra authorization, and the `fabric_dataagent_preview` tool connection `fabric_dataagent_preview_941627`.
 - The Fabric Data Agent smoke prompt set is versioned in `data/fabric_data_agent_smoke_prompts.yaml`; validation details and current `504 Gateway Time-out` evidence are in `docs/fabric-data-agent-validation.md`.
 - Fabric workspace roles now include the Foundry agent instance identity and blueprint identity as `Contributor`; the `504 Gateway Time-out` still reproduces, so the next hypothesis is a stale/broken Foundry Fabric tool connection or preview service bridge issue.
+- Initial application-side contracts and client boundaries are in place for Fabric Q&A, control mapping, gap analysis, remediation, score narration, lineage, Foundry agent invocation, and Fabric Data Agent invocation through Foundry. These surfaces validate citations/tool evidence and surface bridge failures explicitly.
 
 ## Target Agent Architecture
 
