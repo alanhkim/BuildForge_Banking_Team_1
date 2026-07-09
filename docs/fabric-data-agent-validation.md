@@ -31,6 +31,11 @@ Direct Data Agent invocation through the published Fabric REST URL still returns
 and `/responses`. Use Foundry SDK `agent_reference` as the application
 integration path.
 
+The purpose-built application agents are tracked in
+`docs/foundry-fabric-agents.md`. Their current active versions use the same
+Fabric Data Agent preview tool connection and are validated through Azure AI
+Projects SDK `agent_reference`.
+
 ## Smoke prompt set
 
 The versioned smoke prompt file is:
@@ -101,3 +106,17 @@ The visible Foundry principals have Fabric workspace access:
 
 After granting those roles and publishing the Fabric Data Agent, the smoke prompt
 succeeded through `FabricTest` version `4`.
+
+## Application agent validation
+
+The following purpose-built Foundry agents were created as prompt agents using
+`gpt-5`, the `responses` protocol, Entra authorization, and the
+`fabric_dataagent_preview_941627` connection:
+
+| Agent | Version | Validation |
+| --- | --- | --- |
+| `RegImpactExecutiveQA` | `3` | SDK `agent_reference` returned CHG-DORA score values with object-shaped citations and tool evidence. |
+| `RegImpactScoreNarrator` | `3` | SDK `agent_reference` returned a score narration with inner JSON values `54.0`, `52.2`, and `58.9`. |
+
+All six application agents and their identities are listed in
+`docs/foundry-fabric-agents.md`.

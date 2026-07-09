@@ -105,6 +105,9 @@ The application code separates the Fabric-backed agents into individual modules:
 `src/regimpact/agents/fabric_workflow.py` is the shared harness/parser utility,
 not the ownership boundary for the individual agents.
 
+The corresponding deployed Foundry prompt agents and managed identities are
+tracked in `docs/foundry-fabric-agents.md`.
+
 ### Control Mapper
 
 **Goal:** Map obligations to existing controls, capabilities, technologies, and
