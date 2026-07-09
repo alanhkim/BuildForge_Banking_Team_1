@@ -11,7 +11,7 @@ FedRAMP High / ALZ security governance baseline.
 ## Repository layout
 
 ```
-Infra_Bicep/
+infra/
 ├── main.bicep                     # Subscription scope — Sentinel + centralized LAW
 ├── main.parameters.json           # Parameters matching the deployed Sentinel config
 ├── modules/
@@ -43,7 +43,7 @@ Always validate before deploying: compile check, then `what-if` against live Azu
 ### 1. Sentinel + centralized Log Analytics workspace (subscription scope)
 
 ```powershell
-cd Infra_Bicep
+cd infra
 bicep build main.bicep --stdout                      # compile check
 az deployment sub what-if `
   --location northcentralus `
@@ -58,7 +58,7 @@ az deployment sub create `
 ### 2. Policy initiatives (management group scope)
 
 ```powershell
-cd Infra_Bicep\policy
+cd infra\policy
 bicep build main.bicep --stdout
 az deployment mg what-if `
   --management-group-id "38b8b03b-4c63-41b4-810f-2b02d862b33a" `
@@ -73,7 +73,7 @@ az deployment mg create `
 ### 3. Centralized diagnostic logging initiative (subscription scope)
 
 ```powershell
-cd Infra_Bicep\policy
+cd infra\policy
 bicep build diagnostics-main.bicep --stdout
 az deployment sub what-if `
   --location eastus `
