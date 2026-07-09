@@ -14,7 +14,7 @@ Create a Foundry/Fabric-first agentic workflow that uses Microsoft Fabric as the
 - Forced Fabric Data Agent tool invocation through Foundry currently returns a gateway timeout and must be fixed before application integration.
 - Live `FabricTest` metadata confirms an active prompt agent at version `2` using `gpt-5`, the `responses` protocol, Entra authorization, and the `fabric_dataagent_preview` tool connection `fabric_dataagent_preview_941627`.
 - The Fabric Data Agent smoke prompt set is versioned in `data/fabric_data_agent_smoke_prompts.yaml`; validation details and current `504 Gateway Time-out` evidence are in `docs/fabric-data-agent-validation.md`.
-- Fabric workspace roles currently include the interactive user as `Admin`, but not the Foundry agent instance identity or blueprint identity, making Fabric permission for the tool runtime the leading timeout hypothesis.
+- Fabric workspace roles now include the Foundry agent instance identity and blueprint identity as `Contributor`; the `504 Gateway Time-out` still reproduces, so the next hypothesis is a stale/broken Foundry Fabric tool connection or preview service bridge issue.
 
 ## Target Agent Architecture
 

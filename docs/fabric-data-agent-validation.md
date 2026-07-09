@@ -21,10 +21,10 @@ Plain Foundry agent invocation is available, but forced Fabric Data Agent tool
 invocation currently fails with `504 Gateway Time-out`. Application code must not
 depend on the Fabric tool path until this smoke set succeeds through Foundry.
 
-Fabric workspace role assignments currently show the interactive user as
-`Admin`, but do not show either Foundry identity above. That makes missing
-Fabric workspace/item/data-source permission for the Foundry tool identity the
-leading root-cause hypothesis for the timeout.
+Fabric workspace role assignments now show both Foundry identities as
+`Contributor`. The timeout still reproduces after the grant, so the blocker is
+now narrowed to the Foundry Fabric tool bridge, the project connection, item/data
+source permissions below the workspace, or a preview service issue.
 
 ## Smoke prompt set
 
@@ -54,7 +54,7 @@ or entity IDs. Unsupported links must be called out as missing rather than infer
    `fabric_dataagent_preview` tool attached.
 2. Confirm the Fabric Data Agent item is visible in the workspace and is grounded
    over the Lakehouse or semantic model that contains the exported Parquet tables.
-3. Grant the Foundry agent identity or Fabric tool connection principal the
+3. Confirm the Foundry agent identity or Fabric tool connection principal has the
    required Fabric workspace, item, and data-source permissions.
 4. Run each prompt in `data/fabric_data_agent_smoke_prompts.yaml` through the
    Foundry `responses` protocol.
@@ -81,17 +81,16 @@ The live Foundry invocation returned:
 Until that is resolved, continue implementing contracts and validation scaffolding,
 but do not wire production agent behavior to the Fabric tool as if it were healthy.
 
-## Permission remediation candidate
+## Permission remediation status
 
-Before changing access, confirm which principal the Fabric tool uses at runtime.
-The visible candidates are:
+The visible Foundry principals have Fabric workspace access:
 
-| Candidate | Principal ID |
-| --- | --- |
-| Foundry agent instance identity | `765f9096-e6d5-476f-8f26-69f13891005b` |
-| Foundry managed-agent blueprint identity | `37393fec-98c0-4a74-bdeb-6537e30c78be` |
+| Principal | Principal ID | Fabric role |
+| --- | --- | --- |
+| Foundry agent instance identity | `765f9096-e6d5-476f-8f26-69f13891005b` | Contributor |
+| Foundry managed-agent blueprint identity | `c18c4261-7519-419d-b575-1e055d23ca14` | Contributor |
 
-If Fabric requires workspace-level access for one or both identities, add the
-required principal as a workspace member or contributor, then rerun the smoke
-prompt set. Keep the role as narrow as Fabric allows while still letting the
-Data Agent query its grounded data source.
+After granting those roles, the smoke prompt still returned `504 Gateway
+Time-out`, so the next remediation candidate is to recreate or refresh the
+Foundry `fabric_dataagent_preview_941627` tool connection, then republish or
+reversion `FabricTest` and rerun the smoke prompt set.
