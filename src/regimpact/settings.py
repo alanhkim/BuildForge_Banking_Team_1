@@ -44,6 +44,9 @@ class Settings:
     )
     foundry_fabric_agent_name: str = os.getenv("FOUNDRY_FABRIC_AGENT_NAME", "")
     foundry_fabric_agent_version: str = os.getenv("FOUNDRY_FABRIC_AGENT_VERSION", "")
+    foundry_agent_timeout_seconds: float = float(
+        os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS", "120")
+    )
 
     @property
     def foundry_enabled(self) -> bool:

@@ -28,6 +28,19 @@ class FabricDataAgentError(FoundryAgentError):
     """Raised when the Fabric Data Agent route cannot return a valid answer."""
 
 
+def foundry_agent_error_types() -> tuple[type[BaseException], ...]:
+    """Return explicit SDK exception types for Foundry agent invocation."""
+    error_types = foundry_runtime_error_types() + (TimeoutError,)
+    try:
+        openai_module = import_module("openai")
+    except ImportError:
+        return error_types
+    openai_error = getattr(openai_module, "OpenAIError", None)
+    if isinstance(openai_error, type):
+        return error_types + (openai_error,)
+    return error_types
+
+
 @dataclass(frozen=True)
 class FoundryAgentConfig:
     """Configuration for invoking a named Foundry agent."""
@@ -36,6 +49,7 @@ class FoundryAgentConfig:
     agent_name: str
     agent_version: str
     api_version: str = "2025-05-01-preview"
+    timeout_seconds: float = 120
 
     @classmethod
     def for_fabric_agent(cls, config: Settings = settings) -> "FoundryAgentConfig":
@@ -45,6 +59,7 @@ class FoundryAgentConfig:
             agent_name=config.foundry_fabric_agent_name,
             agent_version=config.foundry_fabric_agent_version,
             api_version=config.foundry_api_version,
+            timeout_seconds=config.foundry_agent_timeout_seconds,
         )
 
     def validate(self) -> None:
@@ -75,7 +90,7 @@ class FoundryAgentRawResponse:
 
 
 class FoundryAgentClient:
-    """Minimal Foundry agent client using Entra auth and injectable runtime."""
+    """Foundry agent-reference client using Entra auth and injectable runtime."""
 
     def __init__(
         self,
@@ -102,8 +117,10 @@ class FoundryAgentClient:
             if callable(method):
                 try:
                     raw = _resolve_response(method(input_text))
-                except (*foundry_runtime_error_types(), TimeoutError) as exc:
-                    raise FoundryAgentError("Foundry agent invocation failed") from exc
+                except foundry_agent_error_types() as exc:
+                    raise FoundryAgentError(
+                        f"Foundry agent invocation failed: {exc}"
+                    ) from exc
                 return FoundryAgentRawResponse(
                     text=_extract_text(raw),
                     agent_name=self.config.agent_name,
@@ -114,25 +131,46 @@ class FoundryAgentClient:
         raise FoundryAgentError("Foundry agent has no supported call method")
 
     def _build_agent(self) -> Any:
-        """Build an Agent Framework client for a named Foundry agent."""
+        """Build an Azure AI Projects agent-reference wrapper."""
         self.config.validate()
         try:
-            agent_framework = import_module("agent_framework")
-            foundry_module = import_module("agent_framework.foundry")
             azure_identity = import_module("azure.identity")
+            projects_module = import_module("azure.ai.projects")
         except ImportError as exc:
             raise FoundryAgentError("Optional Foundry dependencies are not installed") from exc
 
-        agent_cls = getattr(agent_framework, "Agent")
-        client_cls = getattr(foundry_module, "FoundryAgentClient")
         credential = self._credential or azure_identity.DefaultAzureCredential()
-        client = client_cls(
-            project_endpoint=self.config.project_endpoint,
+        project_client_cls = getattr(projects_module, "AIProjectClient")
+        project_client = project_client_cls(
+            endpoint=self.config.project_endpoint,
             credential=credential,
-            agent_name=self.config.agent_name,
-            agent_version=self.config.agent_version,
         )
-        return agent_cls(client=client)
+        return _OpenAIResponsesAgent(
+            openai_client=project_client.get_openai_client(),
+            config=self.config,
+        )
+
+
+@dataclass(frozen=True)
+class _OpenAIResponsesAgent:
+    """Adapter exposing run() over Foundry OpenAI responses agent references."""
+
+    openai_client: Any
+    config: FoundryAgentConfig
+
+    def run(self, input_text: str) -> Any:
+        """Invoke a Foundry prompt/hosted agent through Responses API."""
+        return self.openai_client.responses.create(
+            input=[{"role": "user", "content": input_text}],
+            extra_body={
+                "agent_reference": {
+                    "name": self.config.agent_name,
+                    "version": self.config.agent_version,
+                    "type": "agent_reference",
+                }
+            },
+            timeout=self.config.timeout_seconds,
+        )
 
 
 @dataclass(frozen=True)
@@ -228,7 +266,7 @@ def _resolve_response(response: Any) -> Any:
 def _extract_text(raw_response: Any) -> str:
     """Extract text from common Agent Framework response shapes."""
     content = raw_response
-    for attr in ("content", "text", "message", "output"):
+    for attr in ("output_text", "content", "text", "message", "output"):
         if hasattr(content, attr):
             content = getattr(content, attr)
     if isinstance(content, dict):

@@ -1,4 +1,6 @@
 import json
+import sys
+import types
 
 import pytest
 
@@ -206,6 +208,121 @@ def test_foundry_agent_client_invokes_injected_agent():
     assert response.text == "hello"
     assert response.agent_name == "RegImpactQA"
     assert response.agent_version == "1"
+
+
+def test_foundry_agent_client_uses_ai_projects_agent_reference(monkeypatch):
+    calls = {}
+
+    class FakeCredential:
+        pass
+
+    class FakeDefaultAzureCredential:
+        def __new__(cls):
+            calls["credential_created"] = True
+            return FakeCredential()
+
+    class FakeResponse:
+        output_text = "hello from Fabric"
+        metadata = {"response_id": "resp-1"}
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            calls["responses_create"] = kwargs
+            return FakeResponse()
+
+    class FakeOpenAIClient:
+        responses = FakeResponses()
+
+    class FakeAIProjectClient:
+        def __init__(self, **kwargs):
+            calls["project_client"] = kwargs
+
+        def get_openai_client(self):
+            calls["get_openai_client"] = True
+            return FakeOpenAIClient()
+
+    azure_identity_module = types.ModuleType("azure.identity")
+    azure_identity_module.DefaultAzureCredential = FakeDefaultAzureCredential
+    azure_ai_projects_module = types.ModuleType("azure.ai.projects")
+    azure_ai_projects_module.AIProjectClient = FakeAIProjectClient
+    monkeypatch.setitem(sys.modules, "azure.identity", azure_identity_module)
+    monkeypatch.setitem(sys.modules, "azure.ai.projects", azure_ai_projects_module)
+
+    client = FoundryAgentClient(
+        config=FoundryAgentConfig(
+            project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+            agent_name="RegImpactQA",
+            agent_version="4",
+        )
+    )
+
+    response = client.invoke("How compliant is DORA?")
+
+    assert response.text == "hello from Fabric"
+    assert calls["credential_created"]
+    assert calls["project_client"]["endpoint"] == (
+        "https://example.services.ai.azure.com/api/projects/demo"
+    )
+    assert calls["project_client"]["credential"].__class__ is FakeCredential
+    assert calls["get_openai_client"]
+    assert calls["responses_create"] == {
+        "input": [{"role": "user", "content": "How compliant is DORA?"}],
+        "extra_body": {
+            "agent_reference": {
+                "name": "RegImpactQA",
+                "version": "4",
+                "type": "agent_reference",
+            }
+        },
+        "timeout": 120,
+    }
+
+
+def test_foundry_agent_client_wraps_openai_errors(monkeypatch):
+    class FakeOpenAIError(Exception):
+        pass
+
+    class FakeCredential:
+        pass
+
+    class FakeDefaultAzureCredential:
+        def __new__(cls):
+            return FakeCredential()
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            raise FakeOpenAIError("tool_user_error")
+
+    class FakeOpenAIClient:
+        responses = FakeResponses()
+
+    class FakeAIProjectClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def get_openai_client(self):
+            return FakeOpenAIClient()
+
+    openai_module = types.ModuleType("openai")
+    openai_module.OpenAIError = FakeOpenAIError
+    azure_identity_module = types.ModuleType("azure.identity")
+    azure_identity_module.DefaultAzureCredential = FakeDefaultAzureCredential
+    azure_ai_projects_module = types.ModuleType("azure.ai.projects")
+    azure_ai_projects_module.AIProjectClient = FakeAIProjectClient
+    monkeypatch.setitem(sys.modules, "openai", openai_module)
+    monkeypatch.setitem(sys.modules, "azure.identity", azure_identity_module)
+    monkeypatch.setitem(sys.modules, "azure.ai.projects", azure_ai_projects_module)
+
+    client = FoundryAgentClient(
+        config=FoundryAgentConfig(
+            project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+            agent_name="RegImpactQA",
+            agent_version="4",
+        )
+    )
+
+    with pytest.raises(FoundryAgentError, match="Foundry agent invocation failed"):
+        client.invoke("How compliant is DORA?")
 
 
 def test_fabric_data_agent_client_returns_validated_response():
