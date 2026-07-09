@@ -13,3 +13,10 @@ src/regimpact.mututh/
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+
+# Local assistant/plugin state and generated setup files
+.azure-functions-skills/state.local.json
+AGENTS.md
+.github/agents/functions-copilot.agent.md
+.github/copilot/
+.github/hooks/
