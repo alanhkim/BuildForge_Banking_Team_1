@@ -7,7 +7,7 @@ import inspect
 import json
 from dataclasses import dataclass
 from importlib import import_module
-from typing import Any
+from typing import Any, Literal
 
 from ..contracts import (
     FabricQuestionRequest,
@@ -26,6 +26,16 @@ class FoundryAgentError(Exception):
 
 class FabricDataAgentError(FoundryAgentError):
     """Raised when the Fabric Data Agent route cannot return a valid answer."""
+
+
+FabricApplicationAgent = Literal[
+    "control_mapper",
+    "gap_analyst",
+    "remediation_planner",
+    "score_narrator",
+    "lineage",
+    "executive_qa",
+]
 
 
 def foundry_agent_error_types() -> tuple[type[BaseException], ...]:
@@ -56,8 +66,30 @@ class FoundryAgentConfig:
         """Build Fabric-backed Foundry agent config from runtime settings."""
         return cls(
             project_endpoint=config.foundry_project_endpoint,
-            agent_name=config.foundry_fabric_agent_name,
-            agent_version=config.foundry_fabric_agent_version,
+            agent_name=(
+                config.foundry_fabric_agent_name
+                or config.foundry_executive_qa_agent_name
+            ),
+            agent_version=(
+                config.foundry_fabric_agent_version
+                or config.foundry_executive_qa_agent_version
+            ),
+            api_version=config.foundry_api_version,
+            timeout_seconds=config.foundry_agent_timeout_seconds,
+        )
+
+    @classmethod
+    def for_application_agent(
+        cls,
+        agent: FabricApplicationAgent,
+        config: Settings = settings,
+    ) -> "FoundryAgentConfig":
+        """Build config for one purpose-built Fabric application agent."""
+        name, version = _application_agent_name_version(agent, config)
+        return cls(
+            project_endpoint=config.foundry_project_endpoint,
+            agent_name=name,
+            agent_version=version,
             api_version=config.foundry_api_version,
             timeout_seconds=config.foundry_agent_timeout_seconds,
         )
@@ -220,6 +252,22 @@ class FabricDataAgentClient:
         self.config = config or FabricDataAgentConfig.from_settings()
         self.foundry_client = foundry_client or FoundryAgentClient()
 
+    @classmethod
+    def for_application_agent(
+        cls,
+        agent: FabricApplicationAgent,
+        config: Settings = settings,
+        credential: Any | None = None,
+    ) -> "FabricDataAgentClient":
+        """Build a Fabric client routed to one purpose-built Foundry agent."""
+        return cls(
+            foundry_client=FoundryAgentClient(
+                config=FoundryAgentConfig.for_application_agent(agent, config),
+                credential=credential,
+            ),
+            config=FabricDataAgentConfig.from_settings(config),
+        )
+
     def ask(self, question: str) -> FabricQuestionResponse:
         """Ask a Fabric-grounded question through Foundry and validate the answer."""
         self.config.validate()
@@ -293,6 +341,39 @@ def _fabric_prompt(request: FabricQuestionRequest) -> str:
         "relationship, or entity IDs. Request: "
         f"{json.dumps(request.__dict__, sort_keys=True)}"
     )
+
+
+def _application_agent_name_version(
+    agent: FabricApplicationAgent,
+    config: Settings,
+) -> tuple[str, str]:
+    agent_settings = {
+        "control_mapper": (
+            config.foundry_control_mapper_agent_name,
+            config.foundry_control_mapper_agent_version,
+        ),
+        "gap_analyst": (
+            config.foundry_gap_analyst_agent_name,
+            config.foundry_gap_analyst_agent_version,
+        ),
+        "remediation_planner": (
+            config.foundry_remediation_planner_agent_name,
+            config.foundry_remediation_planner_agent_version,
+        ),
+        "score_narrator": (
+            config.foundry_score_narrator_agent_name,
+            config.foundry_score_narrator_agent_version,
+        ),
+        "lineage": (
+            config.foundry_lineage_agent_name,
+            config.foundry_lineage_agent_version,
+        ),
+        "executive_qa": (
+            config.foundry_executive_qa_agent_name,
+            config.foundry_executive_qa_agent_version,
+        ),
+    }
+    return agent_settings[agent]
 
 
 def _parse_json_payload(text: str) -> dict[str, Any]:

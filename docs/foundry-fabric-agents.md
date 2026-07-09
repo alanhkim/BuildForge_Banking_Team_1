@@ -30,6 +30,26 @@ to return the JSON envelope expected by the application contracts.
 | Audit & Lineage Agent | `RegImpactAuditLineage` | `3` | `src/regimpact/agents/fabric_lineage.py` |
 | Executive Q&A Agent | `RegImpactExecutiveQA` | `3` | `src/regimpact/agents/fabric_executive_qa.py` |
 
+## Application configuration
+
+The Python workflow classes default to the deployed agent names and versions
+above. Override them per environment with these settings when a new Foundry
+version is promoted:
+
+| Application agent | Name setting | Version setting |
+| --- | --- | --- |
+| Control Mapper | `FOUNDRY_CONTROL_MAPPER_AGENT_NAME` | `FOUNDRY_CONTROL_MAPPER_AGENT_VERSION` |
+| Gap Analyst | `FOUNDRY_GAP_ANALYST_AGENT_NAME` | `FOUNDRY_GAP_ANALYST_AGENT_VERSION` |
+| Remediation Planner | `FOUNDRY_REMEDIATION_PLANNER_AGENT_NAME` | `FOUNDRY_REMEDIATION_PLANNER_AGENT_VERSION` |
+| Compliance Score Narrator | `FOUNDRY_SCORE_NARRATOR_AGENT_NAME` | `FOUNDRY_SCORE_NARRATOR_AGENT_VERSION` |
+| Audit & Lineage Agent | `FOUNDRY_LINEAGE_AGENT_NAME` | `FOUNDRY_LINEAGE_AGENT_VERSION` |
+| Executive Q&A Agent | `FOUNDRY_EXECUTIVE_QA_AGENT_NAME` | `FOUNDRY_EXECUTIVE_QA_AGENT_VERSION` |
+
+All agents also require `FOUNDRY_PROJECT_ENDPOINT`, `FABRIC_WORKSPACE_ID`, and
+`FABRIC_DATA_AGENT_ID`. `FOUNDRY_FABRIC_AGENT_NAME` and
+`FOUNDRY_FABRIC_AGENT_VERSION` remain supported only for legacy single-agent
+Q&A wiring; new workflow code should use the per-agent settings.
+
 ## Identity access
 
 Each prompt agent has an agent instance identity and a managed-agent blueprint

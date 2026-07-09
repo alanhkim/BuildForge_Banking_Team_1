@@ -171,13 +171,66 @@ def test_agent_workflow_contracts_validate_grounded_outputs():
 def test_settings_capture_foundry_fabric_configuration():
     config = Settings(
         foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
-        foundry_fabric_agent_name="RegImpactQA",
-        foundry_fabric_agent_version="1",
         fabric_workspace_id="workspace",
         fabric_data_agent_id="data-agent",
     )
 
     assert config.foundry_fabric_enabled
+    assert config.foundry_control_mapper_agent_name == "RegImpactControlMapper"
+    assert config.foundry_control_mapper_agent_version == "3"
+    assert config.foundry_gap_analyst_agent_name == "RegImpactGapAnalyst"
+    assert config.foundry_remediation_planner_agent_name == (
+        "RegImpactRemediationPlanner"
+    )
+    assert config.foundry_score_narrator_agent_name == "RegImpactScoreNarrator"
+    assert config.foundry_lineage_agent_name == "RegImpactAuditLineage"
+    assert config.foundry_executive_qa_agent_name == "RegImpactExecutiveQA"
+
+
+@pytest.mark.parametrize(
+    ("agent_key", "expected_name", "expected_version"),
+    [
+        ("control_mapper", "RegImpactControlMapper", "3"),
+        ("gap_analyst", "RegImpactGapAnalyst", "3"),
+        ("remediation_planner", "RegImpactRemediationPlanner", "3"),
+        ("score_narrator", "RegImpactScoreNarrator", "3"),
+        ("lineage", "RegImpactAuditLineage", "3"),
+        ("executive_qa", "RegImpactExecutiveQA", "3"),
+    ],
+)
+def test_foundry_config_routes_to_purpose_built_fabric_agents(
+    agent_key,
+    expected_name,
+    expected_version,
+):
+    config = Settings(
+        foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+        fabric_workspace_id="workspace",
+        fabric_data_agent_id="data-agent",
+    )
+
+    foundry_config = FoundryAgentConfig.for_application_agent(agent_key, config)
+
+    assert foundry_config.project_endpoint == (
+        "https://example.services.ai.azure.com/api/projects/demo"
+    )
+    assert foundry_config.agent_name == expected_name
+    assert foundry_config.agent_version == expected_version
+
+
+def test_fabric_client_factory_uses_purpose_built_agent_config():
+    config = Settings(
+        foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+        fabric_workspace_id="workspace",
+        fabric_data_agent_id="data-agent",
+    )
+
+    client = FabricDataAgentClient.for_application_agent("score_narrator", config)
+
+    assert client.config.workspace_id == "workspace"
+    assert client.config.data_agent_id == "data-agent"
+    assert client.foundry_client.config.agent_name == "RegImpactScoreNarrator"
+    assert client.foundry_client.config.agent_version == "3"
 
 
 def test_foundry_agent_client_surfaces_missing_configuration():

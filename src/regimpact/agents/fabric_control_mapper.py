@@ -12,7 +12,10 @@ class FabricControlMapperAgent:
     name = "Control Mapper"
     spec: FabricAgentSpec = CONTROL_MAPPER_SPEC
 
-    def __init__(self, fabric_client: FabricDataAgentClient):
+    def __init__(self, fabric_client: FabricDataAgentClient | None = None):
+        fabric_client = fabric_client or FabricDataAgentClient.for_application_agent(
+            "control_mapper"
+        )
         self.harness = FabricAgentHarness(fabric_client)
 
     def map(self, request: ControlMappingRequest) -> ControlMappingResponse:

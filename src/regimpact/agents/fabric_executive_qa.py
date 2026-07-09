@@ -12,7 +12,10 @@ class FabricExecutiveQAAgent:
     name = "Executive Q&A Agent"
     spec: FabricAgentSpec = EXECUTIVE_QA_SPEC
 
-    def __init__(self, fabric_client: FabricDataAgentClient):
+    def __init__(self, fabric_client: FabricDataAgentClient | None = None):
+        fabric_client = fabric_client or FabricDataAgentClient.for_application_agent(
+            "executive_qa"
+        )
         self.fabric_client = fabric_client
 
     def ask(self, question: str) -> FabricQuestionResponse:

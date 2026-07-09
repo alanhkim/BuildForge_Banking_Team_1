@@ -12,7 +12,10 @@ class FabricScoreNarratorAgent:
     name = "Compliance Score Narrator"
     spec: FabricAgentSpec = SCORE_NARRATOR_SPEC
 
-    def __init__(self, fabric_client: FabricDataAgentClient):
+    def __init__(self, fabric_client: FabricDataAgentClient | None = None):
+        fabric_client = fabric_client or FabricDataAgentClient.for_application_agent(
+            "score_narrator"
+        )
         self.harness = FabricAgentHarness(fabric_client)
 
     def narrate(self, request: ScoreNarrationRequest) -> ScoreNarrationResponse:

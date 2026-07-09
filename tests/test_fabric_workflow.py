@@ -174,6 +174,15 @@ def test_split_control_mapper_agent_uses_own_class_and_spec():
     assert "Agent: Control Mapper" in client.questions[0]
 
 
+def test_split_control_mapper_defaults_to_deployed_foundry_agent():
+    agent = FabricControlMapperAgent()
+
+    assert agent.harness.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactControlMapper"
+    )
+    assert agent.harness.fabric_client.foundry_client.config.agent_version == "3"
+
+
 def test_gap_analyst_harness_returns_typed_response():
     harness = FabricAgentHarness(
         StubFabricClient(
@@ -235,6 +244,15 @@ def test_split_gap_analyst_agent_uses_own_class_and_spec():
     assert "Agent: Gap Analyst" in client.questions[0]
 
 
+def test_split_gap_analyst_defaults_to_deployed_foundry_agent():
+    agent = FabricGapAnalystAgent()
+
+    assert agent.harness.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactGapAnalyst"
+    )
+    assert agent.harness.fabric_client.foundry_client.config.agent_version == "3"
+
+
 def test_remediation_harness_returns_typed_response():
     harness = FabricAgentHarness(
         StubFabricClient(
@@ -287,6 +305,15 @@ def test_split_remediation_planner_agent_uses_own_class_and_spec():
     assert "Agent: Remediation Planner" in client.questions[0]
 
 
+def test_split_remediation_planner_defaults_to_deployed_foundry_agent():
+    agent = FabricRemediationPlannerAgent()
+
+    assert agent.harness.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactRemediationPlanner"
+    )
+    assert agent.harness.fabric_client.foundry_client.config.agent_version == "3"
+
+
 def test_score_narrator_harness_preserves_scores():
     harness = FabricAgentHarness(
         StubFabricClient(
@@ -326,6 +353,15 @@ def test_split_score_narrator_agent_uses_own_class_and_spec():
     assert agent.spec.name == "Compliance Score Narrator"
     assert response.post_remediation == 59.6
     assert "Agent: Compliance Score Narrator" in client.questions[0]
+
+
+def test_split_score_narrator_defaults_to_deployed_foundry_agent():
+    agent = FabricScoreNarratorAgent()
+
+    assert agent.harness.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactScoreNarrator"
+    )
+    assert agent.harness.fabric_client.foundry_client.config.agent_version == "3"
 
 
 def test_lineage_harness_returns_hops():
@@ -373,6 +409,15 @@ def test_split_lineage_agent_uses_own_class_and_spec():
     assert "Agent: Audit & Lineage Agent" in client.questions[0]
 
 
+def test_split_lineage_defaults_to_deployed_foundry_agent():
+    agent = FabricLineageAgent()
+
+    assert agent.harness.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactAuditLineage"
+    )
+    assert agent.harness.fabric_client.foundry_client.config.agent_version == "3"
+
+
 def test_split_executive_qa_agent_uses_own_prompt_framing():
     client = EchoFabricClient()
     agent = FabricExecutiveQAAgent(client)
@@ -383,6 +428,15 @@ def test_split_executive_qa_agent_uses_own_prompt_framing():
     assert response.answer == "Executive answer."
     assert "Agent: Executive Q&A Agent" in client.questions[0]
     assert "What is the DORA remediation story?" in client.questions[0]
+
+
+def test_split_executive_qa_defaults_to_deployed_foundry_agent():
+    agent = FabricExecutiveQAAgent()
+
+    assert agent.fabric_client.foundry_client.config.agent_name == (
+        "RegImpactExecutiveQA"
+    )
+    assert agent.fabric_client.foundry_client.config.agent_version == "3"
 
 
 def test_harness_surfaces_malformed_fabric_answer():

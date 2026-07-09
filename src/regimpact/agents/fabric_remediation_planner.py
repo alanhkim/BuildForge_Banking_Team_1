@@ -12,7 +12,10 @@ class FabricRemediationPlannerAgent:
     name = "Remediation Planner"
     spec: FabricAgentSpec = REMEDIATION_PLANNER_SPEC
 
-    def __init__(self, fabric_client: FabricDataAgentClient):
+    def __init__(self, fabric_client: FabricDataAgentClient | None = None):
+        fabric_client = fabric_client or FabricDataAgentClient.for_application_agent(
+            "remediation_planner"
+        )
         self.harness = FabricAgentHarness(fabric_client)
 
     def plan(self, request: RemediationRequest) -> RemediationResponse:
