@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "northcentralus"
+    },
+    "resourceGroupName": {
+      "value": "rg-operations-shared"
+    },
+    "workspaceName": {
+      "value": "la-centralized-sentinel"
+    },
+    "workspaceSku": {
+      "value": "PerGB2018"
+    },
+    "retentionInDays": {
+      "value": 90
+    },
+    "tags": {
+      "value": {
+        "environment": "shared",
+        "workload": "sentinel"
+      }
+    }
+  }
+}
