@@ -17,6 +17,7 @@ Create a Foundry/Fabric-first agentic workflow that uses Microsoft Fabric as the
 - Fabric workspace roles now include the Foundry agent instance identity and blueprint identity as `Contributor`; the `504 Gateway Time-out` still reproduces, so the next hypothesis is a stale/broken Foundry Fabric tool connection or preview service bridge issue.
 - Initial application-side contracts and client boundaries are in place for Fabric Q&A, control mapping, gap analysis, remediation, score narration, lineage, Foundry agent invocation, and Fabric Data Agent invocation through Foundry. These surfaces validate citations/tool evidence and surface bridge failures explicitly.
 - The `regimpact ask-fabric "<question>"` CLI entry point is in place for the Executive Q&A path. It prints grounded answers, citations, and tool evidence, and it fails explicitly when Foundry/Fabric configuration or invocation is unavailable.
+- Fabric-backed agent framing is specified in `docs/fabric-agent-data-spec.md`, including per-agent source requirements for Control Mapper, Gap Analyst, Remediation Planner, Compliance Score Narrator, Executive Q&A, and Audit/Lineage. Each Fabric-backed agent now has its own module/class, while `FabricAgentHarness` remains the shared prompt invocation and typed-response parsing utility.
 
 ## Target Agent Architecture
 
