@@ -1,0 +1,72 @@
+version: 1
+fabric_workspace_id: bf949f4b-ca7a-4095-9596-1a3c8e4959e5
+fabric_data_agent_id: 804f0dd2-227c-4edf-bb7a-3b6f83aafb1e
+foundry_project_endpoint: https://muthukr-3312-resource.services.ai.azure.com/api/projects/muthukr-3312
+foundry_agent_name: FabricTest
+foundry_agent_version: "2"
+prompts:
+  - id: score-story-dora
+    category: score_story
+    prompt: >
+      Use the Fabric Data Agent tool, not web search. In the regulatory impact
+      data, summarize the DORA compliance score movement from AsIs to
+      PostChange to PostRemediation and cite the score values or table fields
+      you used.
+    expected_characteristics:
+      - References CHG-DORA or REG-DORA.
+      - Includes AsIs, PostChange, and PostRemediation score values.
+      - Explains that PostChange is lower than AsIs and PostRemediation recovers.
+      - Cites score data from fact_compliance_score or compliance_scores.
+  - id: obligation-control-map-dora
+    category: obligation_control_map
+    prompt: >
+      Use the Fabric Data Agent tool. For DORA obligation OBL-DORA-01, identify
+      the mapped control, the realized capability, and the technology or
+      evidence that supports the control.
+    expected_characteristics:
+      - References OBL-DORA-01.
+      - Names CTL-OR-3 or the ICT Continuity & Recovery control.
+      - Names CAP-RES or Operational Resilience.
+      - Mentions evidence status when available.
+  - id: gap-blast-radius-dora
+    category: gap_blast_radius
+    prompt: >
+      Use the Fabric Data Agent tool. Which products, systems, processes, and
+      data domains are affected by the critical DORA gap for CTL-OR-3?
+    expected_characteristics:
+      - References GAP-OBL-DORA-01-CTL-OR-3 or CTL-OR-3.
+      - Separates affected products, systems, processes, and data domains.
+      - Uses bridge_gap_entity, fact_gap, relationships, or their curated views.
+      - Does not invent affected entities that are absent from Fabric.
+  - id: remediation-priority-dora
+    category: remediation
+    prompt: >
+      Use the Fabric Data Agent tool. What is the recommended remediation for
+      the highest-priority DORA gap, who owns it, and what is the estimated
+      effort?
+    expected_characteristics:
+      - References the highest-priority DORA gap.
+      - Includes owner or target unit from remediation data.
+      - Includes estimated effort in days.
+      - Explains priority using severity, maturity shortfall, or evidence status.
+  - id: evidence-health-dora
+    category: evidence_health
+    prompt: >
+      Use the Fabric Data Agent tool. Which evidence items for DORA-related
+      controls are missing, partial, or stale, and which controls do they
+      support?
+    expected_characteristics:
+      - Lists evidence IDs or names with non-present status.
+      - References the controls each evidence item supports.
+      - Distinguishes Missing, Partial, and Stale when present.
+      - Avoids claiming evidence is current when the table says otherwise.
+  - id: lineage-dora
+    category: lineage
+    prompt: >
+      Use the Fabric Data Agent tool. Trace the lineage from DORA to obligation,
+      control, capability, technology, evidence, and affected business entities.
+    expected_characteristics:
+      - Provides a chain that starts with REG-DORA or CHG-DORA.
+      - Includes obligation, control, capability, and evidence or technology IDs.
+      - References relationship or lineage data.
+      - Calls out any missing link instead of filling gaps from assumptions.

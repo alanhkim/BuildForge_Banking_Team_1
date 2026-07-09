@@ -1,6 +1,8 @@
 from typer.testing import CliRunner
 
 from regimpact import cli
+from regimpact.agents.foundry_client import FabricDataAgentError
+from regimpact.contracts import FabricQuestionResponse, SourceReference, ToolEvidence
 from regimpact.settings import Settings
 
 
@@ -30,6 +32,78 @@ def test_generate_cli_writes_parquet_to_configured_output(tmp_path, monkeypatch)
     assert result.exit_code == 0
     assert (tmp_path / "tables" / "regulations.parquet").exists()
     assert (tmp_path / "tables" / "relationships.parquet").exists()
+
+
+def test_demo_cli_reports_foundry_fabric_first_mode(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "settings", Settings(output_dir=tmp_path))
+
+    result = runner.invoke(cli.app, ["demo"])
+
+    assert result.exit_code == 0
+    assert "Foundry/Fabric-first" in result.stdout
+    assert "Deterministic (offline)" not in result.stdout
+
+
+def test_ask_fabric_cli_prints_grounded_answer(monkeypatch):
+    class FakeFabricClient:
+        def ask(self, question):
+            assert question == "How compliant is DORA?"
+            return FabricQuestionResponse(
+                question=question,
+                answer="DORA moves from 54.8 AsIs to 59.6 PostRemediation.",
+                agent_name="RegImpactQA",
+                agent_version="1",
+                citations=[
+                    SourceReference(
+                        source="RegImpactLH",
+                        reference_type="table",
+                        name="compliance_scores",
+                        value="CHG-DORA",
+                    )
+                ],
+                tool_evidence=[
+                    ToolEvidence(
+                        tool_name="fabric_dataagent_preview",
+                        data_source="RegImpactLH",
+                        query="SELECT Scenario, Score FROM compliance_scores",
+                    )
+                ],
+                confidence="high",
+            )
+
+    monkeypatch.setattr(cli, "_fabric_data_agent_client", lambda: FakeFabricClient())
+
+    result = runner.invoke(cli.app, ["ask-fabric", "How compliant is DORA?"])
+
+    assert result.exit_code == 0
+    assert "Fabric-grounded answer" in result.stdout
+    assert "DORA moves from 54.8" in result.stdout
+    assert "compliance_scores" in result.stdout
+    assert "fabric_dataagent_preview" in result.stdout
+
+
+def test_ask_fabric_cli_surfaces_missing_configuration(monkeypatch):
+    monkeypatch.setattr(cli, "settings", Settings())
+
+    result = runner.invoke(cli.app, ["ask-fabric", "How compliant is DORA?"])
+
+    assert result.exit_code == 1
+    assert "Fabric Data Agent failed" in result.stdout
+    assert "Missing Fabric Data Agent configuration" in result.stdout
+
+
+def test_ask_fabric_cli_surfaces_invocation_failure(monkeypatch):
+    class FailingFabricClient:
+        def ask(self, question):
+            raise FabricDataAgentError("Foundry Fabric Data Agent invocation failed")
+
+    monkeypatch.setattr(cli, "_fabric_data_agent_client", lambda: FailingFabricClient())
+
+    result = runner.invoke(cli.app, ["ask-fabric", "How compliant is DORA?"])
+
+    assert result.exit_code == 1
+    assert "Fabric Data Agent failed" in result.stdout
+    assert "invocation failed" in result.stdout
 
 
 def test_interpret_cli_surfaces_missing_foundry_configuration(tmp_path, monkeypatch):

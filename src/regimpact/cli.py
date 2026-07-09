@@ -7,6 +7,7 @@ Usage (from project root, after `pip install -r requirements.txt`):
     python -m regimpact score --change CHG-DORA
     python -m regimpact interpret --file data/regulations/eu_ai_act_high_risk.txt \
         --regulation REG-AIACT --name "EU AI Act" --title "High-risk AI update"
+    python -m regimpact ask-fabric "How compliant is DORA after remediation?"
     python -m regimpact demo
     python -m regimpact list-changes
 """
@@ -19,6 +20,13 @@ from rich.console import Console
 from rich.table import Table
 
 from .agents import AgentPipeline
+from .agents.foundry_client import (
+    FabricDataAgentClient,
+    FabricDataAgentConfig,
+    FabricDataAgentError,
+    FoundryAgentClient,
+    FoundryAgentConfig,
+)
 from .agents.foundry_interpreter import FoundryInterpreterError
 from .audit import run_audit
 from .export import export_graph, export_report, export_tables
@@ -35,6 +43,24 @@ console = Console()
 
 def _build() -> "object":
     return generate_estate(seed=settings.seed, as_of=settings.as_of)
+
+
+def _fabric_data_agent_client() -> FabricDataAgentClient:
+    """Create the Fabric Data Agent client from current CLI settings."""
+    foundry_config = FoundryAgentConfig(
+        project_endpoint=settings.foundry_project_endpoint,
+        agent_name=settings.foundry_fabric_agent_name,
+        agent_version=settings.foundry_fabric_agent_version,
+        api_version=settings.foundry_api_version,
+    )
+    fabric_config = FabricDataAgentConfig(
+        workspace_id=settings.fabric_workspace_id,
+        data_agent_id=settings.fabric_data_agent_id,
+    )
+    return FabricDataAgentClient(
+        foundry_client=FoundryAgentClient(config=foundry_config),
+        config=fabric_config,
+    )
 
 
 @app.command()
@@ -80,6 +106,24 @@ def score(change: str = typer.Option(..., help="Change ID, e.g. CHG-DORA")) -> N
     ImpactEngine(est).analyze_change(change)
     result = score_change_fn(est, change)
     _print_scores(result)
+
+
+@app.command("ask-fabric")
+def ask_fabric(
+    question: str = typer.Argument(..., help="Fabric-grounded question to ask."),
+) -> None:
+    """Ask a Foundry/Fabric-grounded compliance question."""
+    try:
+        response = _fabric_data_agent_client().ask(question)
+    except FabricDataAgentError as exc:
+        console.print(f"[red]Fabric Data Agent failed:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print("\n[bold]Fabric-grounded answer[/]")
+    console.print(response.answer)
+    console.print(f"\nConfidence: [cyan]{response.confidence}[/]")
+    _print_source_refs("Citations", response.citations)
+    _print_tool_evidence(response.tool_evidence)
 
 
 @app.command()
@@ -148,7 +192,7 @@ def demo() -> None:
             str(s["total_effort_days"]), str(len(s["affected_products"])),
         )
     console.print(table)
-    console.print("\nLLM agents: [yellow]Deterministic (offline)[/]")
+    console.print("\nLLM agents: [yellow]Foundry/Fabric-first[/]")
     console.print(f"Tables : [cyan]{settings.tables_dir}[/]")
     console.print(f"Gold   : [cyan]{settings.gold_dir}[/]")
     console.print(f"Graph  : [cyan]{settings.graph_dir}[/]")
@@ -246,6 +290,35 @@ def _print_scores(r: dict) -> None:
     console.print(f"  Regulation compliance (this change): [cyan]{r['regulation_compliance']}%[/]")
     weakest = ", ".join(f"{w['capability']} ({w['score']}%)" for w in r["weakest_capabilities"])
     console.print(f"  Weakest capabilities: {weakest or 'None'}")
+
+
+def _print_source_refs(title: str, source_refs: list) -> None:
+    """Print Fabric citations or source references."""
+    table = Table(title=title)
+    for col in ("Source", "Type", "Name", "Value"):
+        table.add_column(col, overflow="fold")
+    for source_ref in source_refs:
+        table.add_row(
+            source_ref.source,
+            source_ref.reference_type,
+            source_ref.name,
+            source_ref.value or "-",
+        )
+    console.print(table)
+
+
+def _print_tool_evidence(tool_evidence: list) -> None:
+    """Print tool-call provenance for the answer."""
+    table = Table(title="Tool evidence")
+    for col in ("Tool", "Data source", "Query"):
+        table.add_column(col, overflow="fold")
+    for evidence in tool_evidence:
+        table.add_row(
+            evidence.tool_name,
+            evidence.data_source,
+            evidence.query or "-",
+        )
+    console.print(table)
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ class Settings:
     )
     fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID", "")
     fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID", "")
+    fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID", "")
     purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME", "")
     regimpact_foundry_enabled: bool = os.getenv(
         "REGIMPACT_FOUNDRY_ENABLED",
@@ -41,6 +42,59 @@ class Settings:
         "FOUNDRY_API_VERSION",
         "2025-05-01-preview",
     )
+    foundry_fabric_agent_name: str = os.getenv("FOUNDRY_FABRIC_AGENT_NAME", "")
+    foundry_fabric_agent_version: str = os.getenv("FOUNDRY_FABRIC_AGENT_VERSION", "")
+    foundry_control_mapper_agent_name: str = os.getenv(
+        "FOUNDRY_CONTROL_MAPPER_AGENT_NAME",
+        "RegImpactControlMapper",
+    )
+    foundry_control_mapper_agent_version: str = os.getenv(
+        "FOUNDRY_CONTROL_MAPPER_AGENT_VERSION",
+        "3",
+    )
+    foundry_gap_analyst_agent_name: str = os.getenv(
+        "FOUNDRY_GAP_ANALYST_AGENT_NAME",
+        "RegImpactGapAnalyst",
+    )
+    foundry_gap_analyst_agent_version: str = os.getenv(
+        "FOUNDRY_GAP_ANALYST_AGENT_VERSION",
+        "3",
+    )
+    foundry_remediation_planner_agent_name: str = os.getenv(
+        "FOUNDRY_REMEDIATION_PLANNER_AGENT_NAME",
+        "RegImpactRemediationPlanner",
+    )
+    foundry_remediation_planner_agent_version: str = os.getenv(
+        "FOUNDRY_REMEDIATION_PLANNER_AGENT_VERSION",
+        "3",
+    )
+    foundry_score_narrator_agent_name: str = os.getenv(
+        "FOUNDRY_SCORE_NARRATOR_AGENT_NAME",
+        "RegImpactScoreNarrator",
+    )
+    foundry_score_narrator_agent_version: str = os.getenv(
+        "FOUNDRY_SCORE_NARRATOR_AGENT_VERSION",
+        "3",
+    )
+    foundry_lineage_agent_name: str = os.getenv(
+        "FOUNDRY_LINEAGE_AGENT_NAME",
+        "RegImpactAuditLineage",
+    )
+    foundry_lineage_agent_version: str = os.getenv(
+        "FOUNDRY_LINEAGE_AGENT_VERSION",
+        "3",
+    )
+    foundry_executive_qa_agent_name: str = os.getenv(
+        "FOUNDRY_EXECUTIVE_QA_AGENT_NAME",
+        "RegImpactExecutiveQA",
+    )
+    foundry_executive_qa_agent_version: str = os.getenv(
+        "FOUNDRY_EXECUTIVE_QA_AGENT_VERSION",
+        "3",
+    )
+    foundry_agent_timeout_seconds: float = float(
+        os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS", "120")
+    )
 
     @property
     def foundry_enabled(self) -> bool:
@@ -49,6 +103,17 @@ class Settings:
             self.regimpact_foundry_enabled
             and bool(self.foundry_project_endpoint)
             and bool(self.foundry_model_deployment_name)
+        )
+
+    @property
+    def foundry_fabric_enabled(self) -> bool:
+        """Whether a Foundry agent backed by Fabric Data Agent is configured."""
+        return (
+            bool(self.foundry_project_endpoint)
+            and bool(self.foundry_executive_qa_agent_name)
+            and bool(self.foundry_executive_qa_agent_version)
+            and bool(self.fabric_workspace_id)
+            and bool(self.fabric_data_agent_id)
         )
 
     @property
