@@ -148,7 +148,7 @@ def demo() -> None:
             str(s["total_effort_days"]), str(len(s["affected_products"])),
         )
     console.print(table)
-    console.print("\nLLM agents: [yellow]Deterministic (offline)[/]")
+    console.print("\nLLM agents: [yellow]Foundry/Fabric-first[/]")
     console.print(f"Tables : [cyan]{settings.tables_dir}[/]")
     console.print(f"Gold   : [cyan]{settings.gold_dir}[/]")
     console.print(f"Graph  : [cyan]{settings.graph_dir}[/]")

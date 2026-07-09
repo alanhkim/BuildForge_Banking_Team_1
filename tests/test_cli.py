@@ -32,6 +32,16 @@ def test_generate_cli_writes_parquet_to_configured_output(tmp_path, monkeypatch)
     assert (tmp_path / "tables" / "relationships.parquet").exists()
 
 
+def test_demo_cli_reports_foundry_fabric_first_mode(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "settings", Settings(output_dir=tmp_path))
+
+    result = runner.invoke(cli.app, ["demo"])
+
+    assert result.exit_code == 0
+    assert "Foundry/Fabric-first" in result.stdout
+    assert "Deterministic (offline)" not in result.stdout
+
+
 def test_interpret_cli_surfaces_missing_foundry_configuration(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "settings", Settings(output_dir=tmp_path))
 
