@@ -141,6 +141,17 @@ Module: `policy\modules\policy-assignment.bicep`
 | Remediation behavior | DeployIfNotExists |
 | Status | **Deployed** |
 
+### DORA 2022/2554
+| Field | Value |
+|---|---|
+| Built-in initiative ID | `f9c0485f-da8e-43b5-961e-58ebd54b907c` |
+| Purpose / driver | EU Digital Operational Resilience Act (DORA) 2022/2554 regulatory compliance mapping — ICT risk management for financial entities (banking is in scope) |
+| Scope | `BuildForge_Root_Group` management group |
+| Assignment name | `51b4336e9402450eb3c0b7b8` (originally created out-of-band via the Azure portal on 2026-07-10; reused intentionally so this deployment updates the existing assignment in place instead of creating a duplicate) |
+| Managed identity / roles | SystemAssigned; no additional role assignment configured (matches the identity/role state of the original out-of-band assignment) |
+| Remediation behavior | Mixed Audit/DeployIfNotExists per member policy (includes `IncludeArcMachines` parameters for two member policies) |
+| Status | **Deployed** — brought under IaC management; assignment name/scope/parameters preserved from the original manual assignment |
+
 ---
 
 ## 3. Policy Initiatives — Subscription scope

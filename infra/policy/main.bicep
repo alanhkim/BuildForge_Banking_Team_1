@@ -208,3 +208,27 @@ module activityLogToLaw 'modules/policy-assignment.bicep' = {
 }
 
 output activityLogToLawAssignmentId string = activityLogToLaw.outputs.assignmentId
+
+// DORA 2022/2554 — reuses the existing assignment name/scope/parameters (originally created
+// out-of-band via the portal on 2026-07-10) so this deployment updates it in place rather than
+// creating a duplicate, bringing it under IaC management going forward.
+module dora2022 'modules/policy-assignment.bicep' = {
+  scope: managementGroup(buildForgeRootGroupId)
+  params: {
+    assignmentName: '51b4336e9402450eb3c0b7b8'
+    displayName: 'DORA 2022 2554'
+    policyDefinitionId: '/providers/Microsoft.Authorization/policySetDefinitions/f9c0485f-da8e-43b5-961e-58ebd54b907c'
+    location: location
+    identityType: 'SystemAssigned'
+    parameters: {
+      'IncludeArcMachines-f71be03e-e25b-4d0f-b8bc-9b3e309b66c0': {
+        value: 'true'
+      }
+      'IncludeArcMachines-bed48b13-6647-468e-aa2f-1af1d3f4dd40': {
+        value: 'true'
+      }
+    }
+  }
+}
+
+output dora2022AssignmentId string = dora2022.outputs.assignmentId
