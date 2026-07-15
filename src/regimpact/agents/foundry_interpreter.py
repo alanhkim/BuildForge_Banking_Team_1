@@ -5,12 +5,98 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import inspect
 import json
+import re
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any
 
-from ..contracts import InterpretRequest, InterpretResponse, Obligation, ValidationError
+from ..contracts import (
+    InterpretRequest,
+    InterpretResponse,
+    KNOWN_THEMES,
+    Obligation,
+    ValidationError,
+)
 from ..settings import Settings, settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+_THEME_ALIASES = {
+    "Data Governance": "DATA_QUALITY",
+    "Data Lineage and Provenance": "DATA_LINEAGE",
+    "Data Lineage & Provenance": "DATA_LINEAGE",
+    "Logging and Traceability": "TRACEABILITY",
+    "Logging & Traceability": "TRACEABILITY",
+    "Human Oversight": "AI_GOVERNANCE",
+    "Model Robustness, Accuracy, and Cybersecurity": "MODEL_RISK",
+    "Model Robustness & Performance Monitoring": "MODEL_RISK",
+}
+
+_THEME_KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("DATA_LINEAGE", ("lineage", "provenance")),
+    ("TRACEABILITY", ("traceability", "logging")),
+    ("DATA_QUALITY", ("data", "governance")),
+    ("DATA_QUALITY", ("data", "quality")),
+    ("AI_GOVERNANCE", ("human", "oversight")),
+    ("MODEL_RISK", ("model", "robustness")),
+    ("MODEL_RISK", ("model", "performance", "monitoring")),
+    ("MODEL_RISK", ("model", "risk")),
+    ("ACCESS_CONTROL", ("access", "control")),
+    ("AUDITABILITY", ("audit",)),
+    ("CAPITAL_ADEQUACY", ("capital",)),
+    ("CONDUCT", ("conduct",)),
+    ("CYBER", ("cyber",)),
+    ("ICT_SECURITY", ("ict", "security")),
+    ("ICT_RESILIENCE", ("ict", "resilience")),
+    ("INCIDENT_MGMT", ("incident",)),
+    ("KYC_CDD", ("kyc",)),
+    ("KYC_CDD", ("cdd",)),
+    ("METADATA", ("metadata",)),
+    ("PRIVACY", ("privacy",)),
+    ("REG_REPORTING", ("regulatory", "reporting")),
+    ("RETENTION", ("retention",)),
+    ("SANCTIONS", ("sanction",)),
+    ("SAR_REPORTING", ("sar",)),
+    ("SAR_REPORTING", ("suspicious", "activity")),
+    ("SCA", ("strong", "customer", "authentication")),
+    ("SCA", ("sca",)),
+    ("THIRD_PARTY_RISK", ("third", "party")),
+    ("TRAINING_DATA", ("training", "data")),
+    ("TXN_MONITORING", ("transaction", "monitoring")),
+    ("TXN_MONITORING", ("txn", "monitoring")),
+]
+
+
+def _theme_tokens(theme: str) -> set[str]:
+    normalized = theme.lower().replace("&", " and ")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    return {token for token in normalized.split() if token}
+
+
+def _normalize_theme(theme: str) -> str:
+    """Map model-friendly theme labels to the strict contract theme enum."""
+    stripped = theme.strip()
+    if stripped in _THEME_ALIASES:
+        return _THEME_ALIASES[stripped]
+
+    # Accept already-canonical keys and common punctuation/casing variants.
+    canonical_like = (
+        stripped.upper()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
+    )
+    if canonical_like in KNOWN_THEMES:
+        return canonical_like
+
+    # Semantic fallback: map descriptive labels to enum themes.
+    tokens = _theme_tokens(stripped)
+    for enum_value, required_tokens in _THEME_KEYWORD_RULES:
+        if set(required_tokens).issubset(tokens):
+            return enum_value
+
+    return stripped
 
 _BASE_FOUNDRY_RUNTIME_ERRORS = (
     AttributeError,
@@ -97,11 +183,21 @@ class FoundryInterpreterAdapter:
     def interpret(self, request: InterpretRequest) -> InterpretResponse:
         """Call Foundry and return a schema-valid interpreter response."""
         raw_response = self._invoke_model(request)
+        logger.debug(f"[FOUNDRY DEBUG] Raw response: {raw_response}")
         payload = _parse_json_payload(raw_response)
+        logger.debug(
+            f"[FOUNDRY DEBUG] Parsed payload: {json.dumps(payload, indent=2, default=str)}"
+        )
         response = _response_from_payload(payload, request)
         try:
             response.validate()
         except ValidationError as exc:
+            logger.error(f"[FOUNDRY DEBUG] Validation failed: {exc}")
+            if response.obligations:
+                for i, obligation in enumerate(response.obligations):
+                    logger.error(
+                        f"  Obligation {i}: theme={obligation.theme}, maturity={obligation.target_maturity}, criticality={obligation.criticality}, refs={obligation.source_refs}"
+                    )
             raise FoundryInterpreterError("Foundry response failed contract validation") from exc
         return response
 
@@ -287,10 +383,45 @@ def _obligation_from_payload_item(
                 f"Foundry obligation {field_name} must be a string"
             )
 
-    target_maturity = item["target_maturity"]
-    if type(target_maturity) is not int or not 1 <= target_maturity <= 5:
+    target_maturity_raw = item["target_maturity"]
+    target_maturity: int | None = None
+    if isinstance(target_maturity_raw, int):
+        target_maturity = target_maturity_raw
+    elif isinstance(target_maturity_raw, float) and target_maturity_raw.is_integer():
+        target_maturity = int(target_maturity_raw)
+    elif isinstance(target_maturity_raw, str):
+        stripped = target_maturity_raw.strip()
+        if stripped.isdigit():
+            target_maturity = int(stripped)
+        else:
+            try:
+                parsed_float = float(stripped)
+            except ValueError:
+                parsed_float = None
+            if parsed_float is not None and parsed_float.is_integer():
+                target_maturity = int(parsed_float)
+    elif isinstance(target_maturity_raw, dict):
+        dict_value = target_maturity_raw.get("value")
+        if isinstance(dict_value, int):
+            target_maturity = dict_value
+        elif isinstance(dict_value, float) and dict_value.is_integer():
+            target_maturity = int(dict_value)
+        elif isinstance(dict_value, str):
+            stripped_value = dict_value.strip()
+            if stripped_value.isdigit():
+                target_maturity = int(stripped_value)
+            else:
+                try:
+                    parsed_float = float(stripped_value)
+                except ValueError:
+                    parsed_float = None
+                if parsed_float is not None and parsed_float.is_integer():
+                    target_maturity = int(parsed_float)
+
+    if target_maturity is None or not 1 <= target_maturity <= 5:
         raise FoundryInterpreterError(
-            "Foundry obligation target_maturity must be an integer from 1 to 5"
+            "Foundry obligation target_maturity must be an integer from 1 to 5 "
+            f"(received {target_maturity_raw!r}, type={type(target_maturity_raw).__name__})"
         )
 
     change_id = item.get("change_id", request.change_id)
@@ -317,7 +448,7 @@ def _obligation_from_payload_item(
     return Obligation(
         id=item["id"],
         change_id=change_id,
-        theme=item["theme"],
+        theme=_normalize_theme(item["theme"]),
         summary=item["summary"],
         target_maturity=target_maturity,
         criticality=item["criticality"],

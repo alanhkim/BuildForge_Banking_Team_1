@@ -1,0 +1,31 @@
+
+Agent pipeline ù mode: foundry-model
+                Agent read-out                
++--------------------------------------------+
+| Agent                  | Result            |
+|------------------------+-------------------|
+| Regulation Interpreter | 5 obligations     |
+| Control Mapper         | 21 new mappings   |
+| Gap Analysis           | 12 gaps, 680 days |
+| Remediation            | 12 actions        |
++--------------------------------------------+
+
+Interpreted obligations: 5
+Remediation narrative: 12 remediation actions identified for 
+CHG-EUAIACT-UPLOAD. Immediate priorities: Implement Decision Logging & 
+Traceability to close a maturity shortfall of 3. (Critical); Strengthen 
+governance of Bias & Fairness Testing to close a maturity shortfall of 3. 
+(Critical); Remediate data for Data Quality Rules & Monitoring to close a 
+maturity shortfall of 2. (High).
+
+Compliance score ù before / after (CHG-EUAIACT-UPLOAD)
++-------------------------------------------+
+| Scenario                  | Score         |
+|---------------------------+---------------|
+| As-is (baseline)          | 52.2%         |
+| Post-change (gap exposed) | 51.0%  (-1.2) |
+| Post-remediation          | 58.5%  (+7.5) |
++-------------------------------------------+
+  Regulation compliance (this change): 43.4%
+  Weakest capabilities: Metadata & Catalog (3.0%), Traceability & 
+Explainability (8.8%), Data Lineage (26.2%)

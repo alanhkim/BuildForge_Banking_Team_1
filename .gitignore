@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 .env
+!.env.example
 src/regimpact.mututh/
 # Squad: ignore runtime state (logs, inbox, sessions)
 .squad/orchestration-log/
@@ -20,3 +21,7 @@ AGENTS.md
 .github/agents/functions-copilot.agent.md
 .github/copilot/
 .github/hooks/
+# Squad: ignore runtime state (logs, inbox, sessions)
+# Note: .squad/casting/* is identity and MUST be committed to main, not ignored
+.squad/.scratch/
+.squad/.cache/

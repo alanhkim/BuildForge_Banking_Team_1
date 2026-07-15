@@ -1,0 +1,16 @@
+ID,Name,Category,Vendor,Criticality,As_Of
+SYS-CORE,Core Banking Platform,Core,Temenos,Critical,2026-06-25
+SYS-KYC,KYC / CDD Platform,Risk,Fenergo,Critical,2026-06-25
+SYS-SANCT,Sanctions Screening,Risk,FircoSoft,Critical,2026-06-25
+SYS-TM,Transaction Monitoring,Risk,NICE Actimize,Critical,2026-06-25
+SYS-PAY,Payment Gateway,Channel,ACI,Critical,2026-06-25
+SYS-CARD,Card Management,Channel,FIS,High,2026-06-25
+SYS-LOS,Loan Origination,Channel,nCino,High,2026-06-25
+SYS-CREDIT,Credit Risk Engine,Risk,SAS,High,2026-06-25
+SYS-LAKE,Data Lakehouse (Fabric),Data,Microsoft,High,2026-06-25
+SYS-REGRPT,Regulatory Reporting,Reporting,AxiomSL,Critical,2026-06-25
+SYS-CRM,CRM,Channel,Salesforce,Medium,2026-06-25
+SYS-TRADE,Trading & Surveillance,Risk,Bloomberg,High,2026-06-25
+SYS-GL,General Ledger / Finance,Core,Oracle,Critical,2026-06-25
+SYS-IAM,Identity & Access Mgmt,Data,Microsoft,Critical,2026-06-25
+SYS-AIP,AI / ML Platform,Data,Microsoft,High,2026-06-25

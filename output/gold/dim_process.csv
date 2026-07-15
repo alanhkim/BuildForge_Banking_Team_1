@@ -1,0 +1,10 @@
+ID,Name,Value_Chain,Owner_Unit_ID,As_Of
+PR-ONBOARD,Customer Onboarding,Acquire,BU-RETAIL,2026-06-25
+PR-PAYMENTS,Payments Processing,Service,BU-OPS,2026-06-25
+PR-LENDING,Lending & Credit Decision,Acquire,BU-RETAIL,2026-06-25
+PR-TRADING,Trading & Settlement,Service,BU-MARKETS,2026-06-25
+PR-REGRPT,Regulatory Reporting,Control,BU-FIN,2026-06-25
+PR-FRAUD,Fraud & Financial Crime,Control,BU-RISK,2026-06-25
+PR-SERVICE,Customer Servicing,Service,BU-RETAIL,2026-06-25
+PR-DATAGOV,Data Governance & Quality,Control,BU-DATA,2026-06-25
+PR-AILIFE,AI Model Lifecycle,Control,BU-DATA,2026-06-25

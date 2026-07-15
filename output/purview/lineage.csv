@@ -1,0 +1,576 @@
+source_qualified_name,source_name,source_type,relationship,target_qualified_name,target_name,target_type
+CAP-DG,Data Governance,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-DG,Data Governance,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-LIN,Data Lineage,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-LIN,Data Lineage,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-DQ,Data Quality,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-DQ,Data Quality,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-INFORMATICA,Informatica,Technology
+CAP-MDM,Metadata & Catalog,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-MDM,Metadata & Catalog,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-COLLIBRA,Collibra,Technology
+CAP-PII,PII Protection,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-PII,PII Protection,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CAP-RET,Data Retention,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-RET,Data Retention,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-POLICY,Azure Policy,Technology
+CAP-AC,Access Control,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CAP-AUD,Auditability & Evidence,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-AUD,Auditability & Evidence,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-REP,Regulatory Reporting,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-MRM,Model Risk Management,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CAP-MRM,Model Risk Management,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-AIG,AI Governance,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CAP-AIG,AI Governance,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-TDQ,Training Data Quality,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-TDQ,Training Data Quality,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CAP-TRACE,Traceability & Explainability,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CAP-TRACE,Traceability & Explainability,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CAP-RES,Operational Resilience,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CAP-RES,Operational Resilience,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-INC,Incident Management,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CAP-INC,Incident Management,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CAP-TPR,Third-Party / ICT Dependency,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CAP-CYBER,Cyber Security,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CAP-CYBER,Cyber Security,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CAP-FC,Financial Crime Detection,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-SANCT,Sanctions Screening,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-AUTH,Strong Authentication,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CAP-CAPITAL,Capital & RWA,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CAP-COND,Conduct & Fair Value,Capability,CAPABILITY_ENABLED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+SYS-CORE,Core Banking Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-ACCT,Account Data,DataDomain
+SYS-CORE,Core Banking Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+SYS-CORE,Core Banking Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-KYC,KYC / CDD Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-KYC,KYC / CDD Data,DataDomain
+SYS-KYC,KYC / CDD Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-SANCT,Sanctions Screening,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-SANCT,Sanctions Screening,System,SYSTEM_STORES_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+SYS-TM,Transaction Monitoring,System,SYSTEM_STORES_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+SYS-TM,Transaction Monitoring,System,SYSTEM_STORES_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+SYS-PAY,Payment Gateway,System,SYSTEM_STORES_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+SYS-PAY,Payment Gateway,System,SYSTEM_STORES_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+SYS-CARD,Card Management,System,SYSTEM_STORES_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+SYS-CARD,Card Management,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-LOS,Loan Origination,System,SYSTEM_STORES_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+SYS-LOS,Loan Origination,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-CREDIT,Credit Risk Engine,System,SYSTEM_STORES_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+SYS-CREDIT,Credit Risk Engine,System,SYSTEM_STORES_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+SYS-LAKE,Data Lakehouse (Fabric),System,SYSTEM_STORES_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+SYS-LAKE,Data Lakehouse (Fabric),System,SYSTEM_STORES_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+SYS-LAKE,Data Lakehouse (Fabric),System,SYSTEM_STORES_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+SYS-LAKE,Data Lakehouse (Fabric),System,SYSTEM_STORES_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+SYS-LAKE,Data Lakehouse (Fabric),System,SYSTEM_STORES_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+SYS-REGRPT,Regulatory Reporting,System,SYSTEM_STORES_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+SYS-REGRPT,Regulatory Reporting,System,SYSTEM_STORES_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+SYS-REGRPT,Regulatory Reporting,System,SYSTEM_STORES_DATA_DOMAIN,DD-TRADE,Trade & Position Data,DataDomain
+SYS-CRM,CRM,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-TRADE,Trading & Surveillance,System,SYSTEM_STORES_DATA_DOMAIN,DD-TRADE,Trade & Position Data,DataDomain
+SYS-GL,General Ledger / Finance,System,SYSTEM_STORES_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+SYS-IAM,Identity & Access Mgmt,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+SYS-IAM,Identity & Access Mgmt,System,SYSTEM_STORES_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+SYS-AIP,AI / ML Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+SYS-AIP,AI / ML Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+SYS-AIP,AI / ML Platform,System,SYSTEM_STORES_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+CTL-CDD-1,Identity Verification & KYC,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-KYC,KYC / CDD Platform,System
+CTL-CDD-1,Identity Verification & KYC,Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-CDD-1,Identity Verification & KYC,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CDD-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CDD-1,Identity Verification & KYC,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-1-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-CDD-1-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-CDD-2,Beneficial Ownership Checks,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-KYC,KYC / CDD Platform,System
+CTL-CDD-2,Beneficial Ownership Checks,Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-CDD-2,Beneficial Ownership Checks,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CDD-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CDD-2,Beneficial Ownership Checks,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-2-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-CDD-2-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-CDD-3,Ongoing Customer Risk Rating,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-KYC,KYC / CDD Platform,System
+CTL-CDD-3,Ongoing Customer Risk Rating,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-TM,Transaction Monitoring,System
+CTL-CDD-3,Ongoing Customer Risk Rating,Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-CDD-3,Ongoing Customer Risk Rating,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-3-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CDD-3-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CDD-3,Ongoing Customer Risk Rating,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CDD-3-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-CDD-3-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-SAN-1,Real-time Payment Screening,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-SANCT,Sanctions Screening,System
+CTL-SAN-1,Real-time Payment Screening,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-PAY,Payment Gateway,System
+CTL-SAN-1,Real-time Payment Screening,Control,CONTROL_REALIZES_CAPABILITY,CAP-SANCT,Sanctions Screening,Capability
+CTL-SAN-1,Real-time Payment Screening,Control,CONTROL_EVIDENCED_BY,EVD-CTL-SAN-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-SAN-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-SAN-2,Watchlist Management,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-SANCT,Sanctions Screening,System
+CTL-SAN-2,Watchlist Management,Control,CONTROL_REALIZES_CAPABILITY,CAP-SANCT,Sanctions Screening,Capability
+CTL-SAN-2,Watchlist Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-SAN-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-SAN-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-1,Behavioural Monitoring Scenarios,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-TM,Transaction Monitoring,System
+CTL-TM-1,Behavioural Monitoring Scenarios,Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-TM-1,Behavioural Monitoring Scenarios,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-1-EV-SAR,SAR Filing Log,Evidence
+EVD-CTL-TM-1-EV-SAR,SAR Filing Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-1,Behavioural Monitoring Scenarios,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TM-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-2,Alert Triage & Investigation,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-TM,Transaction Monitoring,System
+CTL-TM-2,Alert Triage & Investigation,Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-TM-2,Alert Triage & Investigation,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-2-EV-SAR,SAR Filing Log,Evidence
+EVD-CTL-TM-2-EV-SAR,SAR Filing Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-2,Alert Triage & Investigation,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TM-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-3,Suspicious Activity Reporting (SAR),Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-TM,Transaction Monitoring,System
+CTL-TM-3,Suspicious Activity Reporting (SAR),Control,CONTROL_REALIZES_CAPABILITY,CAP-FC,Financial Crime Detection,Capability
+CTL-TM-3,Suspicious Activity Reporting (SAR),Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-3-EV-SAR,SAR Filing Log,Evidence
+EVD-CTL-TM-3-EV-SAR,SAR Filing Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TM-3,Suspicious Activity Reporting (SAR),Control,CONTROL_EVIDENCED_BY,EVD-CTL-TM-3-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TM-3-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-OR-1,Important Business Service Mapping,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CORE,Core Banking Platform,System
+CTL-OR-1,Important Business Service Mapping,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-PAY,Payment Gateway,System
+CTL-OR-1,Important Business Service Mapping,Control,CONTROL_REALIZES_CAPABILITY,CAP-RES,Operational Resilience,Capability
+CTL-OR-1,Important Business Service Mapping,Control,CONTROL_EVIDENCED_BY,EVD-CTL-OR-1-EV-BCP,Resilience Test Report,Evidence
+EVD-CTL-OR-1-EV-BCP,Resilience Test Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-OR-2,Impact Tolerances & Scenario Testing,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CORE,Core Banking Platform,System
+CTL-OR-2,Impact Tolerances & Scenario Testing,Control,CONTROL_REALIZES_CAPABILITY,CAP-RES,Operational Resilience,Capability
+CTL-OR-2,Impact Tolerances & Scenario Testing,Control,CONTROL_EVIDENCED_BY,EVD-CTL-OR-2-EV-BCP,Resilience Test Report,Evidence
+EVD-CTL-OR-2-EV-BCP,Resilience Test Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-OR-3,ICT Continuity & Recovery,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-OR-3,ICT Continuity & Recovery,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CORE,Core Banking Platform,System
+CTL-OR-3,ICT Continuity & Recovery,Control,CONTROL_REALIZES_CAPABILITY,CAP-RES,Operational Resilience,Capability
+CTL-OR-3,ICT Continuity & Recovery,Control,CONTROL_EVIDENCED_BY,EVD-CTL-OR-3-EV-BCP,Resilience Test Report,Evidence
+EVD-CTL-OR-3-EV-BCP,Resilience Test Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-IC-1,ICT Incident Detection & Response,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-IC-1,ICT Incident Detection & Response,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-IC-1,ICT Incident Detection & Response,Control,CONTROL_REALIZES_CAPABILITY,CAP-INC,Incident Management,Capability
+CTL-IC-1,ICT Incident Detection & Response,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-1-EV-INCIDENT,Incident Register,Evidence
+EVD-CTL-IC-1-EV-INCIDENT,Incident Register,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-IC-1,ICT Incident Detection & Response,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-1-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-IC-1-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-IC-2,Major Incident Regulatory Notification,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-IC-2,Major Incident Regulatory Notification,Control,CONTROL_REALIZES_CAPABILITY,CAP-INC,Incident Management,Capability
+CTL-IC-2,Major Incident Regulatory Notification,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-2-EV-INCIDENT,Incident Register,Evidence
+EVD-CTL-IC-2-EV-INCIDENT,Incident Register,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-IC-2,Major Incident Regulatory Notification,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-2-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-IC-2-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-IC-3,Threat-Led Penetration Testing,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-IC-3,Threat-Led Penetration Testing,Control,CONTROL_REALIZES_CAPABILITY,CAP-INC,Incident Management,Capability
+CTL-IC-3,Threat-Led Penetration Testing,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-3-EV-INCIDENT,Incident Register,Evidence
+EVD-CTL-IC-3-EV-INCIDENT,Incident Register,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-SERVICENOW,ServiceNow,Technology
+CTL-IC-3,Threat-Led Penetration Testing,Control,CONTROL_EVIDENCED_BY,EVD-CTL-IC-3-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-IC-3-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-TP-1,Critical Provider Register,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-TP-1,Critical Provider Register,Control,CONTROL_REALIZES_CAPABILITY,CAP-TPR,Third-Party / ICT Dependency,Capability
+CTL-TP-1,Critical Provider Register,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TP-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TP-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TP-2,Concentration & Exit Strategy,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-TP-2,Concentration & Exit Strategy,Control,CONTROL_REALIZES_CAPABILITY,CAP-TPR,Third-Party / ICT Dependency,Capability
+CTL-TP-2,Concentration & Exit Strategy,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TP-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TP-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CY-1,Security Monitoring & SIEM,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-CY-1,Security Monitoring & SIEM,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-CY-1,Security Monitoring & SIEM,Control,CONTROL_REALIZES_CAPABILITY,CAP-CYBER,Cyber Security,Capability
+CTL-CY-1,Security Monitoring & SIEM,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CY-1-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-CY-1-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-CY-1,Security Monitoring & SIEM,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CY-1-EV-ACCESS,Access Review,Evidence
+EVD-CTL-CY-1-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-CY-2,Vulnerability Management,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-CY-2,Vulnerability Management,Control,CONTROL_REALIZES_CAPABILITY,CAP-CYBER,Cyber Security,Capability
+CTL-CY-2,Vulnerability Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CY-2-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-CY-2-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-CY-2,Vulnerability Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CY-2-EV-ACCESS,Access Review,Evidence
+EVD-CTL-CY-2-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-AC-1,Role-Based Access & Least Privilege,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-AC-1,Role-Based Access & Least Privilege,Control,CONTROL_REALIZES_CAPABILITY,CAP-AC,Access Control,Capability
+CTL-AC-1,Role-Based Access & Least Privilege,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AC-1-EV-ACCESS,Access Review,Evidence
+EVD-CTL-AC-1-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-AC-2,Privileged Access Reviews,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-AC-2,Privileged Access Reviews,Control,CONTROL_REALIZES_CAPABILITY,CAP-AC,Access Control,Capability
+CTL-AC-2,Privileged Access Reviews,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AC-2-EV-ACCESS,Access Review,Evidence
+EVD-CTL-AC-2-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-CAP-1,RWA Calculation Engine,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CREDIT,Credit Risk Engine,System
+CTL-CAP-1,RWA Calculation Engine,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-CAP-1,RWA Calculation Engine,Control,CONTROL_REALIZES_CAPABILITY,CAP-CAPITAL,Capital & RWA,Capability
+CTL-CAP-1,RWA Calculation Engine,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CAP-1-EV-CAPREC,Capital Calc Reconciliation,Evidence
+EVD-CTL-CAP-1-EV-CAPREC,Capital Calc Reconciliation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CAP-1,RWA Calculation Engine,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CAP-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CAP-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CAP-2,Capital Adequacy Reporting,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-CAP-2,Capital Adequacy Reporting,Control,CONTROL_REALIZES_CAPABILITY,CAP-CAPITAL,Capital & RWA,Capability
+CTL-CAP-2,Capital Adequacy Reporting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CAP-2-EV-CAPREC,Capital Calc Reconciliation,Evidence
+EVD-CTL-CAP-2-EV-CAPREC,Capital Calc Reconciliation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CAP-2,Capital Adequacy Reporting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CAP-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CAP-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-DQ-1,Data Quality Rules & Monitoring,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-DQ-1,Data Quality Rules & Monitoring,Control,CONTROL_REALIZES_CAPABILITY,CAP-DQ,Data Quality,Capability
+CTL-DQ-1,Data Quality Rules & Monitoring,Control,CONTROL_EVIDENCED_BY,EVD-CTL-DQ-1-EV-DQ,Data Quality Dashboard,Evidence
+EVD-CTL-DQ-1-EV-DQ,Data Quality Dashboard,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-DQ-1,Data Quality Rules & Monitoring,Control,CONTROL_EVIDENCED_BY,EVD-CTL-DQ-1-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-DQ-1-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-DQ-2,Critical Data Element Catalog,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-DQ-2,Critical Data Element Catalog,Control,CONTROL_REALIZES_CAPABILITY,CAP-DQ,Data Quality,Capability
+CTL-DQ-2,Critical Data Element Catalog,Control,CONTROL_EVIDENCED_BY,EVD-CTL-DQ-2-EV-DQ,Data Quality Dashboard,Evidence
+EVD-CTL-DQ-2-EV-DQ,Data Quality Dashboard,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-DQ-2,Critical Data Element Catalog,Control,CONTROL_EVIDENCED_BY,EVD-CTL-DQ-2-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-DQ-2-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-LIN-1,End-to-End Data Lineage,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-LIN-1,End-to-End Data Lineage,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-LIN-1,End-to-End Data Lineage,Control,CONTROL_REALIZES_CAPABILITY,CAP-LIN,Data Lineage,Capability
+CTL-LIN-1,End-to-End Data Lineage,Control,CONTROL_EVIDENCED_BY,EVD-CTL-LIN-1-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-LIN-1-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-LIN-1,End-to-End Data Lineage,Control,CONTROL_EVIDENCED_BY,EVD-CTL-LIN-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-LIN-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-LIN-2,Reconciliation & Aggregation Controls,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-LIN-2,Reconciliation & Aggregation Controls,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-GL,General Ledger / Finance,System
+CTL-LIN-2,Reconciliation & Aggregation Controls,Control,CONTROL_REALIZES_CAPABILITY,CAP-LIN,Data Lineage,Capability
+CTL-LIN-2,Reconciliation & Aggregation Controls,Control,CONTROL_EVIDENCED_BY,EVD-CTL-LIN-2-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-LIN-2-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-LIN-2,Reconciliation & Aggregation Controls,Control,CONTROL_EVIDENCED_BY,EVD-CTL-LIN-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-LIN-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-MD-1,Enterprise Data Catalog,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-MD-1,Enterprise Data Catalog,Control,CONTROL_REALIZES_CAPABILITY,CAP-MDM,Metadata & Catalog,Capability
+CTL-MD-1,Enterprise Data Catalog,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MD-1-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-MD-1-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-MD-1,Enterprise Data Catalog,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MD-1-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-MD-1-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-MD-2,Business Glossary,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-MD-2,Business Glossary,Control,CONTROL_REALIZES_CAPABILITY,CAP-MDM,Metadata & Catalog,Capability
+CTL-MD-2,Business Glossary,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MD-2-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-MD-2-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-MD-2,Business Glossary,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MD-2-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-MD-2-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-RT-1,Retention Schedule Enforcement,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-RT-1,Retention Schedule Enforcement,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CORE,Core Banking Platform,System
+CTL-RT-1,Retention Schedule Enforcement,Control,CONTROL_REALIZES_CAPABILITY,CAP-RET,Data Retention,Capability
+CTL-RT-1,Retention Schedule Enforcement,Control,CONTROL_EVIDENCED_BY,EVD-CTL-RT-1-EV-RETENTION,Retention Policy Attestation,Evidence
+EVD-CTL-RT-1-EV-RETENTION,Retention Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-PR-1,Consent & Lawful Basis Management,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CRM,CRM,System
+CTL-PR-1,Consent & Lawful Basis Management,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-PR-1,Consent & Lawful Basis Management,Control,CONTROL_REALIZES_CAPABILITY,CAP-PII,PII Protection,Capability
+CTL-PR-1,Consent & Lawful Basis Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-1-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-PR-1-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-PR-1,Consent & Lawful Basis Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-1-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-PR-1-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-PR-2,Data Subject Rights (DSAR),Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CRM,CRM,System
+CTL-PR-2,Data Subject Rights (DSAR),Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CORE,Core Banking Platform,System
+CTL-PR-2,Data Subject Rights (DSAR),Control,CONTROL_REALIZES_CAPABILITY,CAP-PII,PII Protection,Capability
+CTL-PR-2,Data Subject Rights (DSAR),Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-2-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-PR-2-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-PR-2,Data Subject Rights (DSAR),Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-2-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-PR-2-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-PR-3,Personal Data Breach Management,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-PR-3,Personal Data Breach Management,Control,CONTROL_REALIZES_CAPABILITY,CAP-PII,PII Protection,Capability
+CTL-PR-3,Personal Data Breach Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-3-EV-CLASS,Data Classification Report,Evidence
+EVD-CTL-PR-3-EV-CLASS,Data Classification Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-PR-3,Personal Data Breach Management,Control,CONTROL_EVIDENCED_BY,EVD-CTL-PR-3-EV-DLP,DLP Policy Attestation,Evidence
+EVD-CTL-PR-3-EV-DLP,DLP Policy Attestation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-DEFENDER,Microsoft Defender/Sentinel,Technology
+CTL-SCA-1,Multi-Factor Authentication,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-SCA-1,Multi-Factor Authentication,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-PAY,Payment Gateway,System
+CTL-SCA-1,Multi-Factor Authentication,Control,CONTROL_REALIZES_CAPABILITY,CAP-AUTH,Strong Authentication,Capability
+CTL-SCA-1,Multi-Factor Authentication,Control,CONTROL_EVIDENCED_BY,EVD-CTL-SCA-1-EV-ACCESS,Access Review,Evidence
+EVD-CTL-SCA-1-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-SCA-1,Multi-Factor Authentication,Control,CONTROL_EVIDENCED_BY,EVD-CTL-SCA-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-SCA-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-SCA-2,Transaction Risk Analysis (TRA),Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-PAY,Payment Gateway,System
+CTL-SCA-2,Transaction Risk Analysis (TRA),Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-TM,Transaction Monitoring,System
+CTL-SCA-2,Transaction Risk Analysis (TRA),Control,CONTROL_REALIZES_CAPABILITY,CAP-AUTH,Strong Authentication,Capability
+CTL-SCA-2,Transaction Risk Analysis (TRA),Control,CONTROL_EVIDENCED_BY,EVD-CTL-SCA-2-EV-ACCESS,Access Review,Evidence
+EVD-CTL-SCA-2-EV-ACCESS,Access Review,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-ENTRA,Microsoft Entra ID,Technology
+CTL-SCA-2,Transaction Risk Analysis (TRA),Control,CONTROL_EVIDENCED_BY,EVD-CTL-SCA-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-SCA-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CO-1,Product Approval & Target Market,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CRM,CRM,System
+CTL-CO-1,Product Approval & Target Market,Control,CONTROL_REALIZES_CAPABILITY,CAP-COND,Conduct & Fair Value,Capability
+CTL-CO-1,Product Approval & Target Market,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CO-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CO-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CO-2,Fair Value Assessment,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-CO-2,Fair Value Assessment,Control,CONTROL_REALIZES_CAPABILITY,CAP-COND,Conduct & Fair Value,Capability
+CTL-CO-2,Fair Value Assessment,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CO-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CO-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-CO-3,Customer Outcomes Monitoring,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-CO-3,Customer Outcomes Monitoring,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CRM,CRM,System
+CTL-CO-3,Customer Outcomes Monitoring,Control,CONTROL_REALIZES_CAPABILITY,CAP-COND,Conduct & Fair Value,Capability
+CTL-CO-3,Customer Outcomes Monitoring,Control,CONTROL_EVIDENCED_BY,EVD-CTL-CO-3-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-CO-3-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-MR-1,Model Inventory & Versioning,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-MR-1,Model Inventory & Versioning,Control,CONTROL_REALIZES_CAPABILITY,CAP-MRM,Model Risk Management,Capability
+CTL-MR-1,Model Inventory & Versioning,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-1-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-MR-1-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-MR-1,Model Inventory & Versioning,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-1-EV-MONITOR,Model Monitoring Report,Evidence
+EVD-CTL-MR-1-EV-MONITOR,Model Monitoring Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-MR-2,Model Validation & Backtesting,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-MR-2,Model Validation & Backtesting,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-CREDIT,Credit Risk Engine,System
+CTL-MR-2,Model Validation & Backtesting,Control,CONTROL_REALIZES_CAPABILITY,CAP-MRM,Model Risk Management,Capability
+CTL-MR-2,Model Validation & Backtesting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-2-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-MR-2-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-MR-2,Model Validation & Backtesting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-2-EV-MONITOR,Model Monitoring Report,Evidence
+EVD-CTL-MR-2-EV-MONITOR,Model Monitoring Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-MR-3,Model Performance Monitoring,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-MR-3,Model Performance Monitoring,Control,CONTROL_REALIZES_CAPABILITY,CAP-MRM,Model Risk Management,Capability
+CTL-MR-3,Model Performance Monitoring,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-3-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-MR-3-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-MR-3,Model Performance Monitoring,Control,CONTROL_EVIDENCED_BY,EVD-CTL-MR-3-EV-MONITOR,Model Monitoring Report,Evidence
+EVD-CTL-MR-3-EV-MONITOR,Model Monitoring Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-1,AI System Risk Classification,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-AI-1,AI System Risk Classification,Control,CONTROL_REALIZES_CAPABILITY,CAP-AIG,AI Governance,Capability
+CTL-AI-1,AI System Risk Classification,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-1-EV-AGENTEVAL,Agent Evaluation Report,Evidence
+EVD-CTL-AI-1-EV-AGENTEVAL,Agent Evaluation Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-1,AI System Risk Classification,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-1-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-AI-1-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-2,Human Oversight & Approval,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-AI-2,Human Oversight & Approval,Control,CONTROL_REALIZES_CAPABILITY,CAP-AIG,AI Governance,Capability
+CTL-AI-2,Human Oversight & Approval,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-2-EV-AGENTEVAL,Agent Evaluation Report,Evidence
+EVD-CTL-AI-2-EV-AGENTEVAL,Agent Evaluation Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-2,Human Oversight & Approval,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-2-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-AI-2-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-3,Bias & Fairness Testing,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-AI-3,Bias & Fairness Testing,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-AI-3,Bias & Fairness Testing,Control,CONTROL_REALIZES_CAPABILITY,CAP-AIG,AI Governance,Capability
+CTL-AI-3,Bias & Fairness Testing,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-3-EV-AGENTEVAL,Agent Evaluation Report,Evidence
+EVD-CTL-AI-3-EV-AGENTEVAL,Agent Evaluation Report,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-AI-3,Bias & Fairness Testing,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AI-3-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-AI-3-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-TD-1,Training Data Governance,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-TD-1,Training Data Governance,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-TD-1,Training Data Governance,Control,CONTROL_REALIZES_CAPABILITY,CAP-TDQ,Training Data Quality,Capability
+CTL-TD-1,Training Data Governance,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TD-1-EV-DQ,Data Quality Dashboard,Evidence
+EVD-CTL-TD-1-EV-DQ,Data Quality Dashboard,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TD-1,Training Data Governance,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TD-1-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-TD-1-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-TD-2,Dataset Documentation & Provenance,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-TD-2,Dataset Documentation & Provenance,Control,CONTROL_REALIZES_CAPABILITY,CAP-TDQ,Training Data Quality,Capability
+CTL-TD-2,Dataset Documentation & Provenance,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TD-2-EV-DQ,Data Quality Dashboard,Evidence
+EVD-CTL-TD-2-EV-DQ,Data Quality Dashboard,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TD-2,Dataset Documentation & Provenance,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TD-2-EV-LINEAGE,Purview Lineage Graph,Evidence
+EVD-CTL-TD-2-EV-LINEAGE,Purview Lineage Graph,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-PURVIEW,Microsoft Purview,Technology
+CTL-TR-1,Decision Logging & Traceability,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-TR-1,Decision Logging & Traceability,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-TR-1,Decision Logging & Traceability,Control,CONTROL_REALIZES_CAPABILITY,CAP-TRACE,Traceability & Explainability,Capability
+CTL-TR-1,Decision Logging & Traceability,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TR-1-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-TR-1-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-TR-1,Decision Logging & Traceability,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TR-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TR-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-TR-2,Model Explainability Reporting,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-AIP,AI / ML Platform,System
+CTL-TR-2,Model Explainability Reporting,Control,CONTROL_REALIZES_CAPABILITY,CAP-TRACE,Traceability & Explainability,Capability
+CTL-TR-2,Model Explainability Reporting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TR-2-EV-MODELCARD,Model Card,Evidence
+EVD-CTL-TR-2-EV-MODELCARD,Model Card,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FOUNDRY,Azure AI Foundry,Technology
+CTL-TR-2,Model Explainability Reporting,Control,CONTROL_EVIDENCED_BY,EVD-CTL-TR-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-TR-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-AU-1,Immutable Audit Trail,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-AU-1,Immutable Audit Trail,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-IAM,Identity & Access Mgmt,System
+CTL-AU-1,Immutable Audit Trail,Control,CONTROL_REALIZES_CAPABILITY,CAP-AUD,Auditability & Evidence,Capability
+CTL-AU-1,Immutable Audit Trail,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AU-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-AU-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-AU-2,Evidence Repository,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-LAKE,Data Lakehouse (Fabric),System
+CTL-AU-2,Evidence Repository,Control,CONTROL_REALIZES_CAPABILITY,CAP-AUD,Auditability & Evidence,Capability
+CTL-AU-2,Evidence Repository,Control,CONTROL_EVIDENCED_BY,EVD-CTL-AU-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-AU-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-RP-1,Regulatory Report Production,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-RP-1,Regulatory Report Production,Control,CONTROL_REALIZES_CAPABILITY,CAP-REP,Regulatory Reporting,Capability
+CTL-RP-1,Regulatory Report Production,Control,CONTROL_EVIDENCED_BY,EVD-CTL-RP-1-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-RP-1-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-RP-1,Regulatory Report Production,Control,CONTROL_EVIDENCED_BY,EVD-CTL-RP-1-EV-CAPREC,Capital Calc Reconciliation,Evidence
+EVD-CTL-RP-1-EV-CAPREC,Capital Calc Reconciliation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-RP-2,Report Review & Sign-off,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-REGRPT,Regulatory Reporting,System
+CTL-RP-2,Report Review & Sign-off,Control,CONTROL_IMPLEMENTED_IN_SYSTEM,SYS-GL,General Ledger / Finance,System
+CTL-RP-2,Report Review & Sign-off,Control,CONTROL_REALIZES_CAPABILITY,CAP-REP,Regulatory Reporting,Capability
+CTL-RP-2,Report Review & Sign-off,Control,CONTROL_EVIDENCED_BY,EVD-CTL-RP-2-EV-AUDIT,Fabric Audit Log,Evidence
+EVD-CTL-RP-2-EV-AUDIT,Fabric Audit Log,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CTL-RP-2,Report Review & Sign-off,Control,CONTROL_EVIDENCED_BY,EVD-CTL-RP-2-EV-CAPREC,Capital Calc Reconciliation,Evidence
+EVD-CTL-RP-2-EV-CAPREC,Capital Calc Reconciliation,Evidence,EVIDENCE_PRODUCED_BY_TECHNOLOGY,TEC-FABRIC,Microsoft Fabric,Technology
+CHG-EUAIACT,CHG-EUAIACT,RegulatoryChange,CHANGE_OF_REGULATION,REG-AIACT,EU AI Act,Regulation
+OBL-EUAIACT-01,OBL-EUAIACT-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TD-1,Training Data Governance,Control
+OBL-EUAIACT-01,OBL-EUAIACT-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TD-2,Dataset Documentation & Provenance,Control
+OBL-EUAIACT-01,OBL-EUAIACT-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-EUAIACT-01,OBL-EUAIACT-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-EUAIACT-02,OBL-EUAIACT-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-1,End-to-End Data Lineage,Control
+OBL-EUAIACT-02,OBL-EUAIACT-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-2,Reconciliation & Aggregation Controls,Control
+OBL-EUAIACT-02,OBL-EUAIACT-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-EUAIACT-02,OBL-EUAIACT-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-EUAIACT-02,OBL-EUAIACT-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TRADE,Trade & Position Data,DataDomain
+OBL-EUAIACT-03,OBL-EUAIACT-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-1,Decision Logging & Traceability,Control
+OBL-EUAIACT-03,OBL-EUAIACT-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-2,Model Explainability Reporting,Control
+OBL-EUAIACT-03,OBL-EUAIACT-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-EUAIACT-04,OBL-EUAIACT-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-1,AI System Risk Classification,Control
+OBL-EUAIACT-04,OBL-EUAIACT-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-2,Human Oversight & Approval,Control
+OBL-EUAIACT-04,OBL-EUAIACT-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-3,Bias & Fairness Testing,Control
+OBL-EUAIACT-04,OBL-EUAIACT-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-EUAIACT-05,OBL-EUAIACT-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-1,Model Inventory & Versioning,Control
+OBL-EUAIACT-05,OBL-EUAIACT-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-2,Model Validation & Backtesting,Control
+OBL-EUAIACT-05,OBL-EUAIACT-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-3,Model Performance Monitoring,Control
+OBL-EUAIACT-05,OBL-EUAIACT-05,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-EUAIACT-05,OBL-EUAIACT-05,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+CHG-NISTAIRMF,CHG-NISTAIRMF,RegulatoryChange,CHANGE_OF_REGULATION,REG-NIST,NIST AI Risk Management Framework,Regulation
+OBL-NISTAIRMF-01,OBL-NISTAIRMF-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-1,AI System Risk Classification,Control
+OBL-NISTAIRMF-01,OBL-NISTAIRMF-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-2,Human Oversight & Approval,Control
+OBL-NISTAIRMF-01,OBL-NISTAIRMF-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-3,Bias & Fairness Testing,Control
+OBL-NISTAIRMF-01,OBL-NISTAIRMF-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-NISTAIRMF-02,OBL-NISTAIRMF-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-1,Model Inventory & Versioning,Control
+OBL-NISTAIRMF-02,OBL-NISTAIRMF-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-2,Model Validation & Backtesting,Control
+OBL-NISTAIRMF-02,OBL-NISTAIRMF-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-3,Model Performance Monitoring,Control
+OBL-NISTAIRMF-02,OBL-NISTAIRMF-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-NISTAIRMF-02,OBL-NISTAIRMF-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-NISTAIRMF-03,OBL-NISTAIRMF-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-1,Decision Logging & Traceability,Control
+OBL-NISTAIRMF-03,OBL-NISTAIRMF-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-2,Model Explainability Reporting,Control
+OBL-NISTAIRMF-03,OBL-NISTAIRMF-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+CHG-DORA,CHG-DORA,RegulatoryChange,CHANGE_OF_REGULATION,REG-DORA,Digital Operational Resilience Act,Regulation
+OBL-DORA-01,OBL-DORA-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-1,Important Business Service Mapping,Control
+OBL-DORA-01,OBL-DORA-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-2,Impact Tolerances & Scenario Testing,Control
+OBL-DORA-01,OBL-DORA-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-3,ICT Continuity & Recovery,Control
+OBL-DORA-01,OBL-DORA-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-DORA-02,OBL-DORA-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-1,ICT Incident Detection & Response,Control
+OBL-DORA-02,OBL-DORA-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-2,Major Incident Regulatory Notification,Control
+OBL-DORA-02,OBL-DORA-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-3,Threat-Led Penetration Testing,Control
+OBL-DORA-02,OBL-DORA-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-1,ICT Incident Detection & Response,Control
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-2,Major Incident Regulatory Notification,Control
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-3,Threat-Led Penetration Testing,Control
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-1,Security Monitoring & SIEM,Control
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-2,Vulnerability Management,Control
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-DORA-03,OBL-DORA-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-DORA-04,OBL-DORA-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TP-1,Critical Provider Register,Control
+OBL-DORA-04,OBL-DORA-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TP-2,Concentration & Exit Strategy,Control
+OBL-DORA-04,OBL-DORA-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+CHG-BASEL,CHG-BASEL,RegulatoryChange,CHANGE_OF_REGULATION,REG-BASEL,Basel III/IV Capital Framework (CRR),Regulation
+OBL-BASEL-01,OBL-BASEL-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CAP-1,RWA Calculation Engine,Control
+OBL-BASEL-01,OBL-BASEL-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CAP-2,Capital Adequacy Reporting,Control
+OBL-BASEL-01,OBL-BASEL-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-BASEL-01,OBL-BASEL-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-BASEL-02,OBL-BASEL-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-1,Data Quality Rules & Monitoring,Control
+OBL-BASEL-02,OBL-BASEL-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-2,Critical Data Element Catalog,Control
+OBL-BASEL-02,OBL-BASEL-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-BASEL-02,OBL-BASEL-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-BASEL-03,OBL-BASEL-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-RP-1,Regulatory Report Production,Control
+OBL-BASEL-03,OBL-BASEL-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-RP-2,Report Review & Sign-off,Control
+OBL-BASEL-03,OBL-BASEL-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-BASEL-03,OBL-BASEL-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+CHG-BCBS239,CHG-BCBS239,RegulatoryChange,CHANGE_OF_REGULATION,REG-BCBS239,BCBS 239 Risk Data Aggregation,Regulation
+OBL-BCBS239-01,OBL-BCBS239-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-1,Data Quality Rules & Monitoring,Control
+OBL-BCBS239-01,OBL-BCBS239-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-2,Critical Data Element Catalog,Control
+OBL-BCBS239-01,OBL-BCBS239-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-BCBS239-01,OBL-BCBS239-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-BCBS239-02,OBL-BCBS239-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-1,End-to-End Data Lineage,Control
+OBL-BCBS239-02,OBL-BCBS239-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-2,Reconciliation & Aggregation Controls,Control
+OBL-BCBS239-02,OBL-BCBS239-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-BCBS239-02,OBL-BCBS239-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-BCBS239-02,OBL-BCBS239-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TRADE,Trade & Position Data,DataDomain
+OBL-BCBS239-03,OBL-BCBS239-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MD-1,Enterprise Data Catalog,Control
+OBL-BCBS239-03,OBL-BCBS239-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MD-2,Business Glossary,Control
+OBL-BCBS239-03,OBL-BCBS239-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+CHG-GDPR,CHG-GDPR,RegulatoryChange,CHANGE_OF_REGULATION,REG-GDPR,General Data Protection Regulation,Regulation
+OBL-GDPR-01,OBL-GDPR-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-1,Consent & Lawful Basis Management,Control
+OBL-GDPR-01,OBL-GDPR-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-2,Data Subject Rights (DSAR),Control
+OBL-GDPR-01,OBL-GDPR-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-3,Personal Data Breach Management,Control
+OBL-GDPR-01,OBL-GDPR-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-GDPR-02,OBL-GDPR-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-1,Consent & Lawful Basis Management,Control
+OBL-GDPR-02,OBL-GDPR-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-2,Data Subject Rights (DSAR),Control
+OBL-GDPR-02,OBL-GDPR-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-3,Personal Data Breach Management,Control
+OBL-GDPR-02,OBL-GDPR-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-GDPR-03,OBL-GDPR-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-1,Consent & Lawful Basis Management,Control
+OBL-GDPR-03,OBL-GDPR-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-2,Data Subject Rights (DSAR),Control
+OBL-GDPR-03,OBL-GDPR-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-PR-3,Personal Data Breach Management,Control
+OBL-GDPR-03,OBL-GDPR-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-GDPR-04,OBL-GDPR-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-RT-1,Retention Schedule Enforcement,Control
+OBL-GDPR-04,OBL-GDPR-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-GDPR-04,OBL-GDPR-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-ACCT,Account Data,DataDomain
+CHG-PSD2,CHG-PSD2,RegulatoryChange,CHANGE_OF_REGULATION,REG-PSD2,Payment Services Directive 2,Regulation
+OBL-PSD2-01,OBL-PSD2-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SCA-1,Multi-Factor Authentication,Control
+OBL-PSD2-01,OBL-PSD2-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SCA-2,Transaction Risk Analysis (TRA),Control
+OBL-PSD2-01,OBL-PSD2-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+OBL-PSD2-01,OBL-PSD2-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-PSD2-02,OBL-PSD2-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SCA-1,Multi-Factor Authentication,Control
+OBL-PSD2-02,OBL-PSD2-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SCA-2,Transaction Risk Analysis (TRA),Control
+OBL-PSD2-02,OBL-PSD2-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+OBL-PSD2-02,OBL-PSD2-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-PSD2-03,OBL-PSD2-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-1,Behavioural Monitoring Scenarios,Control
+OBL-PSD2-03,OBL-PSD2-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-2,Alert Triage & Investigation,Control
+OBL-PSD2-03,OBL-PSD2-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-3,Suspicious Activity Reporting (SAR),Control
+OBL-PSD2-03,OBL-PSD2-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+OBL-PSD2-03,OBL-PSD2-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+CHG-CONSDUTY,CHG-CONSDUTY,RegulatoryChange,CHANGE_OF_REGULATION,REG-CONSDUTY,FCA Consumer Duty,Regulation
+OBL-CONSDUTY-01,OBL-CONSDUTY-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-1,Product Approval & Target Market,Control
+OBL-CONSDUTY-01,OBL-CONSDUTY-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-2,Fair Value Assessment,Control
+OBL-CONSDUTY-01,OBL-CONSDUTY-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-3,Customer Outcomes Monitoring,Control
+OBL-CONSDUTY-01,OBL-CONSDUTY-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-CONSDUTY-01,OBL-CONSDUTY-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-ACCT,Account Data,DataDomain
+OBL-CONSDUTY-02,OBL-CONSDUTY-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-1,Product Approval & Target Market,Control
+OBL-CONSDUTY-02,OBL-CONSDUTY-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-2,Fair Value Assessment,Control
+OBL-CONSDUTY-02,OBL-CONSDUTY-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CO-3,Customer Outcomes Monitoring,Control
+OBL-CONSDUTY-02,OBL-CONSDUTY-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-CONSDUTY-02,OBL-CONSDUTY-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-ACCT,Account Data,DataDomain
+CHG-FCAOPRES,CHG-FCAOPRES,RegulatoryChange,CHANGE_OF_REGULATION,REG-FCAOPRES,FCA Operational Resilience,Regulation
+OBL-FCAOPRES-01,OBL-FCAOPRES-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-1,Important Business Service Mapping,Control
+OBL-FCAOPRES-01,OBL-FCAOPRES-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-2,Impact Tolerances & Scenario Testing,Control
+OBL-FCAOPRES-01,OBL-FCAOPRES-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-3,ICT Continuity & Recovery,Control
+OBL-FCAOPRES-01,OBL-FCAOPRES-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-FCAOPRES-02,OBL-FCAOPRES-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-1,ICT Incident Detection & Response,Control
+OBL-FCAOPRES-02,OBL-FCAOPRES-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-2,Major Incident Regulatory Notification,Control
+OBL-FCAOPRES-02,OBL-FCAOPRES-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-3,Threat-Led Penetration Testing,Control
+OBL-FCAOPRES-02,OBL-FCAOPRES-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+CHG-SEC,CHG-SEC,RegulatoryChange,CHANGE_OF_REGULATION,REG-SEC,SEC Cybersecurity Disclosure,Regulation
+OBL-SEC-01,OBL-SEC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-1,ICT Incident Detection & Response,Control
+OBL-SEC-01,OBL-SEC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-2,Major Incident Regulatory Notification,Control
+OBL-SEC-01,OBL-SEC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-IC-3,Threat-Led Penetration Testing,Control
+OBL-SEC-01,OBL-SEC-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-SEC-02,OBL-SEC-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-1,Security Monitoring & SIEM,Control
+OBL-SEC-02,OBL-SEC-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-2,Vulnerability Management,Control
+OBL-SEC-02,OBL-SEC-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-SEC-02,OBL-SEC-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-SEC-03,OBL-SEC-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AU-1,Immutable Audit Trail,Control
+OBL-SEC-03,OBL-SEC-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AU-2,Evidence Repository,Control
+OBL-SEC-03,OBL-SEC-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+CHG-OCC,CHG-OCC,RegulatoryChange,CHANGE_OF_REGULATION,REG-OCC,OCC Heightened Standards,Regulation
+OBL-OCC-01,OBL-OCC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-1,Model Inventory & Versioning,Control
+OBL-OCC-01,OBL-OCC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-2,Model Validation & Backtesting,Control
+OBL-OCC-01,OBL-OCC-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-3,Model Performance Monitoring,Control
+OBL-OCC-01,OBL-OCC-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-OCC-01,OBL-OCC-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-OCC-02,OBL-OCC-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AU-1,Immutable Audit Trail,Control
+OBL-OCC-02,OBL-OCC-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AU-2,Evidence Repository,Control
+OBL-OCC-02,OBL-OCC-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-OCC-03,OBL-OCC-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-1,Data Quality Rules & Monitoring,Control
+OBL-OCC-03,OBL-OCC-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-2,Critical Data Element Catalog,Control
+OBL-OCC-03,OBL-OCC-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-OCC-03,OBL-OCC-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+CHG-MASTRM,CHG-MASTRM,RegulatoryChange,CHANGE_OF_REGULATION,REG-MAS,MAS Technology Risk Management,Regulation
+OBL-MASTRM-01,OBL-MASTRM-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-1,Security Monitoring & SIEM,Control
+OBL-MASTRM-01,OBL-MASTRM-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CY-2,Vulnerability Management,Control
+OBL-MASTRM-01,OBL-MASTRM-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-MASTRM-01,OBL-MASTRM-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-MASTRM-02,OBL-MASTRM-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-1,Important Business Service Mapping,Control
+OBL-MASTRM-02,OBL-MASTRM-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-2,Impact Tolerances & Scenario Testing,Control
+OBL-MASTRM-02,OBL-MASTRM-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-OR-3,ICT Continuity & Recovery,Control
+OBL-MASTRM-02,OBL-MASTRM-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-MASTRM-03,OBL-MASTRM-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AC-1,Role-Based Access & Least Privilege,Control
+OBL-MASTRM-03,OBL-MASTRM-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AC-2,Privileged Access Reviews,Control
+OBL-MASTRM-03,OBL-MASTRM-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-MASTRM-03,OBL-MASTRM-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+CHG-AMLD,CHG-AMLD,RegulatoryChange,CHANGE_OF_REGULATION,REG-AMLD,Anti-Money Laundering Directive,Regulation
+OBL-AMLD-01,OBL-AMLD-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CDD-1,Identity Verification & KYC,Control
+OBL-AMLD-01,OBL-AMLD-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CDD-2,Beneficial Ownership Checks,Control
+OBL-AMLD-01,OBL-AMLD-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-CDD-3,Ongoing Customer Risk Rating,Control
+OBL-AMLD-01,OBL-AMLD-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-KYC,KYC / CDD Data,DataDomain
+OBL-AMLD-01,OBL-AMLD-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-AMLD-02,OBL-AMLD-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-1,Behavioural Monitoring Scenarios,Control
+OBL-AMLD-02,OBL-AMLD-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-2,Alert Triage & Investigation,Control
+OBL-AMLD-02,OBL-AMLD-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-3,Suspicious Activity Reporting (SAR),Control
+OBL-AMLD-02,OBL-AMLD-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+OBL-AMLD-02,OBL-AMLD-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+OBL-AMLD-03,OBL-AMLD-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SAN-1,Real-time Payment Screening,Control
+OBL-AMLD-03,OBL-AMLD-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-SAN-2,Watchlist Management,Control
+OBL-AMLD-03,OBL-AMLD-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CUSTPII,Customer PII,DataDomain
+OBL-AMLD-03,OBL-AMLD-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-PAYMT,Payments Data,DataDomain
+OBL-AMLD-04,OBL-AMLD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-1,Behavioural Monitoring Scenarios,Control
+OBL-AMLD-04,OBL-AMLD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-2,Alert Triage & Investigation,Control
+OBL-AMLD-04,OBL-AMLD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TM-3,Suspicious Activity Reporting (SAR),Control
+OBL-AMLD-04,OBL-AMLD-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TXN,Transactions,DataDomain
+CHG-EUAIACT-UPLOAD,CHG-EUAIACT-UPLOAD,RegulatoryChange,CHANGE_OF_REGULATION,REG-EUAIACT,EU AI Act,Regulation
+OBL-CHG-EUAIACT-UPLOAD-01,OBL-CHG-EUAIACT-UPLOAD-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-1,Data Quality Rules & Monitoring,Control
+OBL-CHG-EUAIACT-UPLOAD-01,OBL-CHG-EUAIACT-UPLOAD-01,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-DQ-2,Critical Data Element Catalog,Control
+OBL-CHG-EUAIACT-UPLOAD-01,OBL-CHG-EUAIACT-UPLOAD-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-REF,Reference Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-01,OBL-CHG-EUAIACT-UPLOAD-01,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-02,OBL-CHG-EUAIACT-UPLOAD-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-1,End-to-End Data Lineage,Control
+OBL-CHG-EUAIACT-UPLOAD-02,OBL-CHG-EUAIACT-UPLOAD-02,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-LIN-2,Reconciliation & Aggregation Controls,Control
+OBL-CHG-EUAIACT-UPLOAD-02,OBL-CHG-EUAIACT-UPLOAD-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-FIN,Financial / GL Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-02,OBL-CHG-EUAIACT-UPLOAD-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-02,OBL-CHG-EUAIACT-UPLOAD-02,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-TRADE,Trade & Position Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-03,OBL-CHG-EUAIACT-UPLOAD-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-1,Decision Logging & Traceability,Control
+OBL-CHG-EUAIACT-UPLOAD-03,OBL-CHG-EUAIACT-UPLOAD-03,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-TR-2,Model Explainability Reporting,Control
+OBL-CHG-EUAIACT-UPLOAD-03,OBL-CHG-EUAIACT-UPLOAD-03,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-04,OBL-CHG-EUAIACT-UPLOAD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-1,AI System Risk Classification,Control
+OBL-CHG-EUAIACT-UPLOAD-04,OBL-CHG-EUAIACT-UPLOAD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-2,Human Oversight & Approval,Control
+OBL-CHG-EUAIACT-UPLOAD-04,OBL-CHG-EUAIACT-UPLOAD-04,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-AI-3,Bias & Fairness Testing,Control
+OBL-CHG-EUAIACT-UPLOAD-04,OBL-CHG-EUAIACT-UPLOAD-04,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-05,OBL-CHG-EUAIACT-UPLOAD-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-1,Model Inventory & Versioning,Control
+OBL-CHG-EUAIACT-UPLOAD-05,OBL-CHG-EUAIACT-UPLOAD-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-2,Model Validation & Backtesting,Control
+OBL-CHG-EUAIACT-UPLOAD-05,OBL-CHG-EUAIACT-UPLOAD-05,Obligation,OBLIGATION_REQUIRES_CONTROL,CTL-MR-3,Model Performance Monitoring,Control
+OBL-CHG-EUAIACT-UPLOAD-05,OBL-CHG-EUAIACT-UPLOAD-05,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-MODEL,AI / Model Data,DataDomain
+OBL-CHG-EUAIACT-UPLOAD-05,OBL-CHG-EUAIACT-UPLOAD-05,Obligation,OBLIGATION_CONCERNS_DATA_DOMAIN,DD-CREDIT,Credit & Risk Data,DataDomain

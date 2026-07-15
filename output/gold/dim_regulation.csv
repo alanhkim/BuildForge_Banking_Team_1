@@ -1,0 +1,14 @@
+ID,Name,Short_Code,Regulator,Jurisdiction,Domain,Description,As_Of
+REG-AIACT,EU AI Act,EUAIACT,European Commission,EU,AI Governance,"Risk-based rules for AI systems: data governance, transparency, human oversight and record-keeping for high-risk AI.",2026-06-25
+REG-NIST,NIST AI Risk Management Framework,NISTAIRMF,NIST,US,AI Governance,"Voluntary framework to govern, map, measure and manage risks of AI systems.",2026-06-25
+REG-DORA,Digital Operational Resilience Act,DORA,European Commission / ESAs,EU,Operational Resilience,"ICT risk management, incident reporting, resilience testing and third-party risk for financial entities.",2026-06-25
+REG-BASEL,Basel III/IV Capital Framework (CRR),BASEL,BCBS / EBA,Global/EU,Prudential,"Capital adequacy, risk-weighted assets and prudential reporting requirements.",2026-06-25
+REG-BCBS239,BCBS 239 Risk Data Aggregation,BCBS239,BCBS,Global,Risk Data,Principles for effective risk data aggregation and risk reporting.,2026-06-25
+REG-GDPR,General Data Protection Regulation,GDPR,EDPB / National DPAs,EU,Data Privacy,"Lawful processing, data subject rights and breach notification for personal data.",2026-06-25
+REG-PSD2,Payment Services Directive 2,PSD2,EBA,EU,Payments,Strong customer authentication and secure communication for electronic payments.,2026-06-25
+REG-CONSDUTY,FCA Consumer Duty,CONSDUTY,FCA,UK,Conduct,"Deliver good outcomes for retail customers across products, price, understanding and support.",2026-06-25
+REG-FCAOPRES,FCA Operational Resilience,FCAOPRES,FCA / PRA,UK,Operational Resilience,"Identify important business services, set impact tolerances and remain within them through severe disruption.",2026-06-25
+REG-SEC,SEC Cybersecurity Disclosure,SEC,US SEC,US,Cyber Disclosure,Disclosure of material cybersecurity incidents and governance of cybersecurity risk.,2026-06-25
+REG-OCC,OCC Heightened Standards,OCC,US OCC,US,Risk Governance,Heightened standards for risk governance frameworks of large national banks.,2026-06-25
+REG-MAS,MAS Technology Risk Management,MASTRM,MAS (Singapore),SG,Technology Risk,"Guidelines on technology risk management, resilience and cyber security for financial institutions.",2026-06-25
+REG-AMLD,Anti-Money Laundering Directive,AMLD,FATF / National FIU,EU/Global,Financial Crime,"Customer due diligence, ongoing monitoring, sanctions and suspicious activity reporting obligations.",2026-06-25

@@ -1,0 +1,27 @@
+Scope_Type,Scope_ID,Scope_Name,Scenario,Score,Status,Change_ID,As_Of
+Overall,BANK,Enterprise,AsIs,52.2,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Overall,BANK,Enterprise,PostChange,51.3,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Overall,BANK,Enterprise,PostRemediation,57.1,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Regulation,REG-EUAIACT,REG-EUAIACT,PostChange,43.4,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Regulation,REG-EUAIACT,REG-EUAIACT,PostRemediation,100.0,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-FC,Financial Crime Detection,AsIs,52.8,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-SANCT,Sanctions Screening,AsIs,52.7,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-RES,Operational Resilience,AsIs,33.2,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-INC,Incident Management,AsIs,36.2,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-TPR,Third-Party / ICT Dependency,AsIs,32.2,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-CYBER,Cyber Security,AsIs,42.5,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-AC,Access Control,AsIs,58.8,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-CAPITAL,Capital & RWA,AsIs,100.0,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-DQ,Data Quality,AsIs,41.2,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-LIN,Data Lineage,AsIs,26.2,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-MDM,Metadata & Catalog,AsIs,3.0,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-RET,Data Retention,AsIs,100.0,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-PII,PII Protection,AsIs,62.8,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-AUTH,Strong Authentication,AsIs,50.0,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-COND,Conduct & Fair Value,AsIs,82.3,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-MRM,Model Risk Management,AsIs,47.0,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-AIG,AI Governance,AsIs,55.8,Partially Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-TDQ,Training Data Quality,AsIs,45.5,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-TRACE,Traceability & Explainability,AsIs,8.8,Non-Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-AUD,Auditability & Evidence,AsIs,100.0,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25
+Capability,CAP-REP,Regulatory Reporting,AsIs,83.8,Compliant,CHG-EUAIACT-UPLOAD,2026-06-25

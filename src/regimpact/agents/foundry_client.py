@@ -5,6 +5,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import inspect
 import json
+import logging
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any, Literal
@@ -18,6 +19,8 @@ from ..contracts import (
 )
 from ..settings import Settings, settings
 from .foundry_interpreter import foundry_runtime_error_types
+
+logger = logging.getLogger(__name__)
 
 
 class FoundryAgentError(Exception):
@@ -56,6 +59,7 @@ class FoundryAgentConfig:
     """Configuration for invoking a named Foundry agent."""
 
     project_endpoint: str
+    model_deployment_name: str
     agent_name: str
     agent_version: str
     api_version: str = "2025-05-01-preview"
@@ -66,6 +70,7 @@ class FoundryAgentConfig:
         """Build Fabric-backed Foundry agent config from runtime settings."""
         return cls(
             project_endpoint=config.foundry_project_endpoint,
+            model_deployment_name=config.foundry_model_deployment_name,
             agent_name=(
                 config.foundry_fabric_agent_name
                 or config.foundry_executive_qa_agent_name
@@ -88,6 +93,7 @@ class FoundryAgentConfig:
         name, version = _application_agent_name_version(agent, config)
         return cls(
             project_endpoint=config.foundry_project_endpoint,
+            model_deployment_name=config.foundry_model_deployment_name,
             agent_name=name,
             agent_version=version,
             api_version=config.foundry_api_version,
@@ -100,6 +106,7 @@ class FoundryAgentConfig:
             name
             for name, value in (
                 ("FOUNDRY_PROJECT_ENDPOINT", self.project_endpoint),
+                ("FOUNDRY_MODEL_DEPLOYMENT_NAME", self.model_deployment_name),
                 ("FOUNDRY_FABRIC_AGENT_NAME", self.agent_name),
                 ("FOUNDRY_FABRIC_AGENT_VERSION", self.agent_version),
             )
@@ -142,7 +149,7 @@ class FoundryAgentClient:
         try:
             agent = self._agent or self._build_agent()
         except foundry_runtime_error_types() as exc:
-            raise FoundryAgentError("Foundry agent setup failed") from exc
+            raise FoundryAgentError(f"Foundry agent setup failed: {exc}") from exc
 
         for method_name in ("run", "invoke", "chat", "complete"):
             method = getattr(agent, method_name, None)
@@ -150,6 +157,13 @@ class FoundryAgentClient:
                 try:
                     raw = _resolve_response(method(input_text))
                 except foundry_agent_error_types() as exc:
+                    logger.error(
+                        "[FOUNDRY DEBUG] invoke failed for agent %s v%s via %s: %s",
+                        self.config.agent_name,
+                        self.config.agent_version,
+                        method_name,
+                        exc,
+                    )
                     raise FoundryAgentError(
                         f"Foundry agent invocation failed: {exc}"
                     ) from exc
@@ -193,6 +207,7 @@ class _OpenAIResponsesAgent:
     def run(self, input_text: str) -> Any:
         """Invoke a Foundry prompt/hosted agent through Responses API."""
         return self.openai_client.responses.create(
+            model=self.config.model_deployment_name,
             input=[{"role": "user", "content": input_text}],
             extra_body={
                 "agent_reference": {
@@ -286,7 +301,9 @@ class FabricDataAgentClient:
         try:
             raw_response = self.foundry_client.invoke(prompt)
         except FoundryAgentError as exc:
-            raise FabricDataAgentError("Foundry Fabric Data Agent invocation failed") from exc
+            raise FabricDataAgentError(
+                f"Foundry Fabric Data Agent invocation failed: {exc}"
+            ) from exc
 
         payload = _parse_json_payload(raw_response.text)
         response = _fabric_response_from_payload(payload, request)

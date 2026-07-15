@@ -1,0 +1,655 @@
+{
+  "name": "Regulatory Glossary",
+  "terms": [
+    {
+      "name": "EUAIACT",
+      "longDescription": "Risk-based rules for AI systems: data governance, transparency, human oversight and record-keeping for high-risk AI.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "European Commission",
+        "jurisdiction": "EU",
+        "domain": "AI Governance"
+      }
+    },
+    {
+      "name": "NISTAIRMF",
+      "longDescription": "Voluntary framework to govern, map, measure and manage risks of AI systems.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "NIST",
+        "jurisdiction": "US",
+        "domain": "AI Governance"
+      }
+    },
+    {
+      "name": "DORA",
+      "longDescription": "ICT risk management, incident reporting, resilience testing and third-party risk for financial entities.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "European Commission / ESAs",
+        "jurisdiction": "EU",
+        "domain": "Operational Resilience"
+      }
+    },
+    {
+      "name": "BASEL",
+      "longDescription": "Capital adequacy, risk-weighted assets and prudential reporting requirements.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "BCBS / EBA",
+        "jurisdiction": "Global/EU",
+        "domain": "Prudential"
+      }
+    },
+    {
+      "name": "BCBS239",
+      "longDescription": "Principles for effective risk data aggregation and risk reporting.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "BCBS",
+        "jurisdiction": "Global",
+        "domain": "Risk Data"
+      }
+    },
+    {
+      "name": "GDPR",
+      "longDescription": "Lawful processing, data subject rights and breach notification for personal data.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "EDPB / National DPAs",
+        "jurisdiction": "EU",
+        "domain": "Data Privacy"
+      }
+    },
+    {
+      "name": "PSD2",
+      "longDescription": "Strong customer authentication and secure communication for electronic payments.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "EBA",
+        "jurisdiction": "EU",
+        "domain": "Payments"
+      }
+    },
+    {
+      "name": "CONSDUTY",
+      "longDescription": "Deliver good outcomes for retail customers across products, price, understanding and support.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "FCA",
+        "jurisdiction": "UK",
+        "domain": "Conduct"
+      }
+    },
+    {
+      "name": "FCAOPRES",
+      "longDescription": "Identify important business services, set impact tolerances and remain within them through severe disruption.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "FCA / PRA",
+        "jurisdiction": "UK",
+        "domain": "Operational Resilience"
+      }
+    },
+    {
+      "name": "SEC",
+      "longDescription": "Disclosure of material cybersecurity incidents and governance of cybersecurity risk.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "US SEC",
+        "jurisdiction": "US",
+        "domain": "Cyber Disclosure"
+      }
+    },
+    {
+      "name": "OCC",
+      "longDescription": "Heightened standards for risk governance frameworks of large national banks.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "US OCC",
+        "jurisdiction": "US",
+        "domain": "Risk Governance"
+      }
+    },
+    {
+      "name": "MASTRM",
+      "longDescription": "Guidelines on technology risk management, resilience and cyber security for financial institutions.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "MAS (Singapore)",
+        "jurisdiction": "SG",
+        "domain": "Technology Risk"
+      }
+    },
+    {
+      "name": "AMLD",
+      "longDescription": "Customer due diligence, ongoing monitoring, sanctions and suspicious activity reporting obligations.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "FATF / National FIU",
+        "jurisdiction": "EU/Global",
+        "domain": "Financial Crime"
+      }
+    },
+    {
+      "name": "EUAIACT",
+      "longDescription": "Injected via Regulation Interpreter agent: EU AI Act.",
+      "status": "Approved",
+      "termType": "Regulation",
+      "attributes": {
+        "regulator": "(uploaded)",
+        "jurisdiction": "(uploaded)",
+        "domain": "Regulatory Change"
+      }
+    },
+    {
+      "name": "Customer PII",
+      "longDescription": "Restricted data domain. Contains PII: True.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Restricted",
+        "contains_pii": true
+      }
+    },
+    {
+      "name": "KYC / CDD Data",
+      "longDescription": "Confidential data domain. Contains PII: True.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": true
+      }
+    },
+    {
+      "name": "Transactions",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Account Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Credit & Risk Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Trade & Position Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "AI / Model Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Reference Data",
+      "longDescription": "Internal data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Internal",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Financial / GL Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Payments Data",
+      "longDescription": "Confidential data domain. Contains PII: False.",
+      "status": "Approved",
+      "termType": "DataDomain",
+      "attributes": {
+        "classification": "Confidential",
+        "contains_pii": false
+      }
+    },
+    {
+      "name": "Customer Due Diligence",
+      "longDescription": "Control capability: Customer Due Diligence.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Sanctions Screening",
+      "longDescription": "Control capability: Sanctions Screening.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Transaction Monitoring",
+      "longDescription": "Control capability: Transaction Monitoring.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Operational Resilience",
+      "longDescription": "Control capability: Operational Resilience.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "ICT Security & Incident Mgmt",
+      "longDescription": "Control capability: ICT Security & Incident Mgmt.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Third-Party / Outsourcing Risk",
+      "longDescription": "Control capability: Third-Party / Outsourcing Risk.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Cyber Security",
+      "longDescription": "Control capability: Cyber Security.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Access Control",
+      "longDescription": "Control capability: Access Control.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Capital & RWA",
+      "longDescription": "Control capability: Capital & RWA.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Data Quality & Governance",
+      "longDescription": "Control capability: Data Quality & Governance.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Risk Data Aggregation & Lineage",
+      "longDescription": "Control capability: Risk Data Aggregation & Lineage.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Metadata & Catalog",
+      "longDescription": "Control capability: Metadata & Catalog.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Data Retention",
+      "longDescription": "Control capability: Data Retention.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Data Privacy",
+      "longDescription": "Control capability: Data Privacy.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Strong Customer Authentication",
+      "longDescription": "Control capability: Strong Customer Authentication.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Product Governance & Conduct",
+      "longDescription": "Control capability: Product Governance & Conduct.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Model Risk Management",
+      "longDescription": "Control capability: Model Risk Management.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "AI Governance",
+      "longDescription": "Control capability: AI Governance.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Training Data Quality",
+      "longDescription": "Control capability: Training Data Quality.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Traceability & Explainability",
+      "longDescription": "Control capability: Traceability & Explainability.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Auditability & Evidence",
+      "longDescription": "Control capability: Auditability & Evidence.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Regulatory Reporting",
+      "longDescription": "Control capability: Regulatory Reporting.",
+      "status": "Approved",
+      "termType": "ControlCapability"
+    },
+    {
+      "name": "Data Governance",
+      "longDescription": "Compliance capability in the Data domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Data Lineage",
+      "longDescription": "Compliance capability in the Data domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Data Quality",
+      "longDescription": "Compliance capability in the Data domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Metadata & Catalog",
+      "longDescription": "Compliance capability in the Data domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "PII Protection",
+      "longDescription": "Compliance capability in the Privacy domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Data Retention",
+      "longDescription": "Compliance capability in the Data domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Access Control",
+      "longDescription": "Compliance capability in the Security domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Auditability & Evidence",
+      "longDescription": "Compliance capability in the Governance domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Regulatory Reporting",
+      "longDescription": "Compliance capability in the Finance domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Model Risk Management",
+      "longDescription": "Compliance capability in the AI domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "AI Governance",
+      "longDescription": "Compliance capability in the AI domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Training Data Quality",
+      "longDescription": "Compliance capability in the AI domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Traceability & Explainability",
+      "longDescription": "Compliance capability in the AI domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Operational Resilience",
+      "longDescription": "Compliance capability in the Resilience domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Incident Management",
+      "longDescription": "Compliance capability in the Resilience domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Third-Party / ICT Dependency",
+      "longDescription": "Compliance capability in the Resilience domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Cyber Security",
+      "longDescription": "Compliance capability in the Security domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Financial Crime Detection",
+      "longDescription": "Compliance capability in the FinCrime domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Sanctions Screening",
+      "longDescription": "Compliance capability in the FinCrime domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Strong Authentication",
+      "longDescription": "Compliance capability in the Security domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Capital & RWA",
+      "longDescription": "Compliance capability in the Prudential domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Conduct & Fair Value",
+      "longDescription": "Compliance capability in the Conduct domain.",
+      "status": "Approved",
+      "termType": "Capability"
+    },
+    {
+      "name": "Microsoft Fabric",
+      "longDescription": "Analytics technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Analytics",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "OneLake",
+      "longDescription": "Storage technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Storage",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Microsoft Purview",
+      "longDescription": "Governance technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Governance",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Azure AI Foundry",
+      "longDescription": "AI technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "AI",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Azure Policy",
+      "longDescription": "Policy technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Policy",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Microsoft Entra ID",
+      "longDescription": "Identity technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Identity",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Microsoft Defender/Sentinel",
+      "longDescription": "Security technology provided by Microsoft.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Microsoft",
+        "category": "Security",
+        "is_microsoft": true
+      }
+    },
+    {
+      "name": "Databricks",
+      "longDescription": "Analytics technology provided by Databricks.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Databricks",
+        "category": "Analytics",
+        "is_microsoft": false
+      }
+    },
+    {
+      "name": "Snowflake",
+      "longDescription": "Storage technology provided by Snowflake.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Snowflake",
+        "category": "Storage",
+        "is_microsoft": false
+      }
+    },
+    {
+      "name": "Informatica",
+      "longDescription": "Data Mgmt technology provided by Informatica.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Informatica",
+        "category": "Data Mgmt",
+        "is_microsoft": false
+      }
+    },
+    {
+      "name": "ServiceNow",
+      "longDescription": "Workflow technology provided by ServiceNow.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "ServiceNow",
+        "category": "Workflow",
+        "is_microsoft": false
+      }
+    },
+    {
+      "name": "Collibra",
+      "longDescription": "Governance technology provided by Collibra.",
+      "status": "Approved",
+      "termType": "Technology",
+      "attributes": {
+        "vendor": "Collibra",
+        "category": "Governance",
+        "is_microsoft": false
+      }
+    }
+  ]
+}

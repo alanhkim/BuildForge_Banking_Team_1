@@ -47,20 +47,7 @@ def _build() -> "object":
 
 def _fabric_data_agent_client() -> FabricDataAgentClient:
     """Create the Fabric Data Agent client from current CLI settings."""
-    foundry_config = FoundryAgentConfig(
-        project_endpoint=settings.foundry_project_endpoint,
-        agent_name=settings.foundry_fabric_agent_name,
-        agent_version=settings.foundry_fabric_agent_version,
-        api_version=settings.foundry_api_version,
-    )
-    fabric_config = FabricDataAgentConfig(
-        workspace_id=settings.fabric_workspace_id,
-        data_agent_id=settings.fabric_data_agent_id,
-    )
-    return FabricDataAgentClient(
-        foundry_client=FoundryAgentClient(config=foundry_config),
-        config=fabric_config,
-    )
+    return FabricDataAgentClient.for_application_agent("executive_qa")
 
 
 @app.command()

@@ -5,95 +5,52 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(override=False)  # .env values never override already-set env vars
+except ImportError:
+    pass  # python-dotenv is optional; env vars must be set manually
+
 
 @dataclass(frozen=True)
 class Settings:
-    """Environment-overridable settings with deterministic local defaults."""
+    """Environment-driven settings — all values must be supplied via .env or the shell."""
 
-    seed: int = int(os.getenv("REGIMPACT_SEED", "42"))
-    as_of: str = os.getenv("REGIMPACT_AS_OF", "2026-06-25")
+    seed: int = int(os.getenv("REGIMPACT_SEED") or "42")
+    as_of: str = os.getenv("REGIMPACT_AS_OF") or ""
     output_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("REGIMPACT_OUTPUT_DIR", "output"))
+        default_factory=lambda: Path(os.getenv("REGIMPACT_OUTPUT_DIR") or "output")
     )
-    azure_openai_endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-    azure_openai_deployment: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
-    azure_openai_api_version: str = os.getenv(
-        "AZURE_OPENAI_API_VERSION",
-        "2024-08-01-preview",
-    )
-    azure_openai_token_scope: str = os.getenv(
-        "AZURE_OPENAI_TOKEN_SCOPE",
-        "https://cognitiveservices.azure.com/.default",
-    )
-    fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID", "")
-    fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID", "")
-    fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID", "")
-    purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME", "")
-    regimpact_foundry_enabled: bool = os.getenv(
-        "REGIMPACT_FOUNDRY_ENABLED",
-        "",
+    azure_openai_endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT") or ""
+    azure_openai_deployment: str = os.getenv("AZURE_OPENAI_DEPLOYMENT") or ""
+    azure_openai_api_version: str = os.getenv("AZURE_OPENAI_API_VERSION") or ""
+    azure_openai_token_scope: str = os.getenv("AZURE_OPENAI_TOKEN_SCOPE") or ""
+    fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID") or ""
+    fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID") or ""
+    fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID") or ""
+    purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME") or ""
+    regimpact_foundry_enabled: bool = (
+        os.getenv("REGIMPACT_FOUNDRY_ENABLED") or ""
     ).lower() in {"1", "true", "yes", "on"}
-    foundry_project_endpoint: str = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
-    foundry_model_deployment_name: str = os.getenv(
-        "FOUNDRY_MODEL_DEPLOYMENT_NAME",
-        "",
-    )
-    foundry_api_version: str = os.getenv(
-        "FOUNDRY_API_VERSION",
-        "2025-05-01-preview",
-    )
-    foundry_fabric_agent_name: str = os.getenv("FOUNDRY_FABRIC_AGENT_NAME", "")
-    foundry_fabric_agent_version: str = os.getenv("FOUNDRY_FABRIC_AGENT_VERSION", "")
-    foundry_control_mapper_agent_name: str = os.getenv(
-        "FOUNDRY_CONTROL_MAPPER_AGENT_NAME",
-        "RegImpactControlMapper",
-    )
-    foundry_control_mapper_agent_version: str = os.getenv(
-        "FOUNDRY_CONTROL_MAPPER_AGENT_VERSION",
-        "3",
-    )
-    foundry_gap_analyst_agent_name: str = os.getenv(
-        "FOUNDRY_GAP_ANALYST_AGENT_NAME",
-        "RegImpactGapAnalyst",
-    )
-    foundry_gap_analyst_agent_version: str = os.getenv(
-        "FOUNDRY_GAP_ANALYST_AGENT_VERSION",
-        "3",
-    )
-    foundry_remediation_planner_agent_name: str = os.getenv(
-        "FOUNDRY_REMEDIATION_PLANNER_AGENT_NAME",
-        "RegImpactRemediationPlanner",
-    )
-    foundry_remediation_planner_agent_version: str = os.getenv(
-        "FOUNDRY_REMEDIATION_PLANNER_AGENT_VERSION",
-        "3",
-    )
-    foundry_score_narrator_agent_name: str = os.getenv(
-        "FOUNDRY_SCORE_NARRATOR_AGENT_NAME",
-        "RegImpactScoreNarrator",
-    )
-    foundry_score_narrator_agent_version: str = os.getenv(
-        "FOUNDRY_SCORE_NARRATOR_AGENT_VERSION",
-        "3",
-    )
-    foundry_lineage_agent_name: str = os.getenv(
-        "FOUNDRY_LINEAGE_AGENT_NAME",
-        "RegImpactAuditLineage",
-    )
-    foundry_lineage_agent_version: str = os.getenv(
-        "FOUNDRY_LINEAGE_AGENT_VERSION",
-        "3",
-    )
-    foundry_executive_qa_agent_name: str = os.getenv(
-        "FOUNDRY_EXECUTIVE_QA_AGENT_NAME",
-        "RegImpactExecutiveQA",
-    )
-    foundry_executive_qa_agent_version: str = os.getenv(
-        "FOUNDRY_EXECUTIVE_QA_AGENT_VERSION",
-        "3",
-    )
+    foundry_project_endpoint: str = os.getenv("FOUNDRY_PROJECT_ENDPOINT") or ""
+    foundry_model_deployment_name: str = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME") or ""
+    foundry_api_version: str = os.getenv("FOUNDRY_API_VERSION") or ""
+    foundry_fabric_agent_name: str = os.getenv("FOUNDRY_FABRIC_AGENT_NAME") or ""
+    foundry_fabric_agent_version: str = os.getenv("FOUNDRY_FABRIC_AGENT_VERSION") or ""
+    foundry_control_mapper_agent_name: str = os.getenv("FOUNDRY_CONTROL_MAPPER_AGENT_NAME") or ""
+    foundry_control_mapper_agent_version: str = os.getenv("FOUNDRY_CONTROL_MAPPER_AGENT_VERSION") or ""
+    foundry_gap_analyst_agent_name: str = os.getenv("FOUNDRY_GAP_ANALYST_AGENT_NAME") or ""
+    foundry_gap_analyst_agent_version: str = os.getenv("FOUNDRY_GAP_ANALYST_AGENT_VERSION") or ""
+    foundry_remediation_planner_agent_name: str = os.getenv("FOUNDRY_REMEDIATION_PLANNER_AGENT_NAME") or ""
+    foundry_remediation_planner_agent_version: str = os.getenv("FOUNDRY_REMEDIATION_PLANNER_AGENT_VERSION") or ""
+    foundry_score_narrator_agent_name: str = os.getenv("FOUNDRY_SCORE_NARRATOR_AGENT_NAME") or ""
+    foundry_score_narrator_agent_version: str = os.getenv("FOUNDRY_SCORE_NARRATOR_AGENT_VERSION") or ""
+    foundry_lineage_agent_name: str = os.getenv("FOUNDRY_LINEAGE_AGENT_NAME") or ""
+    foundry_lineage_agent_version: str = os.getenv("FOUNDRY_LINEAGE_AGENT_VERSION") or ""
+    foundry_executive_qa_agent_name: str = os.getenv("FOUNDRY_EXECUTIVE_QA_AGENT_NAME") or ""
+    foundry_executive_qa_agent_version: str = os.getenv("FOUNDRY_EXECUTIVE_QA_AGENT_VERSION") or ""
     foundry_agent_timeout_seconds: float = float(
-        os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS", "120")
+        os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS") or "120"
     )
 
     @property
