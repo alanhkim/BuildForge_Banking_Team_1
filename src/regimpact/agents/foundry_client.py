@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import inspect
 import json
 import logging
+import re
+import time
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any, Literal
@@ -54,6 +56,119 @@ def foundry_agent_error_types() -> tuple[type[BaseException], ...]:
     return error_types
 
 
+# Regex matching the Foundry Fabric Data Agent "active run on thread" server-side
+# race. Multiple purpose-built agents (ControlMapper, GapAnalyst, ...) that share
+# the same underlying data agent can hit this when the previous stage's run
+# hasn't been fully released yet. The condition clears in a few seconds.
+# See https://aka.ms/foundryfabrictroubleshooting
+_ACTIVE_RUN_RE = re.compile(
+    r"Can't add messages to thread_\w+ while a run run_\w+ is active",
+    re.IGNORECASE,
+)
+# Message fragments the OpenAI SDK raises for transient network/service issues
+# that are safe to retry (connection reset, DNS blip, service cold start on a
+# freshly deployed model, request timeout, 5xx from the gateway).
+_TRANSIENT_MESSAGE_FRAGMENTS = (
+    "connection error",
+    "connection aborted",
+    "connection reset",
+    "connection refused",
+    "read timed out",
+    "request timed out",
+    "temporarily unavailable",
+    "service unavailable",
+    "bad gateway",
+    "gateway timeout",
+    "internal server error",
+    # Fabric-specific: the Foundry gateway surfaces intermittent Fabric Data
+    # Agent execution failures (session churn, query engine warmup, transient
+    # lakehouse throttling) as a 400 BadRequestError with code
+    # `tool_user_error` and message "Fabric run failed during execution".
+    # Ping succeeds against the same agent moments earlier — the failure is
+    # not deterministic. Retrying with backoff usually clears it.
+    "fabric run failed during execution",
+    "tool_user_error",
+)
+_RETRY_BACKOFF_SECONDS = (3.0, 6.0, 12.0, 24.0)
+
+
+def _openai_transient_error_types() -> tuple[type[BaseException], ...]:
+    """Return openai SDK transient exception types when the package is installed.
+
+    Only genuinely retryable failures are included. 4xx errors
+    (BadRequestError, AuthenticationError, PermissionDeniedError, NotFoundError,
+    UnprocessableEntityError) are deterministic parameter faults and MUST NOT
+    be retried — retrying them wastes ~45s and hides the real error.
+    """
+    try:
+        openai_module = import_module("openai")
+    except ImportError:
+        return ()
+    candidate_names = (
+        "APIConnectionError",
+        "APITimeoutError",
+        "InternalServerError",  # 500
+        "RateLimitError",       # 429 — retryable with backoff
+    )
+    resolved: list[type[BaseException]] = []
+    for name in candidate_names:
+        cls = getattr(openai_module, name, None)
+        if isinstance(cls, type) and issubclass(cls, BaseException):
+            resolved.append(cls)
+    return tuple(resolved)
+
+
+def _openai_deterministic_error_types() -> tuple[type[BaseException], ...]:
+    """Return openai SDK 4xx exception types that MUST NOT be retried."""
+    try:
+        openai_module = import_module("openai")
+    except ImportError:
+        return ()
+    candidate_names = (
+        "BadRequestError",           # 400
+        "AuthenticationError",       # 401
+        "PermissionDeniedError",     # 403
+        "NotFoundError",             # 404
+        "UnprocessableEntityError",  # 422
+    )
+    resolved: list[type[BaseException]] = []
+    for name in candidate_names:
+        cls = getattr(openai_module, name, None)
+        if isinstance(cls, type) and issubclass(cls, BaseException):
+            resolved.append(cls)
+    return tuple(resolved)
+
+
+def _is_retryable_transient(exc: BaseException) -> bool:
+    """Return True when ``exc`` matches a known transient Foundry/OpenAI failure."""
+    # Deterministic parameter faults surface via the openai SDK as
+    # APIConnectionError but retrying them is pointless — the cause is our
+    # config, not the network. Walk the __cause__ / __context__ chain and
+    # abort early if we see one.
+    node: BaseException | None = exc
+    while node is not None:
+        if isinstance(node, (OverflowError, ValueError, TypeError)):
+            return False
+        node = node.__cause__ or node.__context__
+    message = str(exc).lower()
+    # Foundry Fabric emits transient failures dressed up as 400 BadRequestError
+    # (code=tool_user_error). Match the message BEFORE the 4xx short-circuit
+    # so these specific Fabric-side flakes retry instead of failing fast.
+    if _ACTIVE_RUN_RE.search(message):
+        return True
+    if any(fragment in message for fragment in _TRANSIENT_MESSAGE_FRAGMENTS):
+        return True
+    # 4xx status errors from the OpenAI SDK are otherwise deterministic —
+    # retrying them just wastes ~45s and buries the real error message.
+    if isinstance(exc, _openai_deterministic_error_types()):
+        return False
+    if isinstance(exc, _openai_transient_error_types()):
+        return True
+    if isinstance(exc, TimeoutError):
+        return True
+    return False
+
+
 @dataclass(frozen=True)
 class FoundryAgentConfig:
     """Configuration for invoking a named Foundry agent."""
@@ -64,6 +179,7 @@ class FoundryAgentConfig:
     agent_version: str
     api_version: str = "2025-05-01-preview"
     timeout_seconds: float = 120
+    max_output_tokens: int = 8000
 
     @classmethod
     def for_fabric_agent(cls, config: Settings = settings) -> "FoundryAgentConfig":
@@ -81,6 +197,7 @@ class FoundryAgentConfig:
             ),
             api_version=config.foundry_api_version,
             timeout_seconds=config.foundry_agent_timeout_seconds,
+            max_output_tokens=config.foundry_agent_max_output_tokens,
         )
 
     @classmethod
@@ -98,6 +215,7 @@ class FoundryAgentConfig:
             agent_version=version,
             api_version=config.foundry_api_version,
             timeout_seconds=config.foundry_agent_timeout_seconds,
+            max_output_tokens=config.foundry_agent_max_output_tokens,
         )
 
     def validate(self) -> None:
@@ -146,6 +264,23 @@ class FoundryAgentClient:
         if not input_text.strip():
             raise FoundryAgentError("input_text is required")
 
+        # Log the raw input sent to the Foundry gateway. INFO carries the
+        # size fingerprint (easy to correlate with logs); DEBUG carries the
+        # full text so operators can reproduce a failing call exactly.
+        logger.info(
+            "[FOUNDRY DEBUG] invoke agent=%s v%s input_bytes=%d input_head=%r",
+            self.config.agent_name,
+            self.config.agent_version,
+            len(input_text),
+            input_text[:240],
+        )
+        logger.debug(
+            "[FOUNDRY DEBUG] invoke agent=%s v%s full_input=%s",
+            self.config.agent_name,
+            self.config.agent_version,
+            input_text,
+        )
+
         try:
             agent = self._agent or self._build_agent()
         except foundry_runtime_error_types() as exc:
@@ -154,19 +289,9 @@ class FoundryAgentClient:
         for method_name in ("run", "invoke", "chat", "complete"):
             method = getattr(agent, method_name, None)
             if callable(method):
-                try:
-                    raw = _resolve_response(method(input_text))
-                except foundry_agent_error_types() as exc:
-                    logger.error(
-                        "[FOUNDRY DEBUG] invoke failed for agent %s v%s via %s: %s",
-                        self.config.agent_name,
-                        self.config.agent_version,
-                        method_name,
-                        exc,
-                    )
-                    raise FoundryAgentError(
-                        f"Foundry agent invocation failed: {exc}"
-                    ) from exc
+                raw = self._invoke_with_retry(
+                    method, method_name, input_text
+                )
                 return FoundryAgentRawResponse(
                     text=_extract_text(raw),
                     agent_name=self.config.agent_name,
@@ -175,6 +300,65 @@ class FoundryAgentClient:
                 )
 
         raise FoundryAgentError("Foundry agent has no supported call method")
+
+    def _invoke_with_retry(
+        self,
+        method: Any,
+        method_name: str,
+        input_text: str,
+    ) -> Any:
+        """Call the agent method with backoff on known transient failures.
+
+        Handles the Foundry Fabric Data Agent "active run on thread" race
+        (see https://aka.ms/foundryfabrictroubleshooting) as well as generic
+        OpenAI SDK connection/timeout/5xx errors that surface as
+        ``APIConnectionError``, ``APITimeoutError``, or the string
+        "Connection error." from the transport layer. All other errors are
+        raised immediately.
+        """
+        attempts = len(_RETRY_BACKOFF_SECONDS) + 1
+        last_exc: BaseException | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                return _resolve_response(method(input_text))
+            except foundry_agent_error_types() as exc:
+                last_exc = exc
+                if _is_retryable_transient(exc) and attempt <= len(_RETRY_BACKOFF_SECONDS):
+                    backoff = _RETRY_BACKOFF_SECONDS[attempt - 1]
+                    logger.warning(
+                        "[FOUNDRY DEBUG] transient failure for agent %s v%s "
+                        "(attempt %d/%d, %s); retrying in %.1fs",
+                        self.config.agent_name,
+                        self.config.agent_version,
+                        attempt,
+                        attempts,
+                        type(exc).__name__,
+                        backoff,
+                    )
+                    time.sleep(backoff)
+                    continue
+                logger.error(
+                    "[FOUNDRY DEBUG] invoke failed for agent %s v%s via %s: %s (body=%s)",
+                    self.config.agent_name,
+                    self.config.agent_version,
+                    method_name,
+                    exc,
+                    _extract_error_body(exc),
+                )
+                raise FoundryAgentError(
+                    f"Foundry agent invocation failed: {exc}"
+                ) from exc
+        # Exhausted retries on transient failures.
+        logger.error(
+            "[FOUNDRY DEBUG] invoke exhausted %d retries for agent %s v%s: %s",
+            attempts,
+            self.config.agent_name,
+            self.config.agent_version,
+            last_exc,
+        )
+        raise FoundryAgentError(
+            f"Foundry agent invocation failed after {attempts} attempts: {last_exc}"
+        ) from last_exc
 
     def _build_agent(self) -> Any:
         """Build an Azure AI Projects agent-reference wrapper."""
@@ -205,7 +389,15 @@ class _OpenAIResponsesAgent:
     config: FoundryAgentConfig
 
     def run(self, input_text: str) -> Any:
-        """Invoke a Foundry prompt/hosted agent through Responses API."""
+        """Invoke a Foundry prompt/hosted agent through Responses API.
+
+        NOTE: ``max_output_tokens`` is intentionally NOT passed at the top
+        level. When paired with ``agent_reference`` the Foundry gateway
+        rejects it with a 400 BadRequestError — the deployed agent's own
+        model settings govern the token ceiling. We steer response length
+        via the agent's prompt instructions instead (see
+        ``fabric_workflow.py`` OUTPUT DISCIPLINE clauses).
+        """
         return self.openai_client.responses.create(
             model=self.config.model_deployment_name,
             input=[{"role": "user", "content": input_text}],
@@ -216,8 +408,35 @@ class _OpenAIResponsesAgent:
                     "type": "agent_reference",
                 }
             },
-            timeout=self.config.timeout_seconds,
+            timeout=_build_httpx_timeout(self.config.timeout_seconds),
         )
+
+
+def _build_httpx_timeout(total_seconds: float) -> Any:
+    """Build a finite, bounded ``httpx.Timeout`` for Foundry Responses calls.
+
+    A plain ``float`` timeout in ``responses.create(...)`` is expanded by
+    httpx into ``Timeout(connect=x, read=x, write=x, pool=x)``. On Windows
+    with Python 3.14 the socket layer rejects timeouts that do not fit into
+    a C ``timeval`` — a mis-typed ``FOUNDRY_AGENT_TIMEOUT_SECONDS`` (``inf``,
+    ``3e10``, etc.) then surfaces as ``OverflowError`` wrapped in
+    ``APIConnectionError`` ("Connection error."). We build the Timeout
+    explicitly with a short connect phase and bounded read/write/pool phases
+    so a bad config value cannot reach the socket layer.
+    """
+    try:
+        httpx_module = import_module("httpx")
+    except ImportError:
+        # Fall back to a plain float if httpx is not directly importable;
+        # the openai SDK will still normalize it.
+        return max(30.0, min(float(total_seconds), 900.0))
+    read_seconds = max(30.0, min(float(total_seconds), 900.0))
+    return httpx_module.Timeout(
+        connect=30.0,
+        read=read_seconds,
+        write=read_seconds,
+        pool=read_seconds,
+    )
 
 
 @dataclass(frozen=True)
@@ -326,6 +545,28 @@ def _resolve_response(response: Any) -> Any:
         return asyncio.run(response)
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(lambda: asyncio.run(response)).result()
+
+
+def _extract_error_body(exc: BaseException) -> str:
+    """Extract the raw response body from an OpenAI SDK error for logging.
+
+    OpenAI SDK exceptions carry the server-side error payload on ``.body``
+    (parsed dict) or ``.response`` (httpx.Response). str(exc) usually only
+    shows the summary — the actionable detail (invalid param name, missing
+    field, etc.) lives in the body.
+    """
+    body = getattr(exc, "body", None)
+    if body is not None:
+        try:
+            return json.dumps(body)[:600]
+        except (TypeError, ValueError):
+            return str(body)[:600]
+    response = getattr(exc, "response", None)
+    if response is not None:
+        text = getattr(response, "text", None)
+        if text:
+            return str(text)[:600]
+    return "<none>"
 
 
 def _extract_text(raw_response: Any) -> str:

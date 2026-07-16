@@ -12,6 +12,56 @@ except ImportError:
     pass  # python-dotenv is optional; env vars must be set manually
 
 
+# Windows socket.settimeout on Python 3.14 rejects timeout values that do not
+# fit into a C ``timeval`` struct. httpx/httpcore forwards our value straight
+# down to the socket layer, so we clamp aggressively here to prevent a
+# mis-typed ``.env`` (e.g. ``3e10`` or ``inf``) from surfacing as an opaque
+# ``OverflowError: timeout doesn't fit into C timeval`` wrapped by
+# ``openai.APIConnectionError``.
+_TIMEOUT_DEFAULT_SECONDS = 120.0
+_TIMEOUT_MIN_SECONDS = 30.0
+_TIMEOUT_MAX_SECONDS = 900.0  # 15 minutes; longer requests should be async
+
+# Foundry Responses API max_output_tokens ceiling. gpt-5.4-mini defaults to a
+# fairly small ceiling that truncates long JSON payloads mid-string. We clamp
+# to a generous range so a mis-typed .env can't produce an unusable value.
+_MAX_OUTPUT_TOKENS_DEFAULT = 8000
+_MAX_OUTPUT_TOKENS_MIN = 512
+_MAX_OUTPUT_TOKENS_MAX = 32000
+
+
+def _parse_timeout_seconds(raw: str | None) -> float:
+    """Parse ``FOUNDRY_AGENT_TIMEOUT_SECONDS`` with clamping and safe fallback."""
+    if not raw:
+        return _TIMEOUT_DEFAULT_SECONDS
+    try:
+        value = float(raw)
+    except ValueError:
+        return _TIMEOUT_DEFAULT_SECONDS
+    if not (value == value) or value in (float("inf"), float("-inf")):  # NaN / inf
+        return _TIMEOUT_DEFAULT_SECONDS
+    if value < _TIMEOUT_MIN_SECONDS:
+        return _TIMEOUT_MIN_SECONDS
+    if value > _TIMEOUT_MAX_SECONDS:
+        return _TIMEOUT_MAX_SECONDS
+    return value
+
+
+def _parse_max_output_tokens(raw: str | None) -> int:
+    """Parse ``FOUNDRY_AGENT_MAX_OUTPUT_TOKENS`` with clamping and safe fallback."""
+    if not raw:
+        return _MAX_OUTPUT_TOKENS_DEFAULT
+    try:
+        value = int(float(raw))
+    except ValueError:
+        return _MAX_OUTPUT_TOKENS_DEFAULT
+    if value < _MAX_OUTPUT_TOKENS_MIN:
+        return _MAX_OUTPUT_TOKENS_MIN
+    if value > _MAX_OUTPUT_TOKENS_MAX:
+        return _MAX_OUTPUT_TOKENS_MAX
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     """Environment-driven settings — all values must be supplied via .env or the shell."""
@@ -49,8 +99,15 @@ class Settings:
     foundry_lineage_agent_version: str = os.getenv("FOUNDRY_LINEAGE_AGENT_VERSION") or ""
     foundry_executive_qa_agent_name: str = os.getenv("FOUNDRY_EXECUTIVE_QA_AGENT_NAME") or ""
     foundry_executive_qa_agent_version: str = os.getenv("FOUNDRY_EXECUTIVE_QA_AGENT_VERSION") or ""
-    foundry_agent_timeout_seconds: float = float(
-        os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS") or "120"
+    foundry_agent_timeout_seconds: float = field(
+        default_factory=lambda: _parse_timeout_seconds(
+            os.getenv("FOUNDRY_AGENT_TIMEOUT_SECONDS")
+        )
+    )
+    foundry_agent_max_output_tokens: int = field(
+        default_factory=lambda: _parse_max_output_tokens(
+            os.getenv("FOUNDRY_AGENT_MAX_OUTPUT_TOKENS")
+        )
     )
 
     @property

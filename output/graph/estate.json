@@ -358,7 +358,7 @@
       "Regulation_ID": "REG-EUAIACT",
       "Title": "High-Risk AI Systems - EU AI Act Requirements",
       "Reference": "EU AI Act (uploaded)",
-      "Summary": "Interpreted from uploaded text: 5 obligations.",
+      "Summary": "Interpreted from uploaded text: 15 obligations.",
       "Change_Type": "New",
       "Published_Date": "2026-06-25",
       "Effective_Date": "2026-12-31",
@@ -913,51 +913,51 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-01",
       "node_type": "Obligation",
-      "label": "Establish and operate data governance controls for training, validation, and tes",
+      "label": "Establish training data governance controls for training, validation, and testin",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-01",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Establish and operate data governance controls for training, validation, and testing datasets of high-risk AI used for creditworthiness, pricing, fraud detection, or customer eligibility to ensure datasets are relevant, representative, accurate, and complete.",
-      "Article": "Providers and deployers of high-risk AI systems ... must establish data governance controls over training data, validation data, and testing data so datasets are relevant, representative, accurate, and complete.",
+      "Statement": "Establish training data governance controls for training, validation, and testing datasets used in high-risk AI systems for creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete, with documented curation, labelling, and sampling practices.",
+      "Article": "TRAINING_DATA",
       "Theme": "DATA_QUALITY",
       "Criticality": "High",
-      "Target_Maturity": 3
+      "Target_Maturity": 4
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-02",
       "node_type": "Obligation",
-      "label": "Maintain documented lineage and provenance for data used to train high-risk AI s",
+      "label": "Maintain documented data lineage and provenance for every dataset used to train ",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-02",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",
-      "Article": "The bank must maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",
+      "Statement": "Maintain documented data lineage and provenance for every dataset used to train high-risk AI systems, including source systems, upstream ingestion points, transformation history, data flow across pipelines, quality checks, approvals, and retained end-to-end lineage evidence for regulatory review.",
+      "Article": "DATA_LINEAGE",
       "Theme": "DATA_LINEAGE",
       "Criticality": "High",
-      "Target_Maturity": 3
+      "Target_Maturity": 4
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-03",
       "node_type": "Obligation",
-      "label": "Enable automatic recording of events and logs throughout the model lifecycle so ",
+      "label": "Automatically produce event logs and continuous monitoring records throughout th",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-03",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Enable automatic recording of events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes are traceable for audit and supervisory investigations.",
-      "Article": "High-risk AI systems shall automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",
-      "Theme": "TRACEABILITY",
+      "Statement": "Automatically produce event logs and continuous monitoring records throughout the lifecycle of high-risk AI systems, capturing inference decisions, model outputs, human interventions, configuration changes, and system errors in centrally aggregated logs available for audit and supervisory investigation.",
+      "Article": "LOGGING_MONITORING",
+      "Theme": "LOGGING_MONITORING",
       "Criticality": "High",
-      "Target_Maturity": 3
+      "Target_Maturity": 5
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-04",
       "node_type": "Obligation",
-      "label": "Provide effective human oversight for high-risk AI decisions with clear escalati",
+      "label": "Operate an AI governance framework that provides effective human oversight of hi",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-04",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Provide effective human oversight for high-risk AI decisions with clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",
-      "Article": "The bank must provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",
+      "Statement": "Operate an AI governance framework that provides effective human oversight of high-risk AI decisions, including a designated governance committee, documented escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations and approved use cases.",
+      "Article": "AI_GOVERNANCE",
       "Theme": "AI_GOVERNANCE",
       "Criticality": "High",
       "Target_Maturity": 3
@@ -965,14 +965,144 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-05",
       "node_type": "Obligation",
-      "label": "Ensure model robustness, accuracy, and cybersecurity for high-risk AI through va",
+      "label": "Manage model risk for high-risk AI systems through independent model validation,",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-05",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Ensure model robustness, accuracy, and cybersecurity for high-risk AI through validation, backtesting, drift detection, and ongoing performance monitoring, with documented remediation when performance falls below approved thresholds.",
-      "Article": "The bank must ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.",
+      "Statement": "Manage model risk for high-risk AI systems through independent model validation, backtesting, benchmark comparisons, drift detection, and ongoing performance monitoring, and document remediation whenever model performance, stability, or accuracy falls below approved tolerance thresholds.",
+      "Article": "MODEL_RISK",
       "Theme": "MODEL_RISK",
       "Criticality": "High",
+      "Target_Maturity": 4
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-06",
+      "node_type": "Obligation",
+      "label": "Establish and maintain a continuous, iterative risk management system across the",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-06",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Establish and maintain a continuous, iterative risk management system across the full lifecycle of high-risk AI systems, with auditable records covering risk identification, foreseeable misuse, post-market monitoring data evaluation, and residual-risk sign-off to support traceability through a complete audit trail.",
+      "Article": "AUDITABILITY",
+      "Theme": "AUDITABILITY",
+      "Criticality": "High",
+      "Target_Maturity": 4
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-07",
+      "node_type": "Obligation",
+      "label": "Draw up and keep up to date technical documentation and system metadata for each",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-07",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Draw up and keep up to date technical documentation and system metadata for each high-risk AI system before market placement, including a central metadata repository with the system description, elements and development process, monitoring and control metadata, risk management measures, and lifecycle changes.",
+      "Article": "METADATA",
+      "Theme": "DATA_QUALITY",
+      "Criticality": "High",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-08",
+      "node_type": "Obligation",
+      "label": "Design and develop high-risk AI systems with an appropriate level of cybersecuri",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-08",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Design and develop high-risk AI systems with an appropriate level of cybersecurity, declare relevant performance metrics in the instructions of use, and ensure resilience against cyber attacks by unauthorised third parties exploiting vulnerabilities such as data poisoning, model poisoning, adversarial examples, prompt injection, or confidentiality attacks.",
+      "Article": "CYBER",
+      "Theme": "CYBER",
+      "Criticality": "High",
+      "Target_Maturity": 4
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-09",
+      "node_type": "Obligation",
+      "label": "For deployers of high-risk AI systems used for creditworthiness or insurance pri",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-09",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "For deployers of high-risk AI systems used for creditworthiness or insurance pricing of natural persons, carry out a fundamental rights impact assessment before first use, describe affected categories of natural persons, risks of harm, human oversight measures, and remediation, and notify the market surveillance authority of the results.",
+      "Article": "CONDUCT",
+      "Theme": "CONDUCT",
+      "Criticality": "High",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-10",
+      "node_type": "Obligation",
+      "label": "Register high-risk AI systems in the EU database before market placement or putt",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-10",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Register high-risk AI systems in the EU database before market placement or putting into service, and keep the registration up to date as part of regulatory reporting to competent authorities and market surveillance authorities.",
+      "Article": "REG_REPORTING",
+      "Theme": "REG_REPORTING",
+      "Criticality": "High",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-11",
+      "node_type": "Obligation",
+      "label": "Trigger incident management when a high-risk AI system presents a risk to health",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-11",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Trigger incident management when a high-risk AI system presents a risk to health, safety, or fundamental rights, or when a serious incident occurs; investigate immediately; inform affected deployers and, where applicable, the notified body; and report serious incidents to the relevant market surveillance authorities within the stated deadlines.",
+      "Article": "INCIDENT_MGMT",
+      "Theme": "INCIDENT_MGMT",
+      "Criticality": "High",
+      "Target_Maturity": 4
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-12",
+      "node_type": "Obligation",
+      "label": "For providers established outside the Union whose high-risk AI systems are place",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-12",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "For providers established outside the Union whose high-risk AI systems are placed on the Union market, appoint an authorised representative in the Union by written mandate before making systems available, and apply third-party risk management controls, due diligence, and contractual oversight to the representative and any subcontractors or downstream providers acting on the provider's behalf.",
+      "Article": "THIRD_PARTY_RISK",
+      "Theme": "THIRD_PARTY_RISK",
+      "Criticality": "High",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-13",
+      "node_type": "Obligation",
+      "label": "Retain the EU declaration of conformity, technical documentation, required logs,",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-13",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Retain the EU declaration of conformity, technical documentation, required logs, and post-market monitoring records for at least 10 years after the high-risk AI system is placed on the market, making them available to competent authorities in accordance with the retention schedule.",
+      "Article": "RETENTION",
+      "Theme": "RETENTION",
+      "Criticality": "Medium",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-14",
+      "node_type": "Obligation",
+      "label": "Ensure that personnel assigned to human oversight of high-risk AI systems have t",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-14",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Ensure that personnel assigned to human oversight of high-risk AI systems have the access rights, privileged permissions, and role-based authority needed to interpret outputs, decide not to use the system, disregard, override, reverse outputs, and interrupt operation through a stop button or equivalent access control mechanism.",
+      "Article": "ACCESS_CONTROL",
+      "Theme": "ACCESS_CONTROL",
+      "Criticality": "High",
+      "Target_Maturity": 3
+    },
+    {
+      "id": "OBL-CHG-EUAIACT-UPLOAD-15",
+      "node_type": "Obligation",
+      "label": "Take measures to ensure sufficient AI literacy for staff and other persons deali",
+      "ID": "OBL-CHG-EUAIACT-UPLOAD-15",
+      "Change_ID": "CHG-EUAIACT-UPLOAD",
+      "Regulation_ID": "REG-EUAIACT",
+      "Statement": "Take measures to ensure sufficient AI literacy for staff and other persons dealing with the operation and use of high-risk AI systems, taking into account technical knowledge, experience, education, training, and the use context.",
+      "Article": "AI_GOVERNANCE",
+      "Theme": "AI_GOVERNANCE",
+      "Criticality": "Medium",
       "Target_Maturity": 3
     },
     {
@@ -3454,294 +3584,6 @@
       "Name": "Model / AI Risk",
       "Category": "Compliance",
       "Inherent_Rating": "High"
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-DQ-1",
-      "Severity": "Medium",
-      "Maturity_Shortfall": 2,
-      "Rationale": "Control 'Data Quality Rules & Monitoring' is at maturity 1 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Partial, Stale."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-DQ-2",
-      "Severity": "Low",
-      "Maturity_Shortfall": 1,
-      "Rationale": "Control 'Critical Data Element Catalog' is at maturity 2 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Partial, Stale."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-LIN-1",
-      "Severity": "Low",
-      "Maturity_Shortfall": 1,
-      "Rationale": "Control 'End-to-End Data Lineage' is at maturity 2 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-LIN-2",
-      "Severity": "Medium",
-      "Maturity_Shortfall": 2,
-      "Rationale": "Control 'Reconciliation & Aggregation Controls' is at maturity 1 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-TR-1",
-      "Severity": "High",
-      "Maturity_Shortfall": 3,
-      "Rationale": "Control 'Decision Logging & Traceability' is at maturity 0 (Planned) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-TR-2",
-      "Severity": "Medium",
-      "Maturity_Shortfall": 2,
-      "Rationale": "Control 'Model Explainability Reporting' is at maturity 1 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-AI-1",
-      "Severity": "Low",
-      "Maturity_Shortfall": 0,
-      "Rationale": "Control 'AI System Risk Classification' meets target maturity 3, but 1 evidence artefact(s) are Stale; compliance cannot be demonstrated to the regulator."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-AI-2",
-      "Severity": "Low",
-      "Maturity_Shortfall": 0,
-      "Rationale": "Control 'Human Oversight & Approval' meets target maturity 3, but 1 evidence artefact(s) are Partial; compliance cannot be demonstrated to the regulator."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-AI-3",
-      "Severity": "High",
-      "Maturity_Shortfall": 3,
-      "Rationale": "Control 'Bias & Fairness Testing' is at maturity 0 (Planned) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-MR-1",
-      "Severity": "Low",
-      "Maturity_Shortfall": 1,
-      "Rationale": "Control 'Model Inventory & Versioning' is at maturity 2 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Missing."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-MR-2",
-      "Severity": "Low",
-      "Maturity_Shortfall": 0,
-      "Rationale": "Control 'Model Validation & Backtesting' meets target maturity 3, but 1 evidence artefact(s) are Stale; compliance cannot be demonstrated to the regulator."
-    },
-    {
-      "id": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "node_type": "Gap",
-      "label": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "Obligation_ID": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Control_ID": "CTL-MR-3",
-      "Severity": "Medium",
-      "Maturity_Shortfall": 2,
-      "Rationale": "Control 'Model Performance Monitoring' is at maturity 1 (Partially Implemented) vs target 3 required by the obligation. Supporting evidence is also Partial."
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "Action": "Remediate data for Data Quality Rules & Monitoring to close a maturity shortfall of 2.",
-      "Action_Type": "Data",
-      "Estimated_Effort_Days": 70,
-      "Priority": "Medium",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "Action": "Remediate data for Critical Data Element Catalog to close a maturity shortfall of 1.",
-      "Action_Type": "Data",
-      "Estimated_Effort_Days": 45,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "Action": "Remediate data for End-to-End Data Lineage to close a maturity shortfall of 1.",
-      "Action_Type": "Data",
-      "Estimated_Effort_Days": 45,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "Action": "Remediate data for Reconciliation & Aggregation Controls to close a maturity shortfall of 2.",
-      "Action_Type": "Data",
-      "Estimated_Effort_Days": 70,
-      "Priority": "Medium",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "Action": "Implement Decision Logging & Traceability to close a maturity shortfall of 3.",
-      "Action_Type": "Build",
-      "Estimated_Effort_Days": 95,
-      "Priority": "High",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "Action": "Uplift Model Explainability Reporting to close a maturity shortfall of 2.",
-      "Action_Type": "Enhance",
-      "Estimated_Effort_Days": 70,
-      "Priority": "Medium",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "Action": "Produce and automate compliance evidence for AI System Risk Classification (lineage, logs or attestations).",
-      "Action_Type": "Assurance",
-      "Estimated_Effort_Days": 15,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "Action": "Produce and automate compliance evidence for Human Oversight & Approval (lineage, logs or attestations).",
-      "Action_Type": "Assurance",
-      "Estimated_Effort_Days": 15,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "Action": "Strengthen governance of Bias & Fairness Testing to close a maturity shortfall of 3.",
-      "Action_Type": "Policy",
-      "Estimated_Effort_Days": 95,
-      "Priority": "High",
-      "Target_Unit_ID": "BU-DATA"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "Action": "Uplift Model Inventory & Versioning to close a maturity shortfall of 1.",
-      "Action_Type": "Enhance",
-      "Estimated_Effort_Days": 45,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-RISK"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "Action": "Produce and automate compliance evidence for Model Validation & Backtesting (lineage, logs or attestations).",
-      "Action_Type": "Assurance",
-      "Estimated_Effort_Days": 15,
-      "Priority": "Low",
-      "Target_Unit_ID": "BU-RISK"
-    },
-    {
-      "id": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "node_type": "RemediationAction",
-      "label": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "ID": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "Gap_ID": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "Action": "Uplift Model Performance Monitoring to close a maturity shortfall of 2.",
-      "Action_Type": "Enhance",
-      "Estimated_Effort_Days": 70,
-      "Priority": "Medium",
-      "Target_Unit_ID": "BU-RISK"
     }
   ],
   "edges": [
@@ -4048,6 +3890,56 @@
     {
       "source": "CHG-EUAIACT-UPLOAD",
       "target": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-06",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-07",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-08",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-09",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-10",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-11",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-12",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-13",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-14",
+      "rel_type": "INTRODUCES_OBLIGATION"
+    },
+    {
+      "source": "CHG-EUAIACT-UPLOAD",
+      "target": "OBL-CHG-EUAIACT-UPLOAD-15",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
@@ -4931,78 +4823,18 @@
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "target": "DD-REF",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "target": "DD-FIN",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
       "source": "OBL-CHG-EUAIACT-UPLOAD-02",
       "target": "CTL-LIN-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "target": "CTL-LIN-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "target": "DD-FIN",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "target": "DD-CREDIT",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "target": "DD-TRADE",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
       "source": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "target": "CTL-TR-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "target": "CTL-TR-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "target": "DD-MODEL",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "target": "CTL-AI-1",
+      "target": "CTL-AU-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
       "source": "OBL-CHG-EUAIACT-UPLOAD-04",
       "target": "CTL-AI-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "target": "CTL-AI-3",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "target": "DD-MODEL",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "target": "CTL-MR-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
@@ -5016,14 +4848,74 @@
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "target": "DD-MODEL",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
+      "source": "OBL-CHG-EUAIACT-UPLOAD-06",
+      "target": "CTL-AU-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "target": "DD-CREDIT",
-      "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
+      "source": "OBL-CHG-EUAIACT-UPLOAD-07",
+      "target": "CTL-MD-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-08",
+      "target": "CTL-CY-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-08",
+      "target": "CTL-CY-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-09",
+      "target": "CTL-CO-3",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-10",
+      "target": "CTL-RP-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-11",
+      "target": "CTL-IC-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-11",
+      "target": "CTL-IC-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-12",
+      "target": "CTL-TP-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-12",
+      "target": "CTL-TP-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-13",
+      "target": "CTL-RT-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-14",
+      "target": "CTL-AC-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-14",
+      "target": "CTL-AC-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-15",
+      "target": "CTL-AI-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
       "source": "CTL-CDD-1",
@@ -8159,186 +8051,6 @@
       "source": "PRD-INVEST",
       "target": "BU-WEALTH",
       "rel_type": "PRODUCT_OWNED_BY_UNIT"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "target": "CTL-DQ-1",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "target": "CTL-DQ-2",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "target": "CTL-LIN-1",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "target": "CTL-LIN-2",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "target": "CTL-TR-1",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "target": "CTL-TR-2",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "target": "CTL-AI-1",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "target": "CTL-AI-2",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "target": "CTL-AI-3",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "target": "CTL-MR-1",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "target": "CTL-MR-2",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "rel_type": "GAP_FOR_OBLIGATION"
-    },
-    {
-      "source": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "target": "CTL-MR-3",
-      "rel_type": "GAP_AGAINST_CONTROL"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
-    },
-    {
-      "source": "REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "target": "GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3",
-      "rel_type": "REMEDIATION_RESOLVES_GAP"
     }
   ]
 }

@@ -128,3 +128,67 @@ def test_interpret_cli_surfaces_missing_foundry_configuration(tmp_path, monkeypa
     assert "Foundry interpreter failed" in result.stdout
     assert "Missing Foundry configuration" in result.stdout
     assert not (tmp_path / "tables" / "obligations.parquet").exists()
+
+
+def test_interpret_cli_surfaces_missing_fabric_configuration(tmp_path, monkeypatch):
+    """Interpretation succeeds but pipeline fails when Fabric config is absent."""
+    from regimpact.agents import pipeline as pipeline_module
+    from regimpact.contracts import InterpretResponse, Obligation
+
+    stub_response = InterpretResponse(
+        regulation_id="REG-AIACT",
+        change_id="CHG-AIACT-UPLOAD",
+        obligations=[
+            Obligation(
+                id="OBL-CHG-AIACT-UPLOAD-01",
+                change_id="CHG-AIACT-UPLOAD",
+                theme="AI_GOVERNANCE",
+                summary="Maintain human oversight of high-risk AI systems.",
+                target_maturity=4,
+                criticality="High",
+                affected_data_domain_ids=["DD-REF"],
+                source_refs=["source:eu_ai_act:1"],
+            )
+        ],
+    )
+
+    class StubInterpreter:
+        def interpret(self, request):
+            return stub_response
+
+    # Patch the interpreter so Foundry is not called.
+    monkeypatch.setattr(pipeline_module, "InterpreterAgent", lambda: StubInterpreter())
+    # Patch pipeline._settings directly to remove all Fabric/Foundry config,
+    # ensuring foundry_fabric_enabled returns False regardless of env vars.
+    monkeypatch.setattr(
+        pipeline_module,
+        "_settings",
+        Settings(
+            output_dir=tmp_path,
+            foundry_project_endpoint="",
+            foundry_executive_qa_agent_name="",
+            foundry_executive_qa_agent_version="",
+            fabric_workspace_id="",
+            fabric_data_agent_id="",
+        ),
+    )
+    monkeypatch.setattr(cli, "settings", Settings(output_dir=tmp_path))
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "interpret",
+            "--file",
+            "data/regulations/eu_ai_act_high_risk.txt",
+            "--regulation",
+            "REG-AIACT",
+            "--name",
+            "EU AI Act",
+            "--title",
+            "High-risk AI update",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Fabric pipeline failed" in result.stdout
+    assert "Foundry/Fabric configuration is required" in result.stdout

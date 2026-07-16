@@ -1,13 +1,5 @@
 ID,Gap_ID,Action,Action_Type,Estimated_Effort_Days,Priority,Target_Unit_ID,As_Of
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1,GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1,Remediate data for Data Quality Rules & Monitoring to close a maturity shortfall of 2.,Data,70,Medium,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2,GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-2,Remediate data for Critical Data Element Catalog to close a maturity shortfall of 1.,Data,45,Low,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1,GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1,Remediate data for End-to-End Data Lineage to close a maturity shortfall of 1.,Data,45,Low,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2,GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-2,Remediate data for Reconciliation & Aggregation Controls to close a maturity shortfall of 2.,Data,70,Medium,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1,GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1,Implement Decision Logging & Traceability to close a maturity shortfall of 3.,Build,95,High,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2,GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-2,Uplift Model Explainability Reporting to close a maturity shortfall of 2.,Enhance,70,Medium,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV,GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-1-EV,"Produce and automate compliance evidence for AI System Risk Classification (lineage, logs or attestations).",Assurance,15,Low,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV,GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-2-EV,"Produce and automate compliance evidence for Human Oversight & Approval (lineage, logs or attestations).",Assurance,15,Low,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3,GAP-OBL-CHG-EUAIACT-UPLOAD-04-CTL-AI-3,Strengthen governance of Bias & Fairness Testing to close a maturity shortfall of 3.,Policy,95,High,BU-DATA,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1,GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-1,Uplift Model Inventory & Versioning to close a maturity shortfall of 1.,Enhance,45,Low,BU-RISK,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV,GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2-EV,"Produce and automate compliance evidence for Model Validation & Backtesting (lineage, logs or attestations).",Assurance,15,Low,BU-RISK,2026-06-25
-REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3,GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-3,Uplift Model Performance Monitoring to close a maturity shortfall of 2.,Enhance,70,Medium,BU-RISK,2026-06-25
+REM-GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1,GAP-OBL-CHG-EUAIACT-UPLOAD-01-CTL-DQ-1,Strengthen data quality rules and monitoring for training data governance,Enhance,8,High,BU-DATA,2026-06-25
+REM-GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1,GAP-OBL-CHG-EUAIACT-UPLOAD-02-CTL-LIN-1,Complete end-to-end lineage to close provenance evidence gaps,Enhance,5,Medium,BU-DATA,2026-06-25
+REM-GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1,GAP-OBL-CHG-EUAIACT-UPLOAD-03-CTL-TR-1,Implement decision logging and traceability controls for audit readiness,Enhance,15,Critical,BU-DATA,2026-06-25
+REM-GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2,GAP-OBL-CHG-EUAIACT-UPLOAD-05-CTL-MR-2,Strengthen model validation and backtesting for ongoing performance monitoring,Enhance,6,Medium,BU-RISK,2026-06-25

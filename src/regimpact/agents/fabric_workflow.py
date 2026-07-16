@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +26,8 @@ from ..contracts import (
     ValidationError,
 )
 from .foundry_client import FabricDataAgentClient, FabricDataAgentError
+
+logger = logging.getLogger(__name__)
 
 
 class FabricAgentHarnessError(FabricDataAgentError):
@@ -76,9 +79,25 @@ CONTROL_MAPPER_SPEC = FabricAgentSpec(
         '"name":string,"value":string}]}]}'
     ),
     instructions=(
-        "Constrain every mapping to existing Fabric IDs. If no mapping exists, "
-        "return an empty mappings array and explain missing data through the Fabric "
-        "answer error path rather than inventing controls."
+        "The request payload contains inline 'obligations' facts (id, theme, "
+        "summary, criticality, target_maturity) and a 'candidate_controls' "
+        "shortlist (id, name, capability_id, status, current_maturity, "
+        "description). Treat both as authoritative. "
+        "Map each obligation to one or more controls from the 'candidate_controls' "
+        "shortlist ONLY — do NOT search the full controls or v_obligation_control_map "
+        "tables in the lakehouse. The shortlist has already been pre-filtered by "
+        "theme, so every candidate is plausibly relevant. "
+        "Match primarily on obligation.theme vs candidate.capability_id (theme-to-"
+        "capability semantic match), then refine using description similarity. "
+        "Every returned control_id MUST come from the 'candidate_controls' list; "
+        "capability_id MUST be copied from the chosen candidate. Never invent "
+        "controls. Return at least one mapping per obligation. "
+        "When 'candidate_controls' is empty, fall back to the lakehouse controls "
+        "table filtered by capability domain. "
+        "OUTPUT DISCIPLINE — keep 'rationale' under 240 characters (one sentence, "
+        "no citations, no restatement of the obligation). Emit compact JSON on a "
+        "single line — no markdown, no code fences, no trailing commentary. The "
+        "response MUST be a complete JSON object; do not stop mid-string."
     ),
 )
 
@@ -100,8 +119,31 @@ GAP_ANALYST_SPEC = FabricAgentSpec(
         '"rationale":string,"source_refs":[...]}]}'
     ),
     instructions=(
-        "Use computed Fabric gap data when available. Cite maturity, evidence, and "
-        "blast-radius sources. Do not calculate unsupported gaps from assumptions."
+        "PRIMARY MODE — when the request payload includes a non-empty "
+        "'mappings' array, treat each entry as an authoritative "
+        "obligation→control pair with pre-computed target_maturity, "
+        "current_maturity, and maturity_shortfall. Emit exactly one finding "
+        "per mapping where maturity_shortfall > 0 OR control_status is "
+        "'Planned'/'Deprecated'/'Not Implemented'. Compute severity as: "
+        "shortfall>=3 -> Critical, shortfall==2 -> High, shortfall==1 -> "
+        "Medium, shortfall==0 but status not 'Active' -> Low. gap_id must be "
+        "'GAP-{obligation_id}-{control_id}'. Use inline 'obligations' and "
+        "'controls' arrays for rationale text (theme, summary, description). "
+        "Do NOT require these ids to be resolvable in v_gap_blast_radius. "
+        "Cite the controls table and evidence sources for grounding. "
+        "FALLBACK MODE — only when 'mappings' is empty, query the Fabric "
+        "computed gap views (v_gap_blast_radius, v_evidence_health). "
+        "Do not invent unsupported gaps. If every mapping shows "
+        "maturity_shortfall == 0 AND control_status == 'Active', emit an "
+        "empty findings array — that is a valid answer. "
+        "OUTPUT DISCIPLINE — keep 'rationale' under 160 characters (one "
+        "sentence, no citation phrases like 'per controls table'). "
+        "Cap 'source_refs' at 2 entries per finding — one control-table "
+        "reference and one evidence reference is sufficient. "
+        "Emit compact JSON on a single line — no markdown, no code fences, "
+        "no trailing commentary. The response MUST be a complete JSON "
+        "object; if you are approaching the output limit, drop the lowest-"
+        "severity findings rather than truncate mid-string."
     ),
 )
 
@@ -122,8 +164,18 @@ REMEDIATION_PLANNER_SPEC = FabricAgentSpec(
         '"action":string,"source_refs":[...]}]}'
     ),
     instructions=(
-        "Use owner and effort data from Fabric. Do not invent owners or estimates. "
-        "Prioritize by Fabric severity, priority, maturity shortfall, and evidence status."
+        "When the request payload includes inline 'gaps' facts (id, obligation_id, "
+        "control_id, severity, rationale), treat those as authoritative and plan "
+        "one remediation per gap. Do NOT require the gap_ids to already exist in "
+        "the gaps table. Use the controls and business_units tables to select "
+        "realistic owner_unit_id, priority, and estimated_effort_days. Cite the "
+        "controls/business_units/evidence tables you used. When inline gaps are "
+        "absent, fall back to v_remediation_priority. Never invent owners; owner_unit_id "
+        "must exist in business_units. Emit remediation_id in the form 'REM-{gap_id}'. "
+        "OUTPUT DISCIPLINE — keep 'action' under 200 characters (imperative phrase, "
+        "no filler). Emit compact JSON on a single line — no markdown, no code "
+        "fences, no trailing commentary. The response MUST be a complete JSON "
+        "object; do not stop mid-string."
     ),
 )
 
@@ -141,8 +193,22 @@ SCORE_NARRATOR_SPEC = FabricAgentSpec(
         '"post_change":number,"post_remediation":number,"source_refs":[...]}'
     ),
     instructions=(
-        "Preserve score values exactly as returned from Fabric. Explain why "
-        "PostChange drops and PostRemediation recovers using cited gap/remediation drivers."
+        "PRIMARY MODE — when the request payload includes non-zero "
+        "'as_is', 'post_change', or 'post_remediation' values, treat those "
+        "as authoritative pre-computed score facts for THIS change and "
+        "echo them back verbatim in the response. Do NOT query the "
+        "compliance_scores table for scores when the request already "
+        "supplies them — a freshly uploaded change has no rows yet and "
+        "the lookup would return zero. Use the Fabric gap/remediation "
+        "views ONLY to source narrative drivers (which gaps caused the "
+        "drop, which remediations recovered it). "
+        "FALLBACK MODE — only when all three request scores are 0, query "
+        "compliance_scores by change_id for the numeric facts. "
+        "Explain why PostChange drops and PostRemediation recovers using "
+        "cited gap/remediation drivers. Never invent scores that differ "
+        "from the provided facts. "
+        "OUTPUT DISCIPLINE — keep 'narrative' under 400 characters. Emit "
+        "compact JSON on a single line — no markdown, no code fences."
     ),
 )
 
@@ -202,6 +268,8 @@ class FabricAgentHarness:
         request.validate()
         fabric_response = self._ask(CONTROL_MAPPER_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
+        raw_mappings = _required_list(payload, "mappings")
+        _warn_if_empty(fabric_response, "mappings", raw_mappings)
         mappings = [
             ControlMapping(
                 obligation_id=_required_str(item, "obligation_id"),
@@ -211,13 +279,14 @@ class FabricAgentHarness:
                 confidence=_required_confidence(item),
                 source_refs=_source_refs(item.get("source_refs", [])),
             )
-            for item in _required_list(payload, "mappings")
+            for item in raw_mappings
         ]
         return _validated(
             ControlMappingResponse(
                 mappings=mappings,
                 tool_evidence=fabric_response.tool_evidence,
-            )
+            ),
+            fabric_response=fabric_response,
         )
 
     def analyze_gaps(self, request: GapAnalysisRequest) -> GapAnalysisResponse:
@@ -225,6 +294,8 @@ class FabricAgentHarness:
         request.validate()
         fabric_response = self._ask(GAP_ANALYST_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
+        raw_findings = _required_list(payload, "findings")
+        _warn_if_empty(fabric_response, "findings", raw_findings)
         findings = [
             GapAnalysisFinding(
                 gap_id=_required_str(item, "gap_id"),
@@ -235,13 +306,14 @@ class FabricAgentHarness:
                 rationale=_required_str(item, "rationale"),
                 source_refs=_source_refs(item.get("source_refs", [])),
             )
-            for item in _required_list(payload, "findings")
+            for item in raw_findings
         ]
         return _validated(
             GapAnalysisResponse(
                 findings=findings,
                 tool_evidence=fabric_response.tool_evidence,
-            )
+            ),
+            fabric_response=fabric_response,
         )
 
     def plan_remediation(self, request: RemediationRequest) -> RemediationResponse:
@@ -249,6 +321,8 @@ class FabricAgentHarness:
         request.validate()
         fabric_response = self._ask(REMEDIATION_PLANNER_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
+        raw_actions = _required_list(payload, "actions")
+        _warn_if_empty(fabric_response, "actions", raw_actions)
         actions = [
             RemediationPlanItem(
                 remediation_id=_required_str(item, "remediation_id"),
@@ -259,13 +333,14 @@ class FabricAgentHarness:
                 action=_required_str(item, "action"),
                 source_refs=_source_refs(item.get("source_refs", [])),
             )
-            for item in _required_list(payload, "actions")
+            for item in raw_actions
         ]
         return _validated(
             RemediationResponse(
                 actions=actions,
                 tool_evidence=fabric_response.tool_evidence,
-            )
+            ),
+            fabric_response=fabric_response,
         )
 
     def narrate_score(self, request: ScoreNarrationRequest) -> ScoreNarrationResponse:
@@ -282,7 +357,8 @@ class FabricAgentHarness:
                 post_remediation=_required_float(payload, "post_remediation"),
                 source_refs=_source_refs(payload.get("source_refs", [])),
                 tool_evidence=fabric_response.tool_evidence,
-            )
+            ),
+            fabric_response=fabric_response,
         )
 
     def trace_lineage(self, request: LineageRequest) -> LineageResponse:
@@ -290,6 +366,8 @@ class FabricAgentHarness:
         request.validate()
         fabric_response = self._ask(LINEAGE_AGENT_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
+        raw_hops = _required_list(payload, "hops")
+        _warn_if_empty(fabric_response, "hops", raw_hops)
         hops = [
             LineageHop(
                 source_id=_required_str(item, "source_id"),
@@ -297,14 +375,15 @@ class FabricAgentHarness:
                 target_id=_required_str(item, "target_id"),
                 source_refs=_source_refs(item.get("source_refs", [])),
             )
-            for item in _required_list(payload, "hops")
+            for item in raw_hops
         ]
         return _validated(
             LineageResponse(
                 entity_id=_required_str(payload, "entity_id"),
                 hops=hops,
                 tool_evidence=fabric_response.tool_evidence,
-            )
+            ),
+            fabric_response=fabric_response,
         )
 
     def _ask(
@@ -313,27 +392,122 @@ class FabricAgentHarness:
         request_payload: dict[str, Any],
     ) -> FabricQuestionResponse:
         prompt = spec.build_prompt(request_payload)
+        # Emit the exact agent input so operators can reproduce/inspect the
+        # request that produced any given response. INFO level so it appears
+        # in normal runs; truncated preview at WARNING level would hide the
+        # facts we actually need to audit.
+        try:
+            payload_json = json.dumps(request_payload, default=str, sort_keys=True)
+        except (TypeError, ValueError):
+            payload_json = repr(request_payload)
+        logger.info(
+            "Fabric agent request agent=%s request_keys=%s payload_bytes=%d prompt_bytes=%d",
+            spec.name,
+            sorted(request_payload.keys()),
+            len(payload_json),
+            len(prompt),
+        )
+        logger.debug(
+            "Fabric agent request payload agent=%s payload=%s",
+            spec.name,
+            payload_json,
+        )
+        logger.debug(
+            "Fabric agent request prompt agent=%s prompt=%s",
+            spec.name,
+            prompt,
+        )
         return self.fabric_client.ask(prompt)
 
 
 def _json_answer(fabric_response: FabricQuestionResponse) -> dict[str, Any]:
     """Parse the Fabric answer field as the agent-specific JSON payload."""
     try:
+        logger.error( # testing
+            fabric_response.answer
+        )
         payload = json.loads(fabric_response.answer)
     except json.JSONDecodeError as exc:
+        # Log both ends of the answer so we can distinguish a truncated
+        # response (tail cut mid-token) from a well-formed response with
+        # trailing garbage (e.g. markdown fence, prose). Include the exact
+        # decoder error position so operators can jump straight to the fault.
+        answer = fabric_response.answer
+        logger.error(
+            "Fabric JSON parse failed for agent=%s version=%s "
+            "answer_bytes=%d decode_error=%s decode_pos=%d "
+            "answer_head=%r answer_tail=%r",
+            fabric_response.agent_name,
+            fabric_response.agent_version,
+            len(answer),
+            exc.msg,
+            exc.pos,
+            answer[:400],
+            answer[-400:] if len(answer) > 400 else "",
+        )
         raise FabricAgentHarnessError("Fabric agent answer was not valid JSON") from exc
     if not isinstance(payload, dict):
+        logger.error(
+            "Fabric JSON root type invalid for agent=%s version=%s type=%s",
+            fabric_response.agent_name,
+            fabric_response.agent_version,
+            type(payload).__name__,
+        )
         raise FabricAgentHarnessError("Fabric agent answer JSON must be an object")
+    logger.debug(
+        "Fabric JSON parsed for agent=%s version=%s keys=%s",
+        fabric_response.agent_name,
+        fabric_response.agent_version,
+        sorted(payload.keys()),
+    )
     return payload
 
 
-def _validated(response):
-    """Validate a typed response and return it."""
+def _validated(response, fabric_response: FabricQuestionResponse | None = None):
+    """Validate a typed response and return it. Logs raw Fabric answer on failure."""
     try:
         response.validate()
     except ValidationError as exc:
+        answer_preview = ""
+        agent_name = ""
+        agent_version = ""
+        evidence_count = 0
+        if fabric_response is not None:
+            answer_preview = fabric_response.answer[:2000]
+            agent_name = fabric_response.agent_name
+            agent_version = fabric_response.agent_version
+            evidence_count = len(fabric_response.tool_evidence)
+        logger.error(
+            "Fabric response validation failed type=%s detail=%s agent=%s version=%s "
+            "tool_evidence_count=%d raw_answer=%s",
+            type(response).__name__,
+            exc,
+            agent_name,
+            agent_version,
+            evidence_count,
+            answer_preview,
+        )
         raise FabricAgentHarnessError("Fabric agent response failed validation") from exc
     return response
+
+
+def _warn_if_empty(
+    fabric_response: FabricQuestionResponse,
+    key: str,
+    items: list[Any],
+) -> None:
+    """Log the raw Fabric answer when the agent returned an empty result list."""
+    if items:
+        return
+    logger.error(
+        "Fabric agent returned empty %s list agent=%s version=%s "
+        "tool_evidence_count=%d raw_answer=%s",
+        key,
+        fabric_response.agent_name,
+        fabric_response.agent_version,
+        len(fabric_response.tool_evidence),
+        fabric_response.answer[:2000],
+    )
 
 
 def _required_list(payload: dict[str, Any], key: str) -> list[Any]:

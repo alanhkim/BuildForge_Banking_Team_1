@@ -125,6 +125,11 @@ Convert regulatory change text into structured obligations. Extract only obligat
 
 Return only JSON matching this schema: {"regulation_id": string, "change_id": string, "obligations": [{"id": string, "change_id": string, "theme": string, "summary": string, "target_maturity": integer, "criticality": "Critical|High|Medium|Low", "affected_data_domain_ids": [string], "source_refs": [string], "notes": [string]}], "notes": [string]}.
 
+Hard constraints:
+- target_maturity MUST be an integer from 1 to 5 (CMMI scale: 1=Initial ad-hoc, 2=Repeatable, 3=Defined, 4=Managed, 5=Optimised). NEVER return 0 — a regulation always demands at least maturity 1. When uncertain, default to 3 (Defined) for standard obligations, 4 (Managed) for prescriptive/quantitative obligations, and 5 (Optimised) only when the text explicitly demands continuous monitoring or optimisation.
+- theme MUST be one of the known enum values supplied by the host (e.g. AI_GOVERNANCE, MODEL_RISK, DATA_LINEAGE, CYBER, LOGGING_MONITORING, INCIDENT_MGMT, ...). Use canonical UPPER_SNAKE_CASE with NO 'AND' (write LOGGING_MONITORING, not LOGGING_AND_MONITORING). If the text mentions multiple themes, pick the single most dominant one for that obligation.
+- source_refs MUST be non-empty; cite the article, section, or paragraph number from the source text.
+
 If the source text is incomplete, mark uncertainty in notes rather than guessing. Authentication is handled by the host. Never request, emit, or rely on API keys."""
 
 
@@ -182,33 +187,47 @@ class FoundryInterpreterAdapter:
 
     def interpret(self, request: InterpretRequest) -> InterpretResponse:
         """Call Foundry and return a schema-valid interpreter response."""
-        raw_response = self._invoke_model(request)
-        logger.debug(f"[FOUNDRY DEBUG] Raw response: {raw_response}")
-        payload = _parse_json_payload(raw_response)
-        logger.debug(
-            f"[FOUNDRY DEBUG] Parsed payload: {json.dumps(payload, indent=2, default=str)}"
-        )
-        response = _response_from_payload(payload, request)
-        try:
-            response.validate()
-        except ValidationError as exc:
-            logger.error(f"[FOUNDRY DEBUG] Validation failed: {exc}")
-            if response.obligations:
-                for i, obligation in enumerate(response.obligations):
-                    logger.error(
-                        f"  Obligation {i}: theme={obligation.theme}, maturity={obligation.target_maturity}, criticality={obligation.criticality}, refs={obligation.source_refs}"
+        last_error: Exception | None = None
+        for attempt in (1, 2):
+            repair_instruction = str(last_error) if attempt == 2 and last_error else None
+            raw_response = self._invoke_model(request, repair_instruction=repair_instruction)
+            logger.debug(f"[FOUNDRY DEBUG] Raw response (attempt {attempt}): {raw_response}")
+            try:
+                payload = _parse_json_payload(raw_response)
+                logger.debug(
+                    f"[FOUNDRY DEBUG] Parsed payload (attempt {attempt}): "
+                    f"{json.dumps(payload, indent=2, default=str)}"
+                )
+                response = _response_from_payload(payload, request)
+                response.validate()
+                return response
+            except (FoundryInterpreterError, ValidationError) as exc:
+                last_error = exc
+                logger.error(f"[FOUNDRY DEBUG] Validation/parsing failed (attempt {attempt}): {exc}")
+                if attempt == 1:
+                    logger.warning(
+                        "[FOUNDRY DEBUG] Retrying interpreter once with repair instructions "
+                        "for contract compliance."
                     )
-            raise FoundryInterpreterError("Foundry response failed contract validation") from exc
-        return response
+                    continue
+                if isinstance(exc, ValidationError):
+                    raise FoundryInterpreterError(str(exc)) from exc
+                raise
 
-    def _invoke_model(self, request: InterpretRequest) -> Any:
+        raise FoundryInterpreterError("Foundry response failed contract validation")
+
+    def _invoke_model(
+        self,
+        request: InterpretRequest,
+        repair_instruction: str | None = None,
+    ) -> Any:
         """Invoke the optional Agent Framework client."""
         try:
             agent = self._agent or self._build_agent()
         except foundry_runtime_error_types() as exc:
             raise FoundryInterpreterError("Foundry agent setup failed") from exc
 
-        prompt = _build_user_prompt(request)
+        prompt = _build_user_prompt(request, repair_instruction=repair_instruction)
 
         for method_name in ("run", "invoke", "chat", "complete"):
             method = getattr(agent, method_name, None)
@@ -258,7 +277,10 @@ def _resolve_response(response: Any) -> Any:
         return executor.submit(lambda: asyncio.run(response)).result()
 
 
-def _build_user_prompt(request: InterpretRequest) -> str:
+def _build_user_prompt(
+    request: InterpretRequest,
+    repair_instruction: str | None = None,
+) -> str:
     """Build a constrained JSON-only model prompt."""
     payload = {
         "regulation_id": request.regulation_id,
@@ -268,10 +290,19 @@ def _build_user_prompt(request: InterpretRequest) -> str:
         "source_text": request.source_text or "",
         "source_path": request.source_path or "",
     }
-    return (
+    prompt = (
         "Interpret this regulatory change and return only the response JSON:\n"
         f"{json.dumps(payload, sort_keys=True)}"
     )
+    if repair_instruction:
+        prompt += (
+            "\nPrevious output failed contract validation. Correct the output and "
+            "return JSON only.\n"
+            f"Validation error: {repair_instruction}\n"
+            "Hard constraints: target_maturity must be an integer from 1 to 5 "
+            "(never 0), and every obligation must include non-empty source_refs."
+        )
+    return prompt
 
 
 def _parse_json_payload(raw_response: Any) -> dict[str, Any]:

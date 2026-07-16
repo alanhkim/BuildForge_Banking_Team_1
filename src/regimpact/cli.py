@@ -137,11 +137,17 @@ def interpret(
     except FoundryInterpreterError as exc:
         console.print(f"[red]Foundry interpreter failed:[/] {exc}")
         raise typer.Exit(code=1) from exc
+    except FabricDataAgentError as exc:
+        console.print(f"[red]Fabric pipeline failed:[/] {exc}")
+        raise typer.Exit(code=1) from exc
 
     export_tables(est, settings.tables_dir)
     export_graph(est, settings.graph_dir)
     export_purview(est, settings.purview_dir)
-    engine_summary = ImpactEngine(est).analyze_change(report["change_id"])
+    # Report is built from Fabric-persisted gaps/remediations in the estate.
+    # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that
+    # would overwrite Fabric's authoritative outputs with local Python analysis.
+    engine_summary = pipeline.build_engine_summary(report["change_id"])
     export_report(est, engine_summary, settings.reports_dir)
 
     console.print(f"\n[bold]Agent pipeline[/] — mode: [yellow]{report['llm_mode']}[/]")

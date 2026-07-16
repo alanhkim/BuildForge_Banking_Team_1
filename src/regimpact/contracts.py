@@ -60,6 +60,7 @@ KNOWN_THEMES = {
     "TXN_MONITORING",
     "DATA_LINEAGE",
     "DATA_QUALITY",
+    "LOGGING_MONITORING",
 }
 
 # Valid maturity range
@@ -314,10 +315,19 @@ class FabricQuestionResponse:
 
 @dataclass(frozen=True)
 class ControlMappingRequest:
-    """Request to map obligations to existing control estate entities."""
+    """Request to map obligations to existing control estate entities.
+
+    ``obligations`` carries in-context obligation facts (id/theme/summary/
+    criticality). This is critical for freshly-interpreted regulations whose
+    obligations may not yet exist in the Fabric lakehouse. Optional to preserve
+    backward compatibility with callers that only supply IDs for already-
+    materialised changes.
+    """
 
     obligation_ids: list[str]
     fabric_context_question: str
+    obligations: list[dict] = field(default_factory=list)
+    candidate_controls: list[dict] = field(default_factory=list)
 
     def validate(self) -> None:
         """Validate control mapping input."""
@@ -381,11 +391,21 @@ class ControlMappingResponse:
 
 @dataclass(frozen=True)
 class GapAnalysisRequest:
-    """Request to analyze gaps for mapped obligations and controls."""
+    """Request to analyze gaps for mapped obligations and controls.
+
+    ``obligations`` and ``controls`` carry in-context facts (id/theme/summary/
+    target_maturity/current_maturity/etc.). ``mappings`` carries authoritative
+    obligation→control pairs produced by stage 1 so the Gap Analyst does not
+    have to re-derive them (fresh mappings won't exist in the lakehouse yet).
+    All three are optional to preserve backward compatibility.
+    """
 
     change_id: str
     obligation_ids: list[str]
     control_ids: list[str]
+    obligations: list[dict] = field(default_factory=list)
+    controls: list[dict] = field(default_factory=list)
+    mappings: list[dict] = field(default_factory=list)
 
     def validate(self) -> None:
         """Validate gap analysis request."""
@@ -436,12 +456,18 @@ class GapAnalysisResponse:
     error: AgentError | None = None
 
     def validate(self) -> None:
-        """Validate gap findings and tool evidence."""
+        """Validate gap findings and tool evidence.
+
+        An empty ``findings`` list is a valid outcome: it means the Gap
+        Analyst determined every obligation→control pair meets its target
+        maturity with an active control. Callers should still log the
+        justification (mapping shortfalls) so an operator can audit the
+        "no gaps" conclusion. ``tool_evidence`` remains required — the
+        agent must show it grounded its decision in real data.
+        """
         if self.error is not None:
             self.error.validate()
             return
-        if not self.findings:
-            raise ValidationError("findings is required")
         if not self.tool_evidence:
             raise MissingCitationError("gap analysis requires tool_evidence")
         for finding in self.findings:
@@ -452,9 +478,15 @@ class GapAnalysisResponse:
 
 @dataclass(frozen=True)
 class RemediationRequest:
-    """Request to plan remediation for known gaps."""
+    """Request to plan remediation for known gaps.
+
+    ``gaps`` carries in-context gap facts (id/obligation_id/control_id/
+    severity/rationale). Freshly-derived gaps may not exist in the Fabric
+    lakehouse yet. Optional for backward compatibility.
+    """
 
     gap_ids: list[str]
+    gaps: list[dict] = field(default_factory=list)
 
     def validate(self) -> None:
         """Validate remediation request."""
@@ -519,14 +551,32 @@ class RemediationResponse:
 
 @dataclass(frozen=True)
 class ScoreNarrationRequest:
-    """Request to narrate score movement without recalculating scores."""
+    """Request to narrate score movement without recalculating scores.
+
+    ``as_is`` / ``post_change`` / ``post_remediation`` carry the
+    pre-computed score facts for THIS change. Freshly uploaded changes
+    have no rows in the Fabric ``compliance_scores`` table yet, so the
+    Narrator must be handed the numbers as authoritative input rather
+    than expected to look them up. Defaults preserve backward-compat
+    for callers that still want the agent to derive scores from Fabric.
+    """
 
     change_id: str
+    as_is: float = 0.0
+    post_change: float = 0.0
+    post_remediation: float = 0.0
 
     def validate(self) -> None:
         """Validate score narration request."""
         if not self.change_id.strip():
             raise ValidationError("change_id is required")
+        for score_name, score in (
+            ("as_is", self.as_is),
+            ("post_change", self.post_change),
+            ("post_remediation", self.post_remediation),
+        ):
+            if not 0 <= score <= 100:
+                raise ValidationError(f"{score_name} must be between 0 and 100")
 
 
 @dataclass(frozen=True)

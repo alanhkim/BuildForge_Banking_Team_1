@@ -1,0 +1,158 @@
+EU AI Act high-risk banking model update — supplementary obligations.
+
+Scope note: this file extends eu_ai_act_high_risk.txt with additional
+provider and deployer duties that apply to high-risk AI systems used in
+retail and commercial banking, including credit scoring, pricing, fraud
+detection, anti-money-laundering triage, customer onboarding, and
+workforce decisioning.
+
+Conformity assessment and CE marking.
+Before placing a high-risk AI system on the Union market or putting it
+into service, the provider must ensure the system undergoes the relevant
+conformity assessment procedure, draw up an EU declaration of conformity,
+affix the CE marking, and keep the declaration for 10 years at the
+disposal of national competent authorities. Substantial modifications to
+the system trigger a new conformity assessment.
+
+Quality management system.
+Providers of high-risk AI systems must put in place a documented quality
+management system covering regulatory compliance strategy, design
+control, data management procedures, risk management, post-market
+monitoring, incident reporting, communication with authorities and
+notified bodies, record-keeping, and resource management. The QMS must
+be proportionate to the size of the provider's organisation.
+
+Post-market monitoring plan.
+Providers must establish and document a post-market monitoring system
+proportionate to the nature of the AI technologies and the risks of the
+high-risk AI system. The plan must actively and systematically collect,
+document, and analyse relevant data on performance throughout the
+lifetime of the system, and enable the provider to evaluate continuous
+compliance with the requirements for high-risk AI systems.
+
+Automatic logging and log retention.
+High-risk AI systems must technically allow for the automatic recording
+of events (logs) over the lifetime of the system. Logging capabilities
+must ensure a level of traceability appropriate to the intended purpose,
+including recording of the period of each use, the reference database
+against which input data has been checked, the input data for which the
+search has led to a match, and identification of the natural persons
+involved in the verification of results. Logs must be retained by the
+provider for a period appropriate to the intended purpose, of at least
+six months, unless a longer period is required by applicable Union or
+national law.
+
+Transparency and instructions for use.
+High-risk AI systems must be accompanied by instructions for use in a
+digital or non-digital format, in a language easily understood by
+deployers, containing concise, complete, correct, and clear information
+that is relevant, accessible, and comprehensible to deployers. The
+instructions must include the identity and contact details of the
+provider, the characteristics, capabilities, and limitations of
+performance of the system, expected accuracy, robustness, and
+cybersecurity metrics, foreseeable circumstances that may lead to risks,
+human oversight measures, the expected lifetime of the system, and any
+maintenance and care measures.
+
+Deployer duties for banks operating high-risk AI systems.
+Deployers must take appropriate technical and organisational measures
+to ensure they use high-risk AI systems in accordance with the
+instructions for use. Deployers must assign human oversight to natural
+persons with the necessary competence, training, authority, and
+support. Where deployers have control over input data, they must ensure
+that input data is relevant and sufficiently representative in view of
+the intended purpose of the high-risk AI system. Deployers must monitor
+the operation of the high-risk AI system on the basis of the
+instructions for use and, where relevant, inform providers of any
+suspected serious incident or malfunctioning.
+
+Fundamental rights impact assessment (FRIA) for banking deployers.
+Before deploying a high-risk AI system used to evaluate creditworthiness
+of natural persons, to establish credit scores, or to price or risk-rate
+life or health insurance, the deployer must perform a FRIA covering: a
+description of the deployer's processes in which the system will be
+used; the period of time and frequency of intended use; the categories
+of natural persons and groups likely to be affected; the specific risks
+of harm likely to have an impact on the affected persons or groups; a
+description of human oversight measures; and measures to be taken in
+case of materialisation of those risks, including internal governance
+and complaint mechanisms.
+
+Data governance duties beyond training data.
+Training, validation, and testing datasets must be subject to data
+governance and management practices appropriate for the intended purpose
+of the high-risk AI system. Those practices must concern in particular:
+the relevant design choices; data collection processes and origin of
+data; relevant data-preparation processing operations such as
+annotation, labelling, cleaning, updating, enrichment, and aggregation;
+formulation of assumptions, in particular with respect to information
+that the data are supposed to measure and represent; assessment of the
+availability, quantity, and suitability of the datasets; examination in
+view of possible biases likely to affect health and safety of persons,
+have a negative impact on fundamental rights, or lead to discrimination;
+appropriate measures to detect, prevent, and mitigate such biases; and
+identification of relevant data gaps or shortcomings and how they can be
+addressed.
+
+Human oversight in credit and fraud decisioning.
+For AI systems used in creditworthiness, pricing, and fraud detection,
+human oversight must be designed so that the natural persons overseeing
+the system can: fully understand the relevant capacities and limitations
+of the high-risk AI system; remain aware of the possible tendency of
+automatically relying or over-relying on the output produced (automation
+bias); correctly interpret the system's output; decide, in any
+particular situation, not to use the high-risk AI system or otherwise
+disregard, override, or reverse the output; and intervene in the
+operation of the system or interrupt it through a stop function.
+
+Cybersecurity requirements.
+Technical solutions to address AI-specific vulnerabilities must include,
+where appropriate, measures to prevent, detect, respond to, resolve, and
+control attacks trying to manipulate the training dataset (data
+poisoning), pre-trained components used in training (model poisoning),
+inputs designed to cause the model to make a mistake (adversarial
+examples or model evasion), confidentiality attacks, or model flaws
+that could lead to harmful decisions.
+
+Record-keeping and evidence retention.
+The provider must, for a period ending 10 years after the high-risk AI
+system has been placed on the market or put into service, keep at the
+disposal of the national competent authorities: the technical
+documentation; the documentation concerning the quality management
+system; the documentation concerning changes approved by notified
+bodies where applicable; the decisions and other documents issued by
+notified bodies where applicable; and the EU declaration of conformity.
+
+Interaction with existing financial services law.
+For credit institutions regulated under Union financial services law,
+the internal governance arrangements and processes required by that law
+are deemed to satisfy the QMS obligation for the elements that overlap.
+Serious incident reporting obligations under this Regulation apply in
+addition to and without prejudice to obligations under Regulation (EU)
+No 575/2013 (CRR), Directive 2013/36/EU (CRD IV), and Regulation (EU)
+2022/2554 (DORA), and duplicated reporting should be avoided through
+coordination with the relevant supervisory authority.
+
+Prohibited practices that banks must not deploy.
+Regardless of high-risk classification, banks must not place on the
+market, put into service, or use AI systems that: deploy subliminal
+techniques beyond a person's consciousness or purposefully manipulative
+or deceptive techniques to materially distort behaviour in a way that
+causes significant harm; exploit vulnerabilities of a specific group of
+persons due to age, disability, or a specific social or economic
+situation; evaluate or classify natural persons based on social
+behaviour or personality characteristics leading to detrimental or
+unfavourable treatment (social scoring); or infer emotions of a natural
+person in the workplace, except for medical or safety reasons.
+
+Penalties.
+Non-compliance with the prohibitions may attract administrative fines
+of up to 35,000,000 EUR or, if the offender is an undertaking, up to 7%
+of its total worldwide annual turnover for the preceding financial
+year, whichever is higher. Non-compliance with obligations applicable
+to providers, deployers, importers, distributors, or notified bodies
+may attract fines of up to 15,000,000 EUR or, if the offender is an
+undertaking, up to 3% of its total worldwide annual turnover, whichever
+is higher. Supply of incorrect, incomplete, or misleading information
+to notified bodies or competent authorities may attract fines of up to
+7,500,000 EUR or 1% of turnover.

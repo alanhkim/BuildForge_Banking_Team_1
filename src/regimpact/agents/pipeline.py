@@ -12,23 +12,41 @@ Two entry points:
 from __future__ import annotations
 
 from datetime import date
+import logging
 
 from ..models import (
+    ComplianceScore,
+    ComplianceStatus,
     Criticality,
     Edge,
     Estate,
+    Gap,
+    GapSeverity,
     MaturityLevel,
     Obligation,
     RegulatoryChange,
     Regulation,
     RelType,
+    RemediationAction,
+    Scenario,
 )
-from ..contracts import InterpretRequest
-from ..scoring import score_change
-from .control_mapper import ControlMapperAgent
-from .gap_analysis import GapAnalysisAgent
+from ..contracts import (
+    ControlMappingRequest,
+    GapAnalysisRequest,
+    InterpretRequest,
+    RemediationRequest,
+    ScoreNarrationRequest,
+)
+from ..scoring import score_change as _score_change_local
+from ..settings import settings as _settings
+from .fabric_control_mapper import FabricControlMapperAgent
+from .fabric_gap_analyst import FabricGapAnalystAgent
+from .fabric_remediation_planner import FabricRemediationPlannerAgent
+from .fabric_score_narrator import FabricScoreNarratorAgent
+from .foundry_client import FabricDataAgentError
 from .interpreter import InterpreterAgent
-from .remediation import RemediationAgent
+
+logger = logging.getLogger(__name__)
 
 _CRIT = {
     "Low": Criticality.LOW,
@@ -37,6 +55,79 @@ _CRIT = {
     "Critical": Criticality.CRITICAL,
 }
 
+_SEVERITY_MAP = {
+    "None": GapSeverity.NONE,
+    "Low": GapSeverity.LOW,
+    "Medium": GapSeverity.MEDIUM,
+    "High": GapSeverity.HIGH,
+    "Critical": GapSeverity.CRITICAL,
+}
+
+
+def _severity_from_str(value: str) -> GapSeverity:
+    return _SEVERITY_MAP.get(value, GapSeverity.MEDIUM)
+
+
+def _criticality_from_str(value: str) -> Criticality:
+    return _CRIT.get(value, Criticality.MEDIUM)
+
+
+def _compliance_status_from_score(score: float) -> ComplianceStatus:
+    if score >= 80:
+        return ComplianceStatus.COMPLIANT
+    if score >= 50:
+        return ComplianceStatus.PARTIAL
+    return ComplianceStatus.NONCOMPLIANT
+
+
+
+class FabricPipelineError(FabricDataAgentError):
+    """Raised when the Fabric-backed pipeline cannot run due to missing configuration."""
+
+
+# Obligation theme -> candidate capability IDs. Used to pre-filter the control
+# estate before calling the Fabric Control Mapper agent so it does not scan
+# every control in the lakehouse. Keeps the prompt small and cuts latency by
+# 3-5x on estates with many controls. Themes not listed here fall back to
+# considering all controls (safe default).
+_THEME_TO_CAPABILITY_IDS: dict[str, tuple[str, ...]] = {
+    "AI_GOVERNANCE": ("CAP-AIG", "CAP-TRACE", "CAP-AUD"),
+    "MODEL_RISK": ("CAP-MRM", "CAP-AIG"),
+    "TRAINING_DATA": ("CAP-TDQ", "CAP-DQ"),
+    "TRACEABILITY": ("CAP-TRACE", "CAP-AUD"),
+    "AUDITABILITY": ("CAP-AUD",),
+    "DATA_LINEAGE": ("CAP-LIN", "CAP-MDM"),
+    "DATA_QUALITY": ("CAP-DQ", "CAP-DG"),
+    "METADATA": ("CAP-MDM", "CAP-DG"),
+    "PRIVACY": ("CAP-PII", "CAP-DG"),
+    "RETENTION": ("CAP-RET", "CAP-DG"),
+    "ACCESS_CONTROL": ("CAP-AC", "CAP-AUTH"),
+    "SCA": ("CAP-AUTH", "CAP-AC"),
+    "CYBER": ("CAP-CYBER", "CAP-AC"),
+    "ICT_SECURITY": ("CAP-CYBER", "CAP-RES"),
+    "ICT_RESILIENCE": ("CAP-RES", "CAP-INC"),
+    "INCIDENT_MGMT": ("CAP-INC", "CAP-RES"),
+    "THIRD_PARTY_RISK": ("CAP-TPR", "CAP-RES"),
+    "KYC_CDD": ("CAP-FC",),
+    "TXN_MONITORING": ("CAP-FC",),
+    "SAR_REPORTING": ("CAP-FC",),
+    "SANCTIONS": ("CAP-SANCT", "CAP-FC"),
+    "REG_REPORTING": ("CAP-REP", "CAP-AUD"),
+    "CAPITAL_ADEQUACY": ("CAP-CAPITAL", "CAP-REP"),
+    "CONDUCT": ("CAP-COND",),
+    "LOGGING_MONITORING": ("CAP-AUD", "CAP-TRACE", "CAP-INC"),
+}
+
+
+def _truncate(text: str | None, limit: int) -> str:
+    """Trim long text fields to keep Fabric agent prompts small."""
+    if not text:
+        return ""
+    text = str(text)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
+
 
 class AgentPipeline:
     def __init__(self, estate: Estate):
@@ -44,12 +135,21 @@ class AgentPipeline:
 
     # ------------------------------------------------------------------ #
     def run(self, change_id: str) -> dict:
-        """Analyse a change that already exists in the estate."""
-        mapping = ControlMapperAgent(self.est).map_all()
-        gaps = GapAnalysisAgent(self.est).run(change_id)
-        remediation = RemediationAgent(self.est).run(change_id)
-        scores = score_change(self.est, change_id)
-        return self._report(change_id, mapping, gaps, remediation, scores)
+        """Analyse a change using the Fabric-backed agent pipeline.
+
+        Requires Foundry/Fabric configuration: FOUNDRY_PROJECT_ENDPOINT,
+        FOUNDRY_EXECUTIVE_QA_AGENT_NAME, FABRIC_WORKSPACE_ID, and
+        FABRIC_DATA_AGENT_ID must all be set. Raises FabricPipelineError
+        explicitly if any configuration is missing.
+        """
+        if not _settings.foundry_fabric_enabled:
+            raise FabricPipelineError(
+                "Foundry/Fabric configuration is required for agent pipeline "
+                "execution. Ensure FOUNDRY_PROJECT_ENDPOINT, "
+                "FOUNDRY_EXECUTIVE_QA_AGENT_NAME, FABRIC_WORKSPACE_ID, and "
+                "FABRIC_DATA_AGENT_ID are set."
+            )
+        return self._run_fabric(change_id)
 
     def run_text(
         self,
@@ -120,6 +220,396 @@ class AgentPipeline:
                 target_type="Obligation", rel_type=RelType.INTRODUCES_OBLIGATION))
         return change_id
 
+    def _run_fabric(self, change_id: str) -> dict:
+        """Execute the four-stage Fabric-backed analysis pipeline."""
+        change_obligations = [
+            ob for ob in self.est.obligations if ob.change_id == change_id
+        ]
+        obligation_ids = [ob.id for ob in change_obligations]
+        # Build in-context obligation facts so Fabric agents can reason about
+        # freshly-interpreted obligations that don't yet exist in the lakehouse.
+        # summary is truncated to keep the prompt small (agent matches by theme,
+        # not by full statement text).
+        obligation_facts = [
+            {
+                "id": ob.id,
+                "theme": ob.theme,
+                "summary": _truncate(ob.statement, 200),
+                "criticality": ob.criticality.value if hasattr(ob.criticality, "value") else str(ob.criticality),
+                "target_maturity": int(ob.target_maturity),
+                "affected_data_domain_ids": [
+                    e.target_id for e in self.est.edges
+                    if e.source_id == ob.id and e.rel_type == RelType.OBLIGATION_CONCERNS_DATA_DOMAIN
+                ],
+            }
+            for ob in change_obligations
+        ]
+        # Pre-filter controls by theme so the Fabric agent picks from a small
+        # shortlist instead of scanning every control in the lakehouse.
+        candidate_capability_ids: set[str] = set()
+        for ob in change_obligations:
+            for cap_id in _THEME_TO_CAPABILITY_IDS.get(ob.theme, ()):
+                candidate_capability_ids.add(cap_id)
+        if candidate_capability_ids:
+            candidate_controls_source = [
+                c for c in self.est.controls
+                if c.capability_id in candidate_capability_ids
+            ]
+        else:
+            # Unknown themes -> fall back to sending all controls (rare).
+            candidate_controls_source = list(self.est.controls)
+        candidate_control_facts = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "capability_id": c.capability_id,
+                "status": c.status.value if hasattr(c.status, "value") else str(c.status),
+                "current_maturity": int(c.maturity),
+                "description": _truncate(c.description, 160),
+            }
+            for c in candidate_controls_source
+        ]
+        logger.debug(
+            "Fabric pipeline start change_id=%s obligation_count=%d candidate_controls=%d",
+            change_id,
+            len(obligation_ids),
+            len(candidate_control_facts),
+        )
+
+        # Stage 1: Control Mapper — ground obligation-to-control mappings in Fabric
+        try:
+            cm_response = FabricControlMapperAgent().map(
+                ControlMappingRequest(
+                    obligation_ids=obligation_ids,
+                    obligations=obligation_facts,
+                    candidate_controls=candidate_control_facts,
+                    fabric_context_question=(
+                        f"Map all obligations for regulatory change {change_id} "
+                        "to controls from the provided 'candidate_controls' "
+                        "shortlist. Use inline 'obligations' facts as authoritative."
+                    ),
+                )
+            )
+        except FabricDataAgentError as exc:
+            logger.error(
+                "Fabric stage failed stage=control_mapper change_id=%s obligations=%d error=%s",
+                change_id,
+                len(obligation_ids),
+                exc,
+            )
+            raise FabricPipelineError(
+                f"Fabric stage 'control_mapper' failed for {change_id}: {exc}"
+            ) from exc
+        control_ids = list({m.control_id for m in cm_response.mappings})
+        logger.debug(
+            "Fabric stage complete stage=control_mapper change_id=%s mappings=%d controls=%d",
+            change_id,
+            len(cm_response.mappings),
+            len(control_ids),
+        )
+        # Persist Fabric-authoritative control mappings into the estate
+        edges_added = self._persist_control_mappings(cm_response.mappings)
+        logger.debug(
+            "Fabric writeback stage=control_mapper change_id=%s edges_added=%d",
+            change_id,
+            edges_added,
+        )
+
+        # Stage 2: Gap Analyst — identify maturity/evidence gaps via Fabric views
+        # Build inline control facts so agent can reason even if lakehouse view
+        # doesn't have the freshly-derived mappings. description is truncated
+        # to keep the prompt small.
+        control_lookup = {c.id: c for c in self.est.controls}
+        obligation_lookup = {ob.id: ob for ob in change_obligations}
+        control_facts = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "capability_id": c.capability_id,
+                "status": c.status.value if hasattr(c.status, "value") else str(c.status),
+                "current_maturity": int(c.maturity),
+                "description": _truncate(c.description, 160),
+            }
+            for cid in control_ids
+            for c in [control_lookup.get(cid)] if c is not None
+        ]
+        # Authoritative obligation→control pairs from stage 1 with the exact
+        # target/current maturity numbers side-by-side. This lets the Gap
+        # Analyst compute maturity_shortfall directly without re-joining or
+        # querying the lakehouse (fresh mappings aren't there yet).
+        mapping_facts = []
+        for mapping in cm_response.mappings:
+            obligation = obligation_lookup.get(mapping.obligation_id)
+            control = control_lookup.get(mapping.control_id)
+            if obligation is None or control is None:
+                continue
+            target = int(obligation.target_maturity)
+            current = int(control.maturity)
+            mapping_facts.append(
+                {
+                    "obligation_id": mapping.obligation_id,
+                    "control_id": mapping.control_id,
+                    "target_maturity": target,
+                    "current_maturity": current,
+                    "maturity_shortfall": max(0, target - current),
+                    "control_status": control.status.value
+                    if hasattr(control.status, "value")
+                    else str(control.status),
+                }
+            )
+        try:
+            ga_response = FabricGapAnalystAgent().analyze(
+                GapAnalysisRequest(
+                    change_id=change_id,
+                    obligation_ids=obligation_ids,
+                    control_ids=control_ids,
+                    obligations=obligation_facts,
+                    controls=control_facts,
+                    mappings=mapping_facts,
+                )
+            )
+        except FabricDataAgentError as exc:
+            logger.error(
+                "Fabric stage failed stage=gap_analyst change_id=%s obligations=%d controls=%d error=%s",
+                change_id,
+                len(obligation_ids),
+                len(control_ids),
+                exc,
+            )
+            raise FabricPipelineError(
+                f"Fabric stage 'gap_analyst' failed for {change_id}: {exc}"
+            ) from exc
+        gap_ids = [f.gap_id for f in ga_response.findings]
+        logger.debug(
+            "Fabric stage complete stage=gap_analyst change_id=%s findings=%d",
+            change_id,
+            len(ga_response.findings),
+        )
+        # If the Analyst returned no gaps, log the mapping facts that justify
+        # the "no gap" verdict so an operator can audit the decision without
+        # digging into the raw agent response.
+        if not ga_response.findings and mapping_facts:
+            shortfall_summary = ", ".join(
+                f"{m['obligation_id']}->{m['control_id']}"
+                f"(target={m['target_maturity']},current={m['current_maturity']},"
+                f"shortfall={m['maturity_shortfall']},status={m['control_status']})"
+                for m in mapping_facts
+            )
+            logger.info(
+                "Fabric gap_analyst returned no findings change_id=%s pairs=%d justification=%s",
+                change_id,
+                len(mapping_facts),
+                shortfall_summary,
+            )
+        # Persist Fabric-authoritative gaps (replace any prior gaps for this change)
+        persisted_gaps = self._persist_gaps(ga_response.findings, change_id)
+        logger.debug(
+            "Fabric writeback stage=gap_analyst change_id=%s gaps_persisted=%d",
+            change_id,
+            len(persisted_gaps),
+        )
+
+        # Stage 3: Remediation Planner — prioritised owner-assigned actions from Fabric
+        rp_actions: list = []
+        total_effort: int = 0
+        if gap_ids:
+            # Inline gap facts for freshly-derived gaps not yet in the lakehouse.
+            # rationale is truncated to keep the prompt small.
+            gap_facts = [
+                {
+                    "id": g.id,
+                    "obligation_id": g.obligation_id,
+                    "control_id": g.control_id or "",
+                    "severity": g.severity.value if hasattr(g.severity, "value") else str(g.severity),
+                    "maturity_shortfall": int(g.maturity_shortfall),
+                    "rationale": _truncate(g.rationale, 240),
+                }
+                for g in persisted_gaps
+            ]
+            try:
+                rp_response = FabricRemediationPlannerAgent().plan(
+                    RemediationRequest(gap_ids=gap_ids, gaps=gap_facts)
+                )
+            except FabricDataAgentError as exc:
+                logger.error(
+                    "Fabric stage failed stage=remediation_planner change_id=%s gaps=%d error=%s",
+                    change_id,
+                    len(gap_ids),
+                    exc,
+                )
+                raise FabricPipelineError(
+                    f"Fabric stage 'remediation_planner' failed for {change_id}: {exc}"
+                ) from exc
+            rp_actions = list(rp_response.actions)
+            total_effort = sum(a.estimated_effort_days for a in rp_actions)
+            logger.debug(
+                "Fabric stage complete stage=remediation_planner change_id=%s actions=%d total_effort_days=%d",
+                change_id,
+                len(rp_actions),
+                total_effort,
+            )
+            # Persist Fabric-authoritative remediation actions (replace prior for this change)
+            persisted_actions = self._persist_remediations(rp_actions, persisted_gaps)
+            logger.debug(
+                "Fabric writeback stage=remediation_planner change_id=%s actions_persisted=%d",
+                change_id,
+                len(persisted_actions),
+            )
+        else:
+            logger.debug(
+                "Fabric stage skipped stage=remediation_planner change_id=%s reason=no_gap_ids",
+                change_id,
+            )
+            # Clear any prior remediations for this change's gaps
+            self._persist_remediations([], persisted_gaps)
+
+        # Stage 4: Score Narrator — Fabric-grounded score movement explanation.
+        # Compute local scores from the freshly-persisted gaps/remediations
+        # FIRST, then hand them to the Narrator as authoritative input. The
+        # Fabric compliance_scores table has no rows for a change that was
+        # uploaded seconds ago — asking the agent to derive scores from an
+        # empty table returns 0.0/0.0/0.0. Feeding pre-computed facts keeps
+        # the agent in its true role (narrator, not calculator) while the
+        # scoring math stays deterministic and repo-owned.
+        precomputed = self._compute_local_score_facts(change_id)
+        try:
+            sn_response = FabricScoreNarratorAgent().narrate(
+                ScoreNarrationRequest(
+                    change_id=change_id,
+                    as_is=precomputed["as_is"],
+                    post_change=precomputed["post_change"],
+                    post_remediation=precomputed["post_remediation"],
+                )
+            )
+        except FabricDataAgentError as exc:
+            logger.error(
+                "Fabric stage failed stage=score_narrator change_id=%s error=%s",
+                change_id,
+                exc,
+            )
+            raise FabricPipelineError(
+                f"Fabric stage 'score_narrator' failed for {change_id}: {exc}"
+            ) from exc
+        logger.debug(
+            "Fabric stage complete stage=score_narrator change_id=%s "
+            "as_is=%.2f post_change=%.2f post_remediation=%.2f "
+            "(precomputed as_is=%.2f post_change=%.2f post_remediation=%.2f)",
+            change_id,
+            sn_response.as_is,
+            sn_response.post_change,
+            sn_response.post_remediation,
+            precomputed["as_is"],
+            precomputed["post_change"],
+            precomputed["post_remediation"],
+        )
+        # Detect if the narrator ignored our pre-computed facts (drift > 0.5%).
+        # Non-fatal — we still trust the agent — but worth logging so we can
+        # audit whether the SCORE_NARRATOR_SPEC discipline is holding.
+        for name, agent_val, pre_val in (
+            ("as_is", sn_response.as_is, precomputed["as_is"]),
+            ("post_change", sn_response.post_change, precomputed["post_change"]),
+            ("post_remediation", sn_response.post_remediation, precomputed["post_remediation"]),
+        ):
+            if abs(agent_val - pre_val) > 0.5:
+                logger.warning(
+                    "Score Narrator drift stage=score_narrator change_id=%s "
+                    "score=%s agent=%.2f precomputed=%.2f",
+                    change_id,
+                    name,
+                    agent_val,
+                    pre_val,
+                )
+
+        # Persist Fabric-authoritative Overall/BANK scores (replace prior for this change)
+        self._persist_fabric_scores(sn_response, change_id)
+
+        # Local scoring supplies ONLY derived fields Fabric doesn't return
+        # (regulation_compliance snapshot, weakest_capabilities ranking).
+        # We compute these on a shallow copy so it does not overwrite the
+        # authoritative Fabric scores we just persisted.
+        derived = self._derived_local_fields(change_id)
+
+        return self._fabric_report(
+            change_id,
+            obligation_count=len(obligation_ids),
+            cm_response=cm_response,
+            gap_count=len(ga_response.findings),
+            rp_actions=rp_actions,
+            total_effort=total_effort,
+            sn_response=sn_response,
+            derived=derived,
+        )
+
+    def _fabric_report(
+        self,
+        change_id: str,
+        *,
+        obligation_count: int,
+        cm_response,
+        gap_count: int,
+        rp_actions: list,
+        total_effort: int,
+        sn_response,
+        derived: dict,
+    ) -> dict:
+        actions = [
+            {
+                "action": a.action,
+                "type": "remediation",
+                "priority": a.priority,
+                "effort_days": a.estimated_effort_days,
+                "owner": a.owner_unit_id,
+            }
+            for a in rp_actions
+        ]
+        scores = {
+            "change_id": change_id,
+            "as_is": sn_response.as_is,
+            "post_change": sn_response.post_change,
+            "post_remediation": sn_response.post_remediation,
+            "score_drop": round(sn_response.as_is - sn_response.post_change, 1),
+            "score_recovered": round(
+                sn_response.post_remediation - sn_response.post_change, 1
+            ),
+            "regulation_compliance": derived["regulation_compliance"],
+            "weakest_capabilities": derived["weakest_capabilities"],
+        }
+        return {
+            "change_id": change_id,
+            "llm_mode": "fabric-agentic",
+            "agents": [
+                {
+                    "agent": "Regulation Interpreter",
+                    "result": f"{obligation_count} obligations",
+                },
+                {
+                    "agent": "Control Mapper",
+                    "result": f"{len(cm_response.mappings)} mappings",
+                },
+                {
+                    "agent": "Gap Analysis",
+                    "result": f"{gap_count} gaps, {total_effort} days",
+                },
+                {
+                    "agent": "Remediation",
+                    "result": f"{len(actions)} actions",
+                },
+            ],
+            "gaps": {
+                "change_id": change_id,
+                "obligations": obligation_count,
+                "gaps": gap_count,
+                "total_effort_days": total_effort,
+            },
+            "remediation": {
+                "change_id": change_id,
+                "actions": actions,
+                "total_effort_days": total_effort,
+                "narrative": sn_response.narrative,
+            },
+            "scores": scores,
+        }
+
     def _report(self, change_id, mapping, gaps, remediation, scores) -> dict:
         return {
             "change_id": change_id,
@@ -133,6 +623,261 @@ class AgentPipeline:
             "gaps": gaps,
             "remediation": remediation,
             "scores": scores,
+        }
+
+    # ------------------------------------------------------------------ #
+    # Fabric writeback helpers — persist agent outputs into the Estate so
+    # downstream exports (CSV, GraphML, markdown) reflect Fabric's judgment
+    # rather than re-derived local Python analysis.
+    # ------------------------------------------------------------------ #
+    def _persist_control_mappings(self, mappings: list) -> int:
+        """Add OBLIGATION_REQUIRES_CONTROL edges from Fabric mappings.
+
+        Dedupes against edges already in the estate. Returns count added.
+        """
+        existing = {
+            (e.source_id, e.target_id, e.rel_type)
+            for e in self.est.edges
+        }
+        added = 0
+        for m in mappings:
+            key = (m.obligation_id, m.control_id, RelType.OBLIGATION_REQUIRES_CONTROL)
+            if key in existing:
+                continue
+            self.est.edges.append(
+                Edge(
+                    source_id=m.obligation_id,
+                    source_type="Obligation",
+                    target_id=m.control_id,
+                    target_type="Control",
+                    rel_type=RelType.OBLIGATION_REQUIRES_CONTROL,
+                )
+            )
+            existing.add(key)
+            added += 1
+        return added
+
+    def _persist_gaps(self, findings: list, change_id: str) -> list[Gap]:
+        """Replace prior gaps for this change with Fabric-derived findings.
+
+        Derives blast-radius (systems/processes/products/data_domains) from
+        structural edges in the estate using Fabric's chosen control_id.
+        """
+        # Pre-index edges by source control
+        ctl_systems: dict[str, list[str]] = {}
+        ctl_processes: dict[str, list[str]] = {}
+        proc_products: dict[str, list[str]] = {}
+        obl_data: dict[str, list[str]] = {}
+        for e in self.est.edges:
+            if e.rel_type == RelType.CONTROL_IMPLEMENTED_IN_SYSTEM:
+                ctl_systems.setdefault(e.source_id, []).append(e.target_id)
+            elif e.rel_type == RelType.CONTROL_OPERATES_IN_PROCESS:
+                ctl_processes.setdefault(e.source_id, []).append(e.target_id)
+            elif e.rel_type == RelType.PROCESS_SUPPORTS_PRODUCT:
+                proc_products.setdefault(e.source_id, []).append(e.target_id)
+            elif e.rel_type == RelType.OBLIGATION_CONCERNS_DATA_DOMAIN:
+                obl_data.setdefault(e.source_id, []).append(e.target_id)
+
+        new_gaps: list[Gap] = []
+        for f in findings:
+            cid = f.control_id or None
+            systems = ctl_systems.get(cid, []) if cid else []
+            processes = ctl_processes.get(cid, []) if cid else []
+            products = sorted({
+                p for pr in processes for p in proc_products.get(pr, [])
+            })
+            new_gaps.append(
+                Gap(
+                    id=f.gap_id,
+                    obligation_id=f.obligation_id,
+                    change_id=change_id,
+                    control_id=cid,
+                    severity=_severity_from_str(f.severity),
+                    maturity_shortfall=int(f.maturity_shortfall),
+                    rationale=f.rationale,
+                    affected_system_ids=systems,
+                    affected_process_ids=processes,
+                    affected_product_ids=products,
+                    affected_data_domain_ids=obl_data.get(f.obligation_id, []),
+                )
+            )
+
+        # Replace this change's gaps in the estate
+        self.est.gaps = [g for g in self.est.gaps if g.change_id != change_id] + new_gaps
+
+        # Drop stale Gap-related edges whose source gap no longer exists,
+        # then re-emit fresh edges for the new gaps.
+        valid_gap_ids = {g.id for g in self.est.gaps}
+        self.est.edges = [
+            e for e in self.est.edges
+            if e.rel_type not in (RelType.GAP_FOR_OBLIGATION, RelType.GAP_AGAINST_CONTROL)
+            or e.source_id in valid_gap_ids
+        ]
+        # Also drop the edges for THIS change's new gaps in case of re-run
+        new_ids = {g.id for g in new_gaps}
+        self.est.edges = [
+            e for e in self.est.edges
+            if not (
+                e.rel_type in (RelType.GAP_FOR_OBLIGATION, RelType.GAP_AGAINST_CONTROL)
+                and e.source_id in new_ids
+            )
+        ]
+        for g in new_gaps:
+            self.est.edges.append(
+                Edge(
+                    source_id=g.id, source_type="Gap",
+                    target_id=g.obligation_id, target_type="Obligation",
+                    rel_type=RelType.GAP_FOR_OBLIGATION,
+                )
+            )
+            if g.control_id:
+                self.est.edges.append(
+                    Edge(
+                        source_id=g.id, source_type="Gap",
+                        target_id=g.control_id, target_type="Control",
+                        rel_type=RelType.GAP_AGAINST_CONTROL,
+                    )
+                )
+        return new_gaps
+
+    def _persist_remediations(
+        self,
+        actions: list,
+        gaps_for_change: list[Gap],
+    ) -> list[RemediationAction]:
+        """Replace remediations for the given change's gaps with Fabric actions.
+
+        Fabric doesn't return action_type; default to 'Enhance'.
+        """
+        gap_ids_for_change = {g.id for g in gaps_for_change}
+        new_actions: list[RemediationAction] = [
+            RemediationAction(
+                id=a.remediation_id,
+                gap_id=a.gap_id,
+                action=a.action,
+                action_type="Enhance",
+                estimated_effort_days=int(a.estimated_effort_days),
+                priority=_criticality_from_str(a.priority),
+                target_unit_id=a.owner_unit_id,
+            )
+            for a in actions
+        ]
+
+        # Replace remediations tied to this change's gaps
+        self.est.remediations = [
+            r for r in self.est.remediations if r.gap_id not in gap_ids_for_change
+        ] + new_actions
+
+        # Reset REMEDIATION_RESOLVES_GAP edges for this change's gaps
+        self.est.edges = [
+            e for e in self.est.edges
+            if not (
+                e.rel_type == RelType.REMEDIATION_RESOLVES_GAP
+                and e.target_id in gap_ids_for_change
+            )
+        ]
+        for r in new_actions:
+            self.est.edges.append(
+                Edge(
+                    source_id=r.id, source_type="RemediationAction",
+                    target_id=r.gap_id, target_type="Gap",
+                    rel_type=RelType.REMEDIATION_RESOLVES_GAP,
+                )
+            )
+        return new_actions
+
+    def _persist_fabric_scores(self, sn_response, change_id: str) -> None:
+        """Replace Overall/BANK compliance scores for this change with Fabric values."""
+        # Drop only the Overall rows for this change that we're about to replace
+        self.est.scores = [
+            s for s in self.est.scores
+            if not (s.change_id == change_id and s.scope_type == "Overall")
+        ]
+        for scenario, score in (
+            (Scenario.AS_IS, sn_response.as_is),
+            (Scenario.POST_CHANGE, sn_response.post_change),
+            (Scenario.POST_REMEDIATION, sn_response.post_remediation),
+        ):
+            self.est.scores.append(
+                ComplianceScore(
+                    scope_type="Overall",
+                    scope_id="BANK",
+                    scope_name="Enterprise",
+                    scenario=scenario,
+                    score=float(score),
+                    status=_compliance_status_from_score(float(score)),
+                    change_id=change_id,
+                )
+            )
+
+    def _derived_local_fields(self, change_id: str) -> dict:
+        """Compute derived score fields Fabric doesn't return.
+
+        Runs local scoring on a snapshot of the estate so it cannot overwrite
+        Fabric-persisted scores. Returns only regulation_compliance and
+        weakest_capabilities.
+        """
+        scores_snapshot = list(self.est.scores)
+        try:
+            local = _score_change_local(self.est, change_id)
+        finally:
+            # Always restore the Fabric-authoritative scores
+            self.est.scores = scores_snapshot
+        return {
+            "regulation_compliance": local["regulation_compliance"],
+            "weakest_capabilities": local["weakest_capabilities"],
+        }
+
+    def _compute_local_score_facts(self, change_id: str) -> dict:
+        """Compute AS-IS / POST_CHANGE / POST_REMEDIATION score facts for the Narrator.
+
+        The Fabric ``compliance_scores`` table has no rows for a change_id
+        that was uploaded seconds ago. Rather than let the Narrator query
+        an empty table and return zeroes, we compute the three headline
+        scores locally from the freshly-persisted obligations, controls,
+        gaps, and remediations, then feed them to the agent as input.
+
+        Runs on a snapshot so it cannot mutate Fabric-persisted scores.
+        """
+        scores_snapshot = list(self.est.scores)
+        try:
+            local = _score_change_local(self.est, change_id)
+        finally:
+            self.est.scores = scores_snapshot
+        return {
+            "as_is": float(local["as_is"]),
+            "post_change": float(local["post_change"]),
+            "post_remediation": float(local["post_remediation"]),
+        }
+
+    def build_engine_summary(self, change_id: str) -> dict:
+        """Build the summary dict expected by export_report from the Fabric-populated estate.
+
+        Reads Fabric-persisted gaps/remediations directly — does NOT recompute.
+        Mirrors the shape of ImpactEngine._summary().
+        """
+        change = next(c for c in self.est.changes if c.id == change_id)
+        gaps = [g for g in self.est.gaps if g.change_id == change_id]
+        gap_ids = {g.id for g in gaps}
+        actions = [r for r in self.est.remediations if r.gap_id in gap_ids]
+        sev_counts: dict[str, int] = {}
+        for g in gaps:
+            sev_counts[g.severity.value] = sev_counts.get(g.severity.value, 0) + 1
+        return {
+            "change_id": change_id,
+            "change_title": change.title,
+            "regulation_id": change.regulation_id,
+            "effective_date": change.effective_date.isoformat(),
+            "criticality": change.criticality.value,
+            "obligations": len(
+                [o for o in self.est.obligations if o.change_id == change_id]
+            ),
+            "gaps": len(gaps),
+            "gaps_by_severity": sev_counts,
+            "total_effort_days": sum(a.estimated_effort_days for a in actions),
+            "affected_products": sorted({p for g in gaps for p in g.affected_product_ids}),
+            "affected_systems": sorted({s for g in gaps for s in g.affected_system_ids}),
+            "affected_processes": sorted({pr for g in gaps for pr in g.affected_process_ids}),
         }
 
 
