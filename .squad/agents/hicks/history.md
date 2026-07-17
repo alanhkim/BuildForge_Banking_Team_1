@@ -59,3 +59,6 @@ Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local P
 
 ### 2026-07-17 — Truncated inner-answer JSON now retryable
 2026-07-17 — Bishop extended the Fabric semantic-retry loop to catch truncated inner-answer JSON — a follow-on to §5. Truncation (unclosed brace/bracket at EOF) triggers a concise-mode retry prompt asking the model to shorten rationales, drop optional fields, and cap answer size. Prose-answer agents (executive_qa, score_narrator) are exempted from JSON validation. See decisions.md.
+
+### 2026-07-17 — ControlMapper validation contract change coming (heads-up)
+ControlMapper validation contract change coming (empty mappings + non-empty reason accepted; empty + no reason still rejected). New tests needed: empty+reason accepted, empty+no-reason rejected, retry fires exactly once on the failing path, error message surfaces underlying `ValidationError` reason, request payload logged with obligation/evidence counts. Wait for Bishop + Lambert to finish implementation before writing. See `.squad/log/2026-07-17T16-52-25Z-control-mapper-diagnosis.md` and the PROPOSED decision at the bottom of `.squad/decisions.md`.

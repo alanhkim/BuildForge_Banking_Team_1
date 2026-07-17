@@ -179,6 +179,19 @@ Retry loop code was **deleted, not disabled**. To restore:
 - New retry attempts appear in orchestration logs with a `truncated=true` marker — signal for prompts whose expected output structurally exceeds the model's output budget (candidates for pagination / batching at the prompt level).
 - Prose-answer agents (`executive_qa`, `score_narrator`) behavior unchanged.
 
+---
+
+### 2026-07-17: PROPOSED — ControlMapper contract accepts documented empty mappings
+
+**Status:** Proposed — awaiting user approval
+**By:** Squad Coordinator (from Lambert + Bishop diagnosis)
+
+**What:** `ControlMappingResponse` will accept `mappings: []` only when accompanied by a non-empty `reason: str` explaining why nothing matched. Empty mappings with no reason remains a hard failure. Harness must surface the underlying validation error to the CLI (unwrap `"Fabric agent response failed validation"` into `"Fabric agent response failed validation: {reason}"`).
+
+**Why:** Current unconditional rejection of empty mappings blocks the pipeline whenever the Fabric agent legitimately finds no matches or is under-informed by tool evidence. Opaque error message prevents user diagnosis. Per project constitution, no offline fallback — we harden the real Fabric path.
+
+**Scope of change:** `src/regimpact/contracts.py` (schema), `src/regimpact/agents/fabric_workflow.py` (error unwrap + logging + bounded retry), Foundry portal `RegImpactControlMapper` prompt, `tests/test_fabric_workflow.py`.
+
 ## Governance
 
 - All meaningful changes require team consensus
