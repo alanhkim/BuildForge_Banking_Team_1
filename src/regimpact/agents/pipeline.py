@@ -557,24 +557,45 @@ class AgentPipeline:
                     RemediationRequest(gap_ids=gap_ids, gaps=gap_facts)
                 )
             except FabricDataAgentError as exc:
-                logger.error(
-                    "Fabric stage failed stage=remediation_planner change_id=%s gaps=%d error=%s",
+                # Remediation planner is a "nice to have" narrative stage — a
+                # failure here (empty actions without reason, transient
+                # Foundry glitch, malformed JSON) must NOT tank the entire
+                # pipeline. Downgrade to WARNING + continue with zero
+                # actions. The interpret/control/gap stages already produced
+                # authoritative artefacts; score_narrator uses locally
+                # pre-computed floats and is independent. See
+                # decisions.md §2026-07-17 (empty-with-reason contract) —
+                # this is the pipeline-level partner to that harness-level
+                # tolerance.
+                logger.warning(
+                    "Fabric stage soft-fail stage=remediation_planner "
+                    "change_id=%s gaps=%d error=%s — continuing pipeline "
+                    "with zero remediation actions",
                     change_id,
                     len(gap_ids),
                     exc,
                 )
-                raise FabricPipelineError(
-                    f"Fabric stage 'remediation_planner' failed for {change_id}: {exc}"
-                ) from exc
-            rp_actions = list(rp_response.actions)
-            total_effort = sum(a.estimated_effort_days for a in rp_actions)
-            logger.debug(
-                "Fabric stage complete stage=remediation_planner change_id=%s actions=%d total_effort_days=%d",
-                change_id,
-                len(rp_actions),
-                total_effort,
-            )
-            # Persist Fabric-authoritative remediation actions (replace prior for this change)
+                rp_response = None
+            if rp_response is not None:
+                rp_actions = list(rp_response.actions)
+                total_effort = sum(a.estimated_effort_days for a in rp_actions)
+                if not rp_actions and rp_response.reason:
+                    logger.info(
+                        "Fabric stage complete stage=remediation_planner "
+                        "change_id=%s actions=0 reason=%s",
+                        change_id,
+                        rp_response.reason,
+                    )
+                else:
+                    logger.debug(
+                        "Fabric stage complete stage=remediation_planner change_id=%s actions=%d total_effort_days=%d",
+                        change_id,
+                        len(rp_actions),
+                        total_effort,
+                    )
+            # Persist Fabric-authoritative remediation actions (replace prior for this change).
+            # When rp_actions is empty (either soft-fail or empty-with-reason),
+            # this clears any stale remediations for this change's gaps.
             persisted_actions = self._persist_remediations(rp_actions, persisted_gaps)
             logger.debug(
                 "Fabric writeback stage=remediation_planner change_id=%s actions_persisted=%d",

@@ -165,7 +165,7 @@ REMEDIATION_PLANNER_SPEC = FabricAgentSpec(
     output_contract=(
         '{"actions":[{"remediation_id":string,"gap_id":string,"owner_unit_id":string,'
         '"priority":"Critical|High|Medium|Low","estimated_effort_days":integer,'
-        '"action":string,"source_refs":[...]}]}'
+        '"action":string,"source_refs":[...]}],"reason":string?}'
     ),
     instructions=(
         "When the request payload includes inline 'gaps' facts (id, obligation_id, "
@@ -176,6 +176,11 @@ REMEDIATION_PLANNER_SPEC = FabricAgentSpec(
         "controls/business_units/evidence tables you used. When inline gaps are "
         "absent, fall back to v_remediation_priority. Never invent owners; owner_unit_id "
         "must exist in business_units. Emit remediation_id in the form 'REM-{gap_id}'. "
+        "If — and ONLY if — you genuinely cannot plan any actions (e.g. every gap "
+        "has an existing active remediation, or no business_units are eligible to "
+        "own the work), return {\"actions\": [], \"reason\": \"<short explanation>\"} "
+        "with tool_evidence still populated. Never return an empty actions list "
+        "without a reason string. "
         "OUTPUT DISCIPLINE — keep 'action' under 200 characters (imperative phrase, "
         "no filler). Emit compact JSON on a single line — no markdown, no code "
         "fences, no trailing commentary. The response MUST be a complete JSON "
@@ -341,7 +346,13 @@ class FabricAgentHarness:
         )
 
     def plan_remediation(self, request: RemediationRequest) -> RemediationResponse:
-        """Run the Fabric-backed Remediation Planner framing."""
+        """Run the Fabric-backed Remediation Planner framing.
+
+        Accepts the empty-with-reason contract (see decisions.md
+        §2026-07-17): when the model returns ``{"actions": [],
+        "reason": "..."}`` the response is a documented no-op and the
+        pipeline continues without remediations.
+        """
         request.validate()
         fabric_response = self._ask(REMEDIATION_PLANNER_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
@@ -359,10 +370,22 @@ class FabricAgentHarness:
             )
             for item in raw_actions
         ]
+        reason_raw = payload.get("reason")
+        reason = (
+            reason_raw.strip()
+            if isinstance(reason_raw, str) and reason_raw.strip()
+            else None
+        )
+        logger.info(
+            "Fabric remediation_planner actions=%d reason_present=%s",
+            len(actions),
+            reason is not None,
+        )
         return _validated(
             RemediationResponse(
                 actions=actions,
                 tool_evidence=fabric_response.tool_evidence,
+                reason=reason,
             ),
             fabric_response=fabric_response,
         )

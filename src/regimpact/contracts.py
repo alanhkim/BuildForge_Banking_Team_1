@@ -565,11 +565,19 @@ class RemediationPlanItem:
 
 @dataclass(frozen=True)
 class RemediationResponse:
-    """Remediation Planner agent response."""
+    """Remediation Planner agent response.
+
+    Empty ``actions`` is a legitimate no-op ONLY when ``reason`` is a
+    non-empty string explaining why (mirrors :class:`ControlMappingResponse`
+    empty-with-reason contract, decisions.md §2026-07-17). ``tool_evidence``
+    is required in BOTH branches — losing grounding is worse than losing
+    actions.
+    """
 
     actions: list[RemediationPlanItem]
     tool_evidence: list[ToolEvidence]
     error: AgentError | None = None
+    reason: str | None = None
 
     def validate(self) -> None:
         """Validate remediation actions and tool evidence."""
@@ -577,7 +585,13 @@ class RemediationResponse:
             self.error.validate()
             return
         if not self.actions:
-            raise ValidationError("actions is required")
+            reason_present = (
+                isinstance(self.reason, str) and bool(self.reason.strip())
+            )
+            if not reason_present:
+                raise ValidationError(
+                    "actions is required (or provide non-empty reason)"
+                )
         if not self.tool_evidence:
             raise MissingCitationError("remediation response requires tool_evidence")
         for action in self.actions:

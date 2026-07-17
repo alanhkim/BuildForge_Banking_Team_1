@@ -329,6 +329,50 @@ Retry loop code was **deleted, not disabled**. To restore:
 
 **Constitutional check:** Compliant. Empty-with-reason path still requires `tool_evidence` transitively via the ControlMapper contract that feeds it. No offline / deterministic fallback added. All behaviour flows through real Foundry/Fabric.
 
+---
+
+### 2026-07-17: Remediation Planner empty-with-reason + theme normalization hardening
+
+**Status:** Implemented
+**Author:** Coordinator (direct, Standard Mode — scoped hardening applying existing conventions)
+**Requested by:** hamzamahmood
+**Extends:** §4 (Fabric Data Agent Response Hardening) and the 2026-07-17 ControlMapper empty-with-reason entry.
+
+**Trigger:** Two production failures observed in a single `python -m regimpact interpret --file data/regulations/eu_ai_act_high_risk.txt` run:
+1. Foundry Interpreter returned theme `"RISK_MANAGEMENT"` (not in `KNOWN_THEMES`) — pipeline aborted after retry exhausted.
+2. Fabric Remediation Planner (`RegImpactRemediationPlanner` v4) returned `{"actions": []}` — `RemediationResponse.validate()` raised `actions is required`, aborting the pipeline at the CHG-EUAIACT-UPLOAD stage.
+
+**Decision:**
+
+1. **Remediation empty-with-reason contract extension (mirrors ControlMapper §2026-07-17).** `RemediationResponse` gained `reason: str | None = None`. `validate()` accepts empty `actions` iff `reason.strip()` is non-empty. **`tool_evidence` remains required in both branches** (parity with `ControlMappingResponse`) — an ungrounded empty response would be a soft form of the offline fallback the Constitution rules out. `REMEDIATION_PLANNER_SPEC.output_contract` gained `"reason": string?`; instructions now direct the model to emit `{"actions": [], "reason": "..."}` when it legitimately has nothing to plan (e.g., every gap already has an active remediation). `plan_remediation()` extracts and forwards `reason`. INFO log emits `actions=N reason_present=bool` per stage call.
+
+2. **Theme alias table + keyword rule expansion.** `_THEME_ALIASES` in `foundry_interpreter.py` grew by 25 entries covering the observable failure surface: Risk Management → MODEL_RISK, Cybersecurity → CYBER, Transparency / Explainability / Human Oversight → AI_GOVERNANCE, Third-Party / Vendor → THIRD_PARTY_RISK, Business Continuity → ICT_RESILIENCE, plus regulatory-vernacular variants. `_THEME_KEYWORD_RULES` grew by 18 entries, notably `("MODEL_RISK", ("risk","management"))`. The retry prompt now embeds the full `KNOWN_THEMES` enum with explicit anti-patterns so the model cannot invent an out-of-band label a second time.
+
+3. **Pipeline-level soft-fail for `remediation_planner`.** The stage's `try/except FabricDataAgentError` in `agents/pipeline.py` downgraded from `raise FabricPipelineError` to `logger.warning + rp_response=None + continue`. Empty-with-reason gets an INFO log with the reason; hard failure gets WARNING. Either way, `_persist_remediations([])` clears stale rows so downstream reports reflect the current state.
+
+**What did NOT change (contract stays strict at the harness):**
+
+- `RemediationResponse.validate()` still rejects empty `actions` without `reason` — same shape as `ControlMappingResponse`.
+- `tool_evidence` still required in every branch. No ungrounded no-ops accepted.
+- No retry loop added anywhere (latency parity per §f3d6ab4).
+- No offline / deterministic fallback for agent behavior. The pipeline degrades gracefully; the agent contract does not.
+
+**Constitutional check:** Compliant. Empty-with-reason still requires `tool_evidence`. Pipeline resilience is orchestration-layer only — the harness contract is unchanged in strictness, only in shape. No hardcoded findings / mappings / actions substituted for real agent output.
+
+**Files touched:**
+- `src/regimpact/agents/foundry_interpreter.py`
+- `src/regimpact/contracts.py`
+- `src/regimpact/agents/fabric_workflow.py`
+- `src/regimpact/agents/pipeline.py`
+
+**Verification:** `pytest` across 9 test modules with the standard baseline-exclusion filter → **122 passed / 17 failed**. All 17 failures are the pre-existing baseline documented above at §Truncation-Aware Retry (`test_fabric_agents.py` env-drift + `test_cli.py` missing-config) — unrelated to this change. Four direct smoke cases of `RemediationResponse.validate` (empty-no-reason reject, empty-with-reason accept, empty-with-reason-no-evidence reject, non-empty happy path) all pass.
+
+**Consequences:**
+- `remediation_planner` returning `{"actions": []}` with a documented reason is now a first-class outcome, not a crash.
+- Any Fabric error in the remediation stage soft-fails: report still generates, just without new remediations for that change.
+- Unknown themes are dramatically less likely to abort `interpret` — 25 new aliases + retry-prompt enumeration.
+- New INFO / WARNING signals in log tails when either branch fires; use them to spot prompt drift.
+
 ## Governance
 
 - All meaningful changes require team consensus

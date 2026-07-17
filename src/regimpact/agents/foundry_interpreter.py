@@ -31,30 +31,83 @@ _THEME_ALIASES = {
     "Human Oversight": "AI_GOVERNANCE",
     "Model Robustness, Accuracy, and Cybersecurity": "MODEL_RISK",
     "Model Robustness & Performance Monitoring": "MODEL_RISK",
+    # Common labels the model emits that don't collapse to a canonical enum.
+    # EU AI Act Article 9 explicitly calls a "risk management system" — map to
+    # MODEL_RISK (nearest peer for AI/model-centric risk programmes).
+    "Risk Management": "MODEL_RISK",
+    "Risk Management System": "MODEL_RISK",
+    "Cybersecurity": "CYBER",
+    "Security": "CYBER",
+    "Logging and Monitoring": "LOGGING_MONITORING",
+    "Logging & Monitoring": "LOGGING_MONITORING",
+    "Monitoring and Logging": "LOGGING_MONITORING",
+    "Third Party": "THIRD_PARTY_RISK",
+    "Third-Party Risk": "THIRD_PARTY_RISK",
+    "Vendor Risk": "THIRD_PARTY_RISK",
+    "Operational Resilience": "ICT_RESILIENCE",
+    "Business Continuity": "ICT_RESILIENCE",
+    "Data Retention": "RETENTION",
+    "Data Privacy": "PRIVACY",
+    "Regulatory Reporting": "REG_REPORTING",
+    "Reporting": "REG_REPORTING",
+    "Transparency": "AI_GOVERNANCE",
+    "Accuracy": "MODEL_RISK",
+    "Robustness": "MODEL_RISK",
+    "Bias": "MODEL_RISK",
+    "Fairness": "MODEL_RISK",
+    "Explainability": "AI_GOVERNANCE",
+    "Governance": "AI_GOVERNANCE",
+    "Record Keeping": "AUDITABILITY",
+    "Record-Keeping": "AUDITABILITY",
+    "Documentation": "AUDITABILITY",
 }
 
 _THEME_KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("DATA_LINEAGE", ("lineage", "provenance")),
+    ("DATA_LINEAGE", ("lineage",)),
     ("TRACEABILITY", ("traceability", "logging")),
+    ("TRACEABILITY", ("traceability",)),
+    ("LOGGING_MONITORING", ("logging", "monitoring")),
+    ("LOGGING_MONITORING", ("monitoring",)),
     ("DATA_QUALITY", ("data", "governance")),
     ("DATA_QUALITY", ("data", "quality")),
     ("AI_GOVERNANCE", ("human", "oversight")),
+    ("AI_GOVERNANCE", ("transparency",)),
+    ("AI_GOVERNANCE", ("explainability",)),
+    ("AI_GOVERNANCE", ("governance",)),
+    ("MODEL_RISK", ("risk", "management")),  # EU AI Act Article 9 etc.
     ("MODEL_RISK", ("model", "robustness")),
     ("MODEL_RISK", ("model", "performance", "monitoring")),
     ("MODEL_RISK", ("model", "risk")),
+    ("MODEL_RISK", ("model",)),
+    ("MODEL_RISK", ("robustness",)),
+    ("MODEL_RISK", ("accuracy",)),
+    ("MODEL_RISK", ("bias",)),
+    ("MODEL_RISK", ("fairness",)),
     ("ACCESS_CONTROL", ("access", "control")),
+    ("ACCESS_CONTROL", ("authentication",)),
+    ("ACCESS_CONTROL", ("authorization",)),
     ("AUDITABILITY", ("audit",)),
+    ("AUDITABILITY", ("record", "keeping")),
+    ("AUDITABILITY", ("documentation",)),
     ("CAPITAL_ADEQUACY", ("capital",)),
     ("CONDUCT", ("conduct",)),
     ("CYBER", ("cyber",)),
+    ("CYBER", ("security",)),
     ("ICT_SECURITY", ("ict", "security")),
     ("ICT_RESILIENCE", ("ict", "resilience")),
+    ("ICT_RESILIENCE", ("operational", "resilience")),
+    ("ICT_RESILIENCE", ("business", "continuity")),
+    ("ICT_RESILIENCE", ("resilience",)),
     ("INCIDENT_MGMT", ("incident",)),
     ("KYC_CDD", ("kyc",)),
     ("KYC_CDD", ("cdd",)),
+    ("KYC_CDD", ("customer", "due", "diligence")),
     ("METADATA", ("metadata",)),
     ("PRIVACY", ("privacy",)),
+    ("PRIVACY", ("gdpr",)),
     ("REG_REPORTING", ("regulatory", "reporting")),
+    ("REG_REPORTING", ("reporting",)),
     ("RETENTION", ("retention",)),
     ("SANCTIONS", ("sanction",)),
     ("SAR_REPORTING", ("sar",)),
@@ -62,7 +115,10 @@ _THEME_KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("SCA", ("strong", "customer", "authentication")),
     ("SCA", ("sca",)),
     ("THIRD_PARTY_RISK", ("third", "party")),
+    ("THIRD_PARTY_RISK", ("vendor",)),
+    ("THIRD_PARTY_RISK", ("supplier",)),
     ("TRAINING_DATA", ("training", "data")),
+    ("TRAINING_DATA", ("dataset",)),
     ("TXN_MONITORING", ("transaction", "monitoring")),
     ("TXN_MONITORING", ("txn", "monitoring")),
 ]
@@ -295,12 +351,17 @@ def _build_user_prompt(
         f"{json.dumps(payload, sort_keys=True)}"
     )
     if repair_instruction:
+        known_themes = ", ".join(sorted(KNOWN_THEMES))
         prompt += (
             "\nPrevious output failed contract validation. Correct the output and "
             "return JSON only.\n"
             f"Validation error: {repair_instruction}\n"
             "Hard constraints: target_maturity must be an integer from 1 to 5 "
-            "(never 0), and every obligation must include non-empty source_refs."
+            "(never 0), and every obligation must include non-empty source_refs.\n"
+            f"theme MUST be exactly one of: {known_themes}. "
+            "If uncertain, pick the closest single value (do NOT invent new themes, "
+            "do NOT use words like RISK_MANAGEMENT, GOVERNANCE, or COMPLIANCE — "
+            "map risk management to MODEL_RISK, generic governance to AI_GOVERNANCE)."
         )
     return prompt
 
