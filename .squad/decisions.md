@@ -2,6 +2,47 @@
 
 ## Active Decisions
 
+### 2026-07-17: Gap Analyst pipeline soft-fail (mirrors remediation_planner pattern)
+
+**Author:** Coordinator (direct edit, Standard Mode)
+**Requested by:** Hamza
+**Status:** Implemented on `hamza-dev`
+**Related:** 2026-07-17T19:53:02Z remediation_planner soft-fail entry (precedent)
+
+**What:**
+`gap_analyst` stage in `src/regimpact/agents/pipeline.py` now soft-fails on any `FabricDataAgentError`. The `try/except` was downgraded from `raise FabricPipelineError` to `logger.warning + ga_response = None + continue`. Downstream code guarded with `if ga_response is not None` for persistence; `gap_ids = []` and `persisted_gaps = []` on soft-fail. `_fabric_report(gap_count=...)` uses `len(ga_response.findings) if ga_response is not None else 0`. This matches the `remediation_planner` soft-fail pattern established earlier the same day.
+
+**Trigger:**
+User hit `[FOUNDRY DEBUG] transient failure for agent RegImpactGapAnalyst v4 (attempt 1-4/5, InternalServerError)` during `regimpact interpret`. Retry loop exhausted at the transport layer and the previous session's soft-fail only covered `remediation_planner`, so the pipeline still aborted at `gap_analyst`.
+
+**Rationale for preserving prior on-disk gap state:**
+On soft-fail we deliberately do NOT call `_persist_gaps([], change_id)`. Persisting an empty finding set would wipe legitimate prior gap data for this `change_id` — including gaps that were correctly identified on the last successful run. Preserving state gives the operator a clean rerun path: transient Foundry error clears, next `interpret` overwrites with fresh authoritative findings. Destructive-on-failure is worse than stale-until-rerun.
+
+**Explicit non-change — score_narrator stays hard-fail:**
+An initial draft synthesized a `ScoreNarrationResponse` fallback so the whole pipeline could finish even when the narrator agent was down. It was reverted. Injecting synthesized narrative text — even a bland "score computed successfully" boilerplate — would be a deterministic/offline fallback for **agent behavior**, which `copilot-instructions.md` rule 3 forbids. Score narrative must come from Foundry or the pipeline must fail loudly. Numeric score facts are already locally-computed (`_compute_local_score_facts`) and are not affected; only the narrative wrapper stays gated on Foundry availability.
+
+**Where the resilience boundary now sits:**
+- `interpreter` — hard-fail (retry + alias/keyword normalization, but ultimately must produce structured input).
+- `control_mapper` — hard-fail (empty mappings without downstream inputs = nothing to plan against).
+- `gap_analyst` — **soft-fail** (this decision). Skips remediation, emits `gap_count=0` in the report.
+- `remediation_planner` — soft-fail (2026-07-17T19:53:02Z decision).
+- `materializer` — hard-fail (Delta writes are the audit artefact; a silent skip would corrupt the compliance narrative).
+- `score_narrator` — hard-fail (this decision confirms).
+
+**Constitutional check:**
+Compliant. `gap_count=0` when Fabric is unavailable is honest state (we have no data), not fabricated data. Downstream reporting reflects reality. The harness contract remains strict — soft-failing is orchestration-layer only, no client-side response synthesis, no offline behavior for the agent itself.
+
+**Files touched:**
+- `src/regimpact/agents/pipeline.py` — `gap_analyst` try/except downgrade, `if ga_response is not None` guards, `_fabric_report` gap_count expression.
+
+**Verification:**
+`pytest tests/test_fabric_workflow.py tests/test_impact_scoring.py tests/test_export_audit.py tests/test_lakehouse.py tests/test_fabric_materializer.py tests/test_fabric_livy_client.py -q` → 82 passed / 6 failed. The 6 failures are the pre-existing env-drift baseline (hardcoded `agent_version="3"` vs env's `"4"`/`"5"`) documented at `.squad/decisions.md:152`. Unrelated.
+
+**Reversal:**
+To restore hard-fail behavior, replace the `except FabricDataAgentError` warn-and-continue block with `raise FabricPipelineError(...) from exc`, and remove the `if ga_response is not None` guards (persist path becomes unconditional again). No test scaffolding to unwind.
+
+---
+
 ### 2026-07-17: Remove semantic retry from Fabric client (fail-fast)
 
 **Author:** Coordinator (direct edit, per user directive)

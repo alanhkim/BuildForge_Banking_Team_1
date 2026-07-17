@@ -476,6 +476,7 @@ class AgentPipeline:
                 change_id,
                 cm_response.reason,
             )
+        ga_response = None
         try:
             ga_response = FabricGapAnalystAgent().analyze(
                 GapAnalysisRequest(
@@ -495,45 +496,59 @@ class AgentPipeline:
                 )
             )
         except FabricDataAgentError as exc:
-            logger.error(
-                "Fabric stage failed stage=gap_analyst change_id=%s obligations=%d controls=%d error=%s",
+            # Gap Analyst soft-fail: transient Foundry glitches (InternalServerError
+            # bursts, retry-loop exhaustion) or malformed agent JSON must not
+            # tank the whole pipeline. Downgrade to WARNING and continue with
+            # zero findings. Downstream `if gap_ids:` gate skips
+            # remediation_planner automatically. score_narrator uses locally
+            # pre-computed floats so it still runs. Mirrors the
+            # remediation_planner soft-fail pattern.
+            # Safety: We deliberately DO NOT call `_persist_gaps([], change_id)`
+            # on soft-fail — that would wipe legitimate prior gap data for this
+            # change_id. Instead we preserve on-disk state so a rerun can
+            # recover cleanly.
+            logger.warning(
+                "Fabric stage soft-fail stage=gap_analyst change_id=%s "
+                "obligations=%d controls=%d error=%s — continuing pipeline "
+                "with zero findings (prior gap state preserved)",
                 change_id,
                 len(obligation_ids),
                 len(control_ids),
                 exc,
             )
-            raise FabricPipelineError(
-                f"Fabric stage 'gap_analyst' failed for {change_id}: {exc}"
-            ) from exc
-        gap_ids = [f.gap_id for f in ga_response.findings]
-        logger.debug(
-            "Fabric stage complete stage=gap_analyst change_id=%s findings=%d",
-            change_id,
-            len(ga_response.findings),
-        )
-        # If the Analyst returned no gaps, log the mapping facts that justify
-        # the "no gap" verdict so an operator can audit the decision without
-        # digging into the raw agent response.
-        if not ga_response.findings and mapping_facts:
-            shortfall_summary = ", ".join(
-                f"{m['obligation_id']}->{m['control_id']}"
-                f"(target={m['target_maturity']},current={m['current_maturity']},"
-                f"shortfall={m['maturity_shortfall']},status={m['control_status']})"
-                for m in mapping_facts
-            )
-            logger.info(
-                "Fabric gap_analyst returned no findings change_id=%s pairs=%d justification=%s",
+        if ga_response is not None:
+            gap_ids = [f.gap_id for f in ga_response.findings]
+            logger.debug(
+                "Fabric stage complete stage=gap_analyst change_id=%s findings=%d",
                 change_id,
-                len(mapping_facts),
-                shortfall_summary,
+                len(ga_response.findings),
             )
-        # Persist Fabric-authoritative gaps (replace any prior gaps for this change)
-        persisted_gaps = self._persist_gaps(ga_response.findings, change_id)
-        logger.debug(
-            "Fabric writeback stage=gap_analyst change_id=%s gaps_persisted=%d",
-            change_id,
-            len(persisted_gaps),
-        )
+            # If the Analyst returned no gaps, log the mapping facts that justify
+            # the "no gap" verdict so an operator can audit the decision without
+            # digging into the raw agent response.
+            if not ga_response.findings and mapping_facts:
+                shortfall_summary = ", ".join(
+                    f"{m['obligation_id']}->{m['control_id']}"
+                    f"(target={m['target_maturity']},current={m['current_maturity']},"
+                    f"shortfall={m['maturity_shortfall']},status={m['control_status']})"
+                    for m in mapping_facts
+                )
+                logger.info(
+                    "Fabric gap_analyst returned no findings change_id=%s pairs=%d justification=%s",
+                    change_id,
+                    len(mapping_facts),
+                    shortfall_summary,
+                )
+            # Persist Fabric-authoritative gaps (replace any prior gaps for this change)
+            persisted_gaps = self._persist_gaps(ga_response.findings, change_id)
+            logger.debug(
+                "Fabric writeback stage=gap_analyst change_id=%s gaps_persisted=%d",
+                change_id,
+                len(persisted_gaps),
+            )
+        else:
+            gap_ids = []
+            persisted_gaps = []
 
         # Stage 3: Remediation Planner — prioritised owner-assigned actions from Fabric
         rp_actions: list = []
@@ -680,7 +695,7 @@ class AgentPipeline:
             change_id,
             obligation_count=len(obligation_ids),
             cm_response=cm_response,
-            gap_count=len(ga_response.findings),
+            gap_count=len(ga_response.findings) if ga_response is not None else 0,
             rp_actions=rp_actions,
             total_effort=total_effort,
             sn_response=sn_response,
