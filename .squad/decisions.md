@@ -113,6 +113,37 @@
 - New WARNING logs will appear when agents return partial envelopes or raw inner payloads — signal for prompt-quality drift, not silent success.
 - Semantic-retry adds up to 3x latency on the affected stage in the worst case; acceptable given the alternative is a full pipeline abort and manual re-run.
 
+---
+
+### 5. Truncation-Aware Retry for Fabric Data Agent Inner Answer JSON
+
+**Date:** 2026-07-17
+**Author:** Bishop (Python Core Dev)
+**Requested by:** hamzamahmood
+**Status:** Implemented — extends §4 (Fabric Data Agent Response Hardening)
+
+**Decision:** Lift inner-answer JSON parseability into the client-side semantic-retry loop, and re-ask the model with a *concise-mode* prompt when the failure is truncation (unclosed brace/bracket at EOF) rather than restructuring.
+
+**Rules established:**
+1. **Inner-JSON validity is checked at the client level.** `_validate_inner_answer(response)` runs inside `_ask_with_semantic_retry` in `foundry_client.py`, right after `_fabric_response_from_payload`. Previously the check happened in `fabric_workflow._json_answer` and raised `FabricAgentHarnessError` — a different exception type from a different module — which escaped the retry loop entirely. Lifting the check into the client turns a truncated or malformed inner answer into a retryable semantic failure.
+2. **Truncation triggers a concise-mode retry prompt, not the generic envelope reminder.** When the failure reason contains `truncated=true` (from `_validate_inner_answer`) or `likely truncated` (from `_extract_json_block`'s unmatched-brace-at-EOF message), the retry prompt appends a `CRITICAL: TRUNCATED mid-generation` block: keep `rationale` ≤ 200 chars, cap `source_refs` at 1 per item, drop optional prose fields, target ≤ 3500 total chars. The envelope reminder would ask the model to restructure — wrong lever. Concise-mode asks it to shrink.
+3. **Prose-answer agents are exempted.** `_validate_inner_answer` gates on `stripped[0] in "{["`, so `executive_qa` and `score_narrator` (which legitimately return prose) pass through untouched.
+4. **Constitutional constraint respected — no silent brace-closing, no data fabrication.** `_validate_inner_answer` NEVER attempts to complete a truncated response. Silent completion would fabricate findings / mappings / actions and violate the "no deterministic/offline fallback for agent behavior" rule. The helper only raises so the retry loop can re-ask the model and get a legitimate, complete answer.
+5. **`max_output_tokens` is intentionally NOT bumped.** The Foundry gateway rejects `max_output_tokens` at the top level for `agent_reference` invocations (see the existing comment in `_OpenAIResponsesAgent.run`). Prompt discipline is the only real lever over response length for Fabric-grounded agents.
+
+**Rationale:** Fabric Data Agent on `gap_analyst` returned an envelope where `answer` was a JSON string truncated at ~5018 bytes (15 obligations × 14 controls hit the model's output-token ceiling). §4's envelope-hardening covered outer shape only; inner-string parseability was a separate axis that needed a separate fix on the same retry loop.
+
+**Files changed:**
+- `src/regimpact/agents/foundry_client.py` — `_looks_truncated` helper, `_validate_inner_answer` gate, wiring into `_ask_with_semantic_retry`, concise-mode retry prompt block when reason contains `truncated=true` / `likely truncated`.
+- `tests/test_fabric_workflow.py` — 5 new tests: truncated retry (retries then succeeds), malformed-but-complete retry, dict-answer bypass, prose-wrapped JSON bypass, exhaustion when always truncated.
+
+**Verification:** 45/45 tests pass across `test_fabric_workflow.py`, `test_impact_scoring.py`, `test_export_audit.py`, `test_smoke.py`, `test_lakehouse.py` (excluding pre-existing `defaults_to_deployed` failures that assert hardcoded `agent_version=3` vs env's 4/5 — unrelated).
+
+**Consequences:**
+- Structured-JSON Fabric agents (`control_mapper`, `gap_analyst`, `remediation_planner`, `lineage`) survive mid-generation truncation without aborting `interpret`.
+- New retry attempts appear in orchestration logs with a `truncated=true` marker — signal for prompts whose expected output structurally exceeds the model's output budget (candidates for pagination / batching at the prompt level).
+- Prose-answer agents (`executive_qa`, `score_narrator`) behavior unchanged.
+
 ## Governance
 
 - All meaningful changes require team consensus

@@ -22,6 +22,7 @@ from regimpact.agents.foundry_client import (
     FoundryAgentConfig,
     _extract_json_block,
     _fabric_response_from_payload,
+    _validate_inner_answer,
 )
 from regimpact.contracts import (
     ControlMappingRequest,
@@ -689,4 +690,122 @@ def test_json_answer_extracts_json_from_markdown_fence():
     )
 
     assert _json_answer(response) == inner
+
+
+# ---------------------------------------------------------------------------
+# Truncation retry: inner-answer JSON validated inside the semantic-retry
+# loop so a cut-off response becomes a retryable failure with a tailored
+# "be concise" nudge, instead of aborting the pipeline downstream.
+# ---------------------------------------------------------------------------
+
+
+def _tool_evidence_payload():
+    return {
+        "tool_name": "fabric_dataagent_preview",
+        "data_source": "RegImpactLH",
+        "query": "SELECT 1",
+        "source_refs": [source_ref_payload("gaps")],
+    }
+
+
+def _envelope(answer_str, confidence="medium"):
+    return json.dumps(
+        {
+            "answer": answer_str,
+            "citations": [source_ref_payload("gaps")],
+            "tool_evidence": [_tool_evidence_payload()],
+            "confidence": confidence,
+        }
+    )
+
+
+def _good_envelope():
+    inner = {"findings": [{"gap_id": "g1", "control_id": "CTL-DQ-1"}]}
+    return _envelope(json.dumps(inner), confidence="high")
+
+
+def test_validate_inner_answer_accepts_dict():
+    response = FabricQuestionResponse(
+        question="Q",
+        answer={"findings": [{"gap_id": "g1"}]},  # type: ignore[arg-type]
+        agent_name="RegImpactQA",
+        agent_version="1",
+        citations=[source_ref("gaps")],
+        tool_evidence=[tool_evidence()],
+        confidence="low",
+    )
+
+    assert _validate_inner_answer(response) is None
+
+
+def test_validate_inner_answer_accepts_prose_wrapped_json():
+    response = FabricQuestionResponse(
+        question="Q",
+        answer='Sure: {"findings": []}',
+        agent_name="RegImpactQA",
+        agent_version="1",
+        citations=[source_ref("gaps")],
+        tool_evidence=[tool_evidence()],
+        confidence="low",
+    )
+
+    assert _validate_inner_answer(response) is None
+
+
+def test_ask_retries_on_truncated_inner_answer(caplog):
+    # Envelope parses, but the inner answer string is cut off mid-object.
+    truncated_inner = '{"findings":[{"gap_id":"g1","control_id":"CTL-DQ-1"'
+    stub = _StubAgent([_envelope(truncated_inner), _good_envelope()])
+    client = _fabric_client(stub)
+
+    with caplog.at_level("WARNING"):
+        response = client.ask("How compliant is DORA?")
+
+    assert response.confidence == "high"
+    assert len(stub.prompts) == 2
+    second = stub.prompts[1]
+    # Base envelope reminder is still present...
+    assert "IMPORTANT: Your previous response was rejected" in second
+    # ...plus the truncation-specific concise nudge.
+    assert "TRUNCATED mid-generation" in second
+    assert "<= 200 characters" in second
+    assert "3500 characters" in second
+    assert any(
+        "truncated=true" in rec.message and "semantic failure attempt 1/3"
+        in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_ask_retries_on_malformed_inner_answer_not_truncated():
+    # Balanced braces but invalid JSON inside -> truncated=false.
+    stub = _StubAgent(
+        [_envelope('{"findings": [WHOOPS]}'), _good_envelope()]
+    )
+    client = _fabric_client(stub)
+
+    response = client.ask("How compliant is DORA?")
+
+    assert response.confidence == "high"
+    assert len(stub.prompts) == 2
+    second = stub.prompts[1]
+    assert "IMPORTANT: Your previous response was rejected" in second
+    assert "truncated=false" in second
+    # No concise nudge for a malformed-but-complete response.
+    assert "TRUNCATED mid-generation" not in second
+    assert "3500 characters" not in second
+
+
+def test_ask_exhausts_retries_when_always_truncated():
+    truncated_inner = '{"findings":[{"gap_id":"g1"'
+    stub = _StubAgent([_envelope(truncated_inner)] * 3)
+    client = _fabric_client(stub)
+
+    with pytest.raises(FabricDataAgentError) as exc:
+        client.ask("How compliant is DORA?")
+
+    message = str(exc.value)
+    assert "after 3 attempts" in message
+    assert message.count("truncated=true") >= 3
+    assert len(stub.prompts) == 3
 

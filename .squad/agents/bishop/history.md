@@ -81,3 +81,29 @@ Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local P
 - 17 pre-existing failures in `test_fabric_agents.py` + `test_interpreter.py` are unchanged (verified by baseline stash comparison — they fail identically without Bishop's changes; unrelated to this work).
 
 **Files:** `src/regimpact/agents/foundry_client.py` (+~220 lines net), `src/regimpact/agents/fabric_workflow.py` (+~20 lines net), `tests/test_fabric_workflow.py` (+219 lines).
+
+### 2026-07-17 (extension) — Truncation-aware retry for inner answer JSON
+
+**Follow-up problem:** The `interpret` pipeline aborted again — this time on `gap_analyst` (15 obligations × 14 controls). The Fabric agent returned a well-formed OUTER envelope, but the `answer` FIELD was a JSON string truncated at ~5018 bytes (model hit its output-token ceiling). Downstream `_json_answer` in `fabric_workflow` raised `FabricAgentHarnessError` — a DIFFERENT exception type from a DIFFERENT module — so it escaped the semantic-retry loop entirely. Yesterday's envelope hardening didn't cover this axis because it only validated envelope shape, never inner-string parseability.
+
+**Solution — extend, don't replace, the previous decision:**
+
+1. **New `_validate_inner_answer(response)` helper** (`foundry_client.py`): runs INSIDE `_ask_with_semantic_retry` right after `_fabric_response_from_payload`. Only validates when the stripped `answer` starts with `{` or `[` — prose answers from `executive_qa` / `score_narrator` legitimately are not JSON and MUST pass through untouched (learned this the hard way — first pass broke `test_ask_retries_on_validation_failure` because it accepted `answer="recovered"` prose). For JSON-shaped answers: strict `json.loads` first, then `_extract_json_block` + `json.loads` fallback for prose-wrapped JSON. On failure, raises `FabricDataAgentError` with a structured message: `"inner answer JSON invalid at pos {pos} (answer_bytes={n}, truncated=true|false): {msg}"`.
+
+2. **Truncation heuristic (`_looks_truncated`)**: first non-whitespace char is `{` or `[` AND last char is NOT the matching close bracket → truncated. Complete-but-malformed JSON (balanced braces, invalid contents) is NOT flagged as truncated so the retry loop picks the right nudge. Also, `_extract_json_block`'s unmatched-brace-at-EOF error now includes `"likely truncated"` so both raise sites can trigger the same code path.
+
+3. **Truncation-specific prompt augmentation** (`_ask_with_semantic_retry`): when the failure reason contains `"truncated=true"` or `"likely truncated"`, append a `CRITICAL: TRUNCATED mid-generation...` block on top of the standard envelope reminder. It tells the model to keep `rationale` ≤ 200 chars, cap `source_refs` at 1 per item, drop optional prose fields, and target ≤ 3500 char total. Envelope reminder alone would ask the model to restructure — wrong lever. Concise-mode nudge asks it to shrink.
+
+**Why prompt discipline and not `max_output_tokens`:** The Foundry gateway rejects `max_output_tokens` at the top level for `agent_reference` invocations (see comment in `_OpenAIResponsesAgent.run`). Prompt-side conciseness is the only real control we have over response length.
+
+**Constitutional guardrail still respected:** never closes braces, never fabricates the missing findings/mappings/actions. Truncation-detection is heuristic-only; the fix is always to re-ask the model with better instructions and let it produce a complete, well-formed answer of its own.
+
+**Verification:**
+- 5 new tests in `tests/test_fabric_workflow.py`: `_validate_inner_answer` accepts dict / prose-wrapped JSON, `ask` retries on truncated inner answer (asserts concise nudge fires), `ask` retries on malformed-but-complete inner answer (asserts concise nudge does NOT fire), `ask` exhausts retries and message contains `truncated=true` 3×.
+- 31/31 fabric_workflow tests pass (excluding 6 pre-existing `defaults_to_deployed` failures that assert hardcoded `agent_version == "3"` while the env now reports "4"/"5" — unrelated to this work; excluded by the same `-k "not defaults_to_deployed"` filter yesterday used).
+- Broader smoke: 45/45 in fabric_workflow + impact_scoring + export_audit + smoke + lakehouse.
+
+**Files:** `src/regimpact/agents/foundry_client.py` (+~90 lines: 2 new helpers, extended retry loop, updated `_extract_json_block` error message), `tests/test_fabric_workflow.py` (+~110 lines: 5 new tests + shared payload helpers).
+
+**Relationship to prior decision:** This EXTENDS the 2026-07-17 Fabric response hardening — envelope layer still owns outer-shape validation and recovery; inner-JSON parseability is a new axis that lives beside it in the same retry loop. The previous work made single-response bugs recoverable; this makes single-response truncation recoverable too.
+

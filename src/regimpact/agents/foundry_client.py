@@ -548,7 +548,9 @@ class FabricDataAgentClient:
                 ) from exc
             try:
                 payload = _parse_json_payload(raw_response.text)
-                return _fabric_response_from_payload(payload, request)
+                response = _fabric_response_from_payload(payload, request)
+                _validate_inner_answer(response)
+                return response
             except FabricDataAgentError as exc:
                 reason = str(exc)
                 reasons.append(f"attempt {attempt}: {reason}")
@@ -575,6 +577,25 @@ class FabricDataAgentClient:
                     'confidence ("low"|"medium"|"high"). '
                     "Do not include markdown fences or prose."
                 )
+                # When the previous attempt failed because the inner answer
+                # was cut off mid-generation, envelope-shape reminders are
+                # not the right nudge — the model needs to be *shorter*,
+                # not restructure. Detect via the reason substring set by
+                # ``_validate_inner_answer`` / ``_extract_json_block``.
+                if "truncated=true" in reason or "likely truncated" in reason:
+                    current_prompt = current_prompt + (
+                        "\n\nCRITICAL: Your previous response was "
+                        "TRUNCATED mid-generation. You MUST be more "
+                        "concise this time:\n"
+                        "- Keep every 'rationale' field <= 200 characters\n"
+                        "- Include at most 1 source_ref per item "
+                        "(not multiple)\n"
+                        "- Drop optional prose fields -- return only "
+                        "required schema keys\n"
+                        "- Prefer terse phrases over full sentences\n"
+                        "Your entire answer JSON string must fit under "
+                        "3500 characters."
+                    )
         # Defensive: loop always returns or raises inside; keep for type safety.
         raise FabricDataAgentError(
             f"Fabric Data Agent failed after {max_attempts} attempts: "
@@ -744,7 +765,10 @@ def _extract_json_block(text: str) -> str:
             depth -= 1
             if depth == 0:
                 return stripped[start : i + 1]
-    raise FabricDataAgentError("Fabric Data Agent returned malformed JSON")
+    raise FabricDataAgentError(
+        f"malformed JSON: unmatched opening brace at pos {start} "
+        "(likely truncated)"
+    )
 
 
 def _parse_json_payload(text: str) -> dict[str, Any]:
@@ -857,6 +881,78 @@ def _fabric_response_from_payload(
         citations=citations,
         tool_evidence=tool_evidence,
         confidence=str(confidence_value),
+    )
+
+
+def _looks_truncated(text: str) -> bool:
+    """Heuristic: does ``text`` look cut off mid-generation?
+
+    True when the first non-whitespace char is ``{`` or ``[`` and the
+    last char is NOT the matching close bracket. Complete-but-malformed
+    JSON (balanced but invalid contents) returns False so the retry
+    loop can pick the correct nudge (envelope reminder vs "be concise").
+    """
+    if not text:
+        return False
+    first = text[0]
+    last = text[-1]
+    if first == "{" and last != "}":
+        return True
+    if first == "[" and last != "]":
+        return True
+    return False
+
+
+def _validate_inner_answer(response: FabricQuestionResponse) -> None:
+    """Ensure ``response.answer`` parses as JSON when it's a string.
+
+    The envelope layer only guarantees the OUTER JSON parses. When the
+    Fabric agent returns an ``answer`` string that is itself truncated
+    or malformed, downstream ``_json_answer`` calls in
+    ``fabric_workflow`` would raise ``FabricAgentHarnessError`` outside
+    the semantic retry loop — one bad response would abort the entire
+    pipeline. Lifting the check into the client turns a truncated /
+    malformed inner answer into a retryable semantic failure that the
+    loop can course-correct with a tailored prompt.
+
+    Constitutional constraint: this NEVER attempts to close braces or
+    salvage a truncated response — silent completion would fabricate
+    findings / mappings / actions. It only raises so the retry loop can
+    re-ask the model with better instructions.
+    """
+    answer = response.answer
+    if isinstance(answer, dict):
+        return
+    if not isinstance(answer, str):
+        return
+    stripped = answer.strip()
+    if not stripped:
+        return
+    # Only agents that return structured JSON (control_mapper, gap_analyst,
+    # remediation_planner, lineage) start their answer with ``{`` or ``[``.
+    # Prose answers (executive_qa, score_narrator) MUST pass through
+    # untouched — they legitimately are not JSON.
+    if stripped[0] not in "{[":
+        return
+    strict_pos: int | None = None
+    strict_msg: str | None = None
+    try:
+        json.loads(stripped)
+        return
+    except json.JSONDecodeError as exc:
+        strict_pos = exc.pos
+        strict_msg = exc.msg
+    try:
+        extracted = _extract_json_block(stripped)
+        json.loads(extracted)
+        return
+    except (FabricDataAgentError, json.JSONDecodeError):
+        pass
+    truncated = _looks_truncated(stripped)
+    raise FabricDataAgentError(
+        f"inner answer JSON invalid at pos {strict_pos} "
+        f"(answer_bytes={len(answer)}, "
+        f"truncated={'true' if truncated else 'false'}): {strict_msg}"
     )
 
 
