@@ -64,3 +64,12 @@ Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local P
 
 ### 2026-07-17 — Truncated inner-answer JSON now retryable
 2026-07-17 — Bishop extended the Fabric semantic-retry loop to catch truncated inner-answer JSON — a follow-on to §5. Truncation (unclosed brace/bracket at EOF) triggers a concise-mode retry prompt asking the model to shorten rationales, drop optional fields, and cap answer size. Prose-answer agents (executive_qa, score_narrator) are exempted from JSON validation. See decisions.md.
+
+
+### 2026-07-17 — Team update: split-commit landed (ControlMapper contract + Materializer agent)
+
+- Coordinator split a mixed working tree into two commits after user approval.
+- **`1df0f5c`** — ControlMapper contract change SHIPPED: `mappings=[]` is now a first-class outcome when accompanied by a non-empty `reason` (and `tool_evidence`). `GapAnalysisRequest.reason` propagates the reason through the pipeline. Read-only for you, but the contract shift matters — empty-with-reason no longer means "pipeline aborted" but "documented no-op report". If you review scoring/report semantics, factor in that a change_id can now legitimately reach `score_narrator` with zero gap findings.
+- **`6cc6ffd`** — NEW: `FabricMaterializerAgent` + Livy client. Pipeline shape is now 6 agents: `interpret → control_mapper → gap_analyst → remediation_planner → materializer → ...`. Option A (deterministic Livy, Foundry as boundary supervisor) chosen over Option B (LLM generates PySpark) and Option C (SDK-only, no agent). Rationale recorded in `.squad/decisions.md`: transformation is pure ETL versioned in code; Foundry sits at the boundary producing `tool_evidence` for each materialized table so the audit story stays uniform across all six stages. Matches `01_load_lakehouse.ipynb` sequencing exactly.
+- Retry mechanism explicitly NOT shipped for ControlMapper — decision recorded in `.squad/decisions.md`. Single-attempt norm holds across all Fabric agents; upstream Foundry portal version-pin (`FOUNDRY_CONTROL_MAPPER_AGENT_VERSION`) is the tracked remediation for prompt drift.
+- 76 passed / 7 deselected.

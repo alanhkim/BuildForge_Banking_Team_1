@@ -35,3 +35,15 @@
 
 ### 2026-07-17 — Truncated inner-answer JSON now retryable
 2026-07-17 — Bishop extended the Fabric semantic-retry loop to catch truncated inner-answer JSON — a follow-on to §5. Truncation (unclosed brace/bracket at EOF) triggers a concise-mode retry prompt asking the model to shorten rationales, drop optional fields, and cap answer size. Prose-answer agents (executive_qa, score_narrator) are exempted from JSON validation. See decisions.md.
+
+
+### 2026-07-17 — Team update: request/response diagnostics landed
+
+- Coordinator split a mixed working tree into two commits after user approval.
+- **`1df0f5c`** — the diagnostics work you flagged as needed for the empty-mappings failure mode SHIPPED:
+  - Per-obligation `candidate_control_ids` inline in the request payload (was already there for the shortlist; now surfaced per-obligation too — makes prompt-side reasoning about which controls were considered per obligation legible).
+  - INFO/WARNING evidence logging in `pipeline.py` around the control_mapper → gap_analyst boundary. New WARNING `Fabric stage propagating empty control_ids stage=gap_analyst change_id=... reason=...` fires when the empty-with-reason path activates.
+  - `tool_evidence_count` surfaced per stage in the pipeline logs.
+- Your version-pin recommendation (`FOUNDRY_CONTROL_MAPPER_AGENT_VERSION`) remains the primary durable remediation for the v4 evidence-collapse drift — recorded as a standalone decision in `.squad/decisions.md`. Portal-side prompt directive (one `tool_evidence` per obligation batch) is the paired fix and lives in your Deliverable A spec.
+- **`6cc6ffd`** — new `FabricMaterializerAgent` (Option A: deterministic Livy, Foundry as boundary supervisor). Adds a 6th stage between OneLake upload and downstream Fabric queries. If you author the Materializer prompt spec next, note the boundary posture: LLM does no PySpark generation at runtime; the agent plans + witnesses code-versioned statements from `fabric_livy_client.py`.
+- 76 passed / 7 deselected. Pre-existing v3/v4 drift tests still deselected — waiting on your portal version-pin to land in env.

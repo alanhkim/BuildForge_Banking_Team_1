@@ -181,16 +181,119 @@ Retry loop code was **deleted, not disabled**. To restore:
 
 ---
 
-### 2026-07-17: PROPOSED — ControlMapper contract accepts documented empty mappings
+### 2026-07-17: ControlMapper contract accepts documented empty mappings — IMPLEMENTED
 
-**Status:** Proposed — awaiting user approval
-**By:** Squad Coordinator (from Lambert + Bishop diagnosis)
+**Status:** Implemented (`1df0f5c` on `hamza-dev`)
+**Author:** Bishop (Python Core Dev)
+**Requested by:** Hamza
+**Supersedes:** the "PROPOSED" version of this entry from earlier the same day.
 
-**What:** `ControlMappingResponse` will accept `mappings: []` only when accompanied by a non-empty `reason: str` explaining why nothing matched. Empty mappings with no reason remains a hard failure. Harness must surface the underlying validation error to the CLI (unwrap `"Fabric agent response failed validation"` into `"Fabric agent response failed validation: {reason}"`).
+**What shipped:**
 
-**Why:** Current unconditional rejection of empty mappings blocks the pipeline whenever the Fabric agent legitimately finds no matches or is under-informed by tool evidence. Opaque error message prevents user diagnosis. Per project constitution, no offline fallback — we harden the real Fabric path.
+1. **`ControlMappingResponse.validate`** accepts `mappings=[]` only when accompanied by a non-empty `reason: str`. Empty-without-reason is still a hard `ValidationError`. `tool_evidence` remains required for BOTH branches (non-empty mappings and empty-with-reason) — losing grounding is worse than losing mappings, and accepting an ungrounded empty response would be a soft form of the offline fallback the Constitution rules out.
+2. **`GapAnalysisRequest`** gained a `reason: str | None` field. `validate()` now accepts empty `control_ids` when `reason` is a non-empty string; otherwise still raises `ValidationError("control_ids is required (or provide non-empty reason)")`. `obligation_ids` remains unconditionally required — obligations are pipeline INPUT, not a downstream artefact, so emptiness there is a genuine bug.
+3. **Pipeline propagation** (`agents/pipeline.py`) forwards `cm_response.reason` into `GapAnalysisRequest` when mappings is empty, and emits a WARNING `Fabric stage propagating empty control_ids stage=gap_analyst change_id=... reason=...` so the propagation is visible in log tails.
+4. **Error unwrap** — `fabric_workflow.map_controls` surfaces the underlying `ValidationError.message` in the harness error (previously buried behind the generic `"Fabric agent response failed validation"` prefix, though that prefix is preserved).
+5. **Request/response diagnostics** — inline `candidate_control_ids` per obligation in the request payload; INFO/WARNING evidence logging in `pipeline.py` around the control_mapper → gap_analyst boundary; `tool_evidence_count` surfaced per stage.
 
-**Scope of change:** `src/regimpact/contracts.py` (schema), `src/regimpact/agents/fabric_workflow.py` (error unwrap + logging + bounded retry), Foundry portal `RegImpactControlMapper` prompt, `tests/test_fabric_workflow.py`.
+**Deliberately NOT shipped:**
+
+- **No retry wrapper on `analyze_gaps` or any other Fabric stage.** The ControlMapper retry that would have been the template was removed in `f3d6ab4` (2026-07-17 fail-fast decision, latency parity). See separate decision below.
+- **No response-side change to `GapAnalysisResponse`.** Already accepts empty `findings` as valid — documented in its docstring. Only `tool_evidence` remains required.
+- **No further downstream chain fix.** `remediation_planner` already guards with `if gap_ids:` (pipeline.py). `score_narrator` uses locally-precomputed floats (`_compute_local_score_facts`), independent of gap_analyst output. Chain is intact after this one-hop fix.
+
+**Files touched:**
+- `src/regimpact/contracts.py`
+- `src/regimpact/agents/fabric_workflow.py`
+- `src/regimpact/agents/pipeline.py`
+- `tests/test_fabric_workflow.py` (+613 lines)
+
+**Verification:** 76 passed / 7 deselected (`pytest -q`). Deselected = 6 pre-existing v3/v4 Foundry drift tests + 1 network-dependent pipeline stage test.
+
+**Constitutional check:** Compliant. Empty-with-reason requires `tool_evidence`, so we never accept ungrounded no-ops. No offline / deterministic path introduced.
+
+---
+
+### 2026-07-17: ControlMapper retry mechanism NOT included
+
+**Status:** Decided
+**Author:** Coordinator (from Bishop's implementation deviation notes + user approval of split-commit)
+**Requested by:** Hamza
+
+**What:** The `map_controls` retry loop and `_map_controls_attempt` helper that had been added in a prior working-tree state were reverted before the empty-with-reason contract shipped. Production `map_controls` is single-attempt.
+
+**Why:**
+1. **Latency parity.** The 2026-07-17 semantic-retry-removal decision (`f3d6ab4`) established single-attempt as the norm for Fabric agents specifically to fix the user-reported slow `interpret` path. Adding retry back to just one agent creates the exact asymmetry that decision moved us away from — one agent retries, four don't. Users would see wildly inconsistent stage latencies.
+2. **The empty-with-reason contract handles the documented no-op case.** ControlMapper legitimately returning `mappings=[]` + `reason="Shortlist exhausted for CHG-…"` is a first-class outcome now, not a failure. The pipeline continues (via `GapAnalysisRequest.reason` propagation), producing a documented no-op report. Nothing to retry.
+3. **Upstream Foundry prompt fix is the correct remediation for empty-without-reason drift.** Per Lambert's 2026-07-17 investigation, the observed `tool_evidence_count=1` + empty mappings failure mode is a portal-side agent version drift issue — the deployed `RegImpactControlMapper` v4 collapsing a 15-obligation batch into a single stub evidence entry. Client-side retry would paper over that; the fix is the version-pin recommendation (`FOUNDRY_CONTROL_MAPPER_AGENT_VERSION`) plus the prompt directive requiring one `tool_evidence` entry per obligation batch. Both landed in Lambert's Deliverable A prompt update.
+
+**Reversal:** If retry is ever needed, do it at the harness level for ALL Fabric agents at once (avoids the asymmetry problem) and treat it as an override of the fail-fast decision — requiring a fresh decision with fresh latency data.
+
+**Constitutional check:** Compliant. No behavior change to what the agent produces — only removes a resilience layer whose cost outweighed its benefit given the new contract.
+
+---
+
+### 2026-07-17: FabricMaterializerAgent — Option A (deterministic Livy) chosen
+
+**Status:** Implemented (`6cc6ffd` on `hamza-dev`)
+**Author:** Coordinator (option selected + committed with user approval)
+**Requested by:** Hamza
+
+**What:** After OneLake upload lands Parquet in `Files/regimpact/...`, `FabricMaterializerAgent` runs a Foundry-wrapped Livy session that executes a fixed sequence of PySpark statements to promote each Parquet file into a versioned Delta table in `Tables/regimpact/...`. The transformation logic is code (in `fabric_materializer.py` / `fabric_livy_client.py`) — not authored by the LLM. Foundry sits at the boundary as the evidence-producing supervisor: it plans (selects the target table set), invokes the Livy client, and witnesses success/failure. No PySpark is generated by a model at runtime.
+
+**Options considered:**
+
+- **Option A (chosen): deterministic Livy, Foundry as boundary supervisor.** Transformation is code-versioned; Foundry produces `tool_evidence` for each materialized table; single agent per pipeline run.
+- **Option B: LLM chooses/generates PySpark.** Rejected. Delta materialization is pure ETL with a known schema — there is no reasoning task for a model here. Handing it PySpark generation introduces prompt-drift risk on a code path with no operator observability (Livy statements would appear in evidence but not in the repo). Fails the same "grounding matters" test that gates ControlMapper empty-with-reason.
+- **Option C: SDK-only, no agent involved.** Rejected. Would break the pipeline shape — every other stage is a Foundry agent producing `tool_evidence`. A silent Livy call would leave no audit surface for the materialization step, which is exactly the boundary the compliance narrative needs to cover ("how did the gold Parquet become a Delta table Fabric agents can query?"). Requires a separate parallel evidence path.
+
+**Why Option A:**
+1. Transformation is pure ETL and versioned in code — behavior is reviewable in `fabric_materializer.py` and `fabric_livy_client.py`, not in a prompt.
+2. Foundry sits at the boundary producing evidence, so the audit story stays uniform across all six pipeline stages (`interpret → control_mapper → gap_analyst → remediation_planner → materializer → ...`).
+3. Keeps the 6-agent pipeline coherent — no special-case "this stage isn't an agent" branch.
+4. Matches the sequencing already proven in `01_load_lakehouse.ipynb`. The notebook is now the reference implementation the agent replays.
+
+**Files shipped:**
+- **New:** `src/regimpact/agents/fabric_livy_client.py` (313 lines) — Livy session lifecycle + statement execution.
+- **New:** `src/regimpact/agents/fabric_materializer.py` (150 lines) — Foundry agent that plans and witnesses Delta writes.
+- **New:** `src/regimpact/agents/fabric_materializer_spec.py` (211 lines) — spec + prompt for the Materializer.
+- **New:** `tests/test_fabric_livy_client.py` (225 lines), `tests/test_fabric_materializer.py` (163 lines).
+- `src/regimpact/agents/__init__.py`, `src/regimpact/cli.py`, `src/regimpact/lakehouse.py`, `src/regimpact/settings.py` — wiring + env vars.
+
+**Constitutional check:** Compliant. LLM does no code generation at runtime. Foundry is a real path (no offline fallback for the evidence-producing boundary). Delta output is versioned artefact ingestable by Fabric Data Agents downstream.
+
+---
+
+### 2026-07-17: Bishop's ControlMapper hardening — implementation deviations (superseded)
+
+**Status:** Superseded — the retry-split described here was reverted; see "ControlMapper retry mechanism NOT included" above.
+**Author:** Bishop (Python Core Dev)
+**Requested by:** Hamza
+
+**Preserved for historical reference:** Bishop originally implemented Fixes 1/2/3/6, which included splitting `map_controls` into `_map_controls_attempt` (parse) + `map_controls` (validate + retry-then-validate). The parse/validate split existed specifically to let the retry loop inspect empty-shape responses before the contract check fired. When the retry loop was reverted for latency parity, the split was collapsed back into a single-attempt `map_controls`. The empty-with-reason contract shape and the `tool_evidence` requirement for both branches survived and shipped in `1df0f5c`.
+
+**Key surviving invariant from Bishop's plan:** empty-with-reason still requires `tool_evidence`. An agent returning `{"mappings": [], "reason": "shortlist exhausted"}` with no evidence fails validation. This is what preserves the constitutional posture.
+
+---
+
+### 2026-07-17: Lambert — evidence-starvation is a Foundry prompt/version drift, not a harness bug
+
+**Status:** Investigated; fix is prompt-side (in Foundry portal, not this repo).
+**Author:** Lambert (Integration Engineer)
+**Requested by:** Hamza
+
+**Finding:** The observed `tool_evidence_count=1` for 15 obligations followed by `mappings: []` without a `reason` is caused by the deployed `RegImpactControlMapper` v4 collapsing an entire batch review into a single stub `tool_evidence` entry. There is no harness-side trim, no `LIMIT 1`, no `_gather_evidence` helper that could account for this. The `candidate_controls` shortlist + per-obligation `candidate_control_ids` reach the agent intact.
+
+**Fix (prompt-side, in Foundry portal):** Directive added to `RegImpactControlMapper` — "Record one `tool_evidence` entry per obligation batch you evaluated (do not collapse a 15-obligation review into a single stub entry). The `query` field should describe the actual inspection you performed — including the case where you reasoned off the inline `candidate_controls` shortlist supplied in the request payload."
+
+**Recommendation (repeated here as a durable decision):** Pin `FOUNDRY_CONTROL_MAPPER_AGENT_VERSION` (and the equivalent for every other Foundry agent) so silent portal drift becomes an explicit env change.
+
+**Rejected code-side fixes:**
+- Harness synthesizing a `ToolEvidence(tool_name="inline_shortlist", ...)` entry when the agent returns 1. Rejected — violates "no offline fallback" by fabricating provenance the agent didn't produce.
+- Lowering the contract to accept 0 or 1 evidence entries. Rejected — weakens the audit narrative.
+- Duplicating the prompt fix in `CONTROL_MAPPER_SPEC.instructions`. Rejected — the portal is the single source of truth for prompt content; duplication invites drift.
+
+**Trigger for a code follow-up:** if after the portal fix operators still see `tool_evidence_count=1` combined with **non-empty** mappings, that's a different bug (agent producing valid mappings but under-documenting). At that point revisit whether the non-empty evidence requirement is achievable without harness-side augmentation.
 
 ## Governance
 

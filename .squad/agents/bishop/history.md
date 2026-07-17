@@ -1,9 +1,10 @@
 # Bishop History
 
 ## Core Context
-- Project: forge, a Python regulatory impact framework for assessing regulatory change impact and scoring compliance using synthetic digital twin data.
-- User: briandenicola.
-- Current focus: portable deterministic Regulation Interpreter core tasks 1-4: contracts, DORA catalog fixture, deterministic fallback, schema validation.
+- Project: BuildForge_Banking_Team_1 (forge) — Python regulatory impact framework, Foundry/Fabric-first agent pipeline over synthetic digital-twin banking data.
+- User: Hamza Mahmood.
+- Current focus: hardening the 6-agent Fabric pipeline (`interpret → control_mapper → gap_analyst → remediation_planner → materializer → ...`). Recent themes: fail-fast latency posture (no client-side semantic retry), empty-with-reason contracts for legitimate no-op outcomes, request/response diagnostics for prompt-drift triage.
+- Older 2026-07-06 Regulation Interpreter core work (deterministic offline fallback) is SUPERSEDED — archived in `history-archive.md`. Its contract shape still lives on in `contracts.py` but the offline behavior is no longer active per the 2026-07-08 Foundry/Fabric-first pivot.
 
 ## Learnings
 
@@ -64,51 +65,9 @@
 - Practical impact: any malformed agent response that the lenient parser cannot recover now aborts the `interpret` pipeline immediately. Operator sees the `truncated=true/false` diagnostic and re-runs.
 - If future work re-introduces retries, do it at the transport layer inside `FoundryAgentClient._invoke_with_retry`, not around `ask`.
 
-### 2026-07-06: Implemented Regulation Interpreter Core (Tasks 1-4)
+### 2026-07-06 — Regulation Interpreter core (Tasks 1-4)
 
-**Architecture:**
-- Created `src/regimpact/contracts.py` with typed request/response contracts using dataclasses
-- Created `src/regimpact/catalog.py` with deterministic DORA fixture (REG-DORA, CHG-DORA, OBL-DORA-01)
-- Updated `src/regimpact/agents/interpreter.py` to implement deterministic interpretation with catalog fallback
-- Updated `src/regimpact/models.py` to expand Obligation dataclass with all required fields
-
-**Key Patterns:**
-- Explicit validation exceptions (InvalidThemeError, InvalidMaturityError, MissingSourceRefsError, InvalidObligationError)
-- Known themes validation set: ICT_RESILIENCE, DATA_PROTECTION, OPERATIONAL_RESILIENCE, CYBER_SECURITY, THIRD_PARTY_RISK, INCIDENT_REPORTING
-- Maturity range validation (1-5)
-- Required source_refs for traceability
-- Criticality validation (Critical, High, Medium, Low)
-- No hallucination: unknown regulations return empty obligations with notes, not invented data
-
-**Test Coverage:**
-- 22 tests covering contracts, catalog, fallback, schema validation, and network-free operation
-- Tests verify: valid/invalid obligations, theme validation, maturity range, source refs, criticality, DORA fixture, unknown regulation handling
-- All tests pass with ruff linting clean
-
-**API Contract:**
-- `InterpretRequest`: regulation_id, change_id, name, title, optional source_text/source_path, offline_mode flag
-- `InterpretResponse`: regulation_id, change_id, obligations list, mode (deterministic-fallback), notes
-- `Obligation`: id, change_id, theme, summary, target_maturity, criticality, affected_data_domain_ids, source_refs, notes
-
-**Boundaries Preserved:**
-- No Foundry Hosted Agent wrapper implemented (ready for future wrapper, not blocking)
-- No API-key authentication
-- No Semantic Kernel usage
-- Deterministic, network-free operation by default
-- Microsoft Agent Framework direction preserved for eventual wrapping
-
-**File Paths:**
-- `src/regimpact/contracts.py` - typed contracts and validation
-- `src/regimpact/catalog.py` - deterministic catalog fixtures
-- `src/regimpact/agents/interpreter.py` - interpreter agent with offline fallback
-- `tests/test_interpreter.py` - comprehensive test suite
-
-## Team Coordination
-
-**2026-07-06 Cross-Agent Integration:**
-- Hicks validated malformed input handling and enhanced field validation with `.strip()` checks, expanding test coverage from 22 to 29 tests (all passing)
-- Ripley approved core architecture, verified all hard constraints (no Foundry wrapper, no Semantic Kernel, no API-key auth, offline-deterministic behavior confirmed)
-- Coordinator verified ruff and pytest pass; team proceeding to CLI wireup (task 5)
+**SUPERSEDED — full details archived in `history-archive.md`.** Delivered typed contracts (`contracts.py`), deterministic DORA catalog fixture, offline interpreter, and 22→29 tests (with Hicks). Contract shape still informs current code; offline agent behavior is no longer active per 2026-07-08 Foundry/Fabric-first pivot.
 
 ## Team Updates
 
@@ -164,3 +123,13 @@ Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local P
 
 **Relationship to prior decision:** This EXTENDS the 2026-07-17 Fabric response hardening — envelope layer still owns outer-shape validation and recovery; inner-JSON parseability is a new axis that lives beside it in the same retry loop. The previous work made single-response bugs recoverable; this makes single-response truncation recoverable too.
 
+
+
+### 2026-07-17 — Team update: split-commit landed (retry loop NOT shipped, Materializer separate)
+
+- Coordinator split a mixed working tree into two commits after user approval ("yes i agree").
+- **`1df0f5c`** feat(fabric): ControlMapper empty-with-reason contract + request/response diagnostics — your empty-with-reason contract shape SHIPPED as designed. `tool_evidence` still required for both branches (non-empty mappings AND empty-with-reason). Error unwrap landed. Per-obligation `candidate_control_ids` in request payload landed.
+- **Retry loop REVERTED before commit.** Single-attempt `map_controls` is now the norm — the `_map_controls_attempt` parse/validate split you introduced was collapsed back into a single-attempt validate-in-place flow. Decision recorded as "ControlMapper retry mechanism NOT included" in `.squad/decisions.md`. Rationale: latency parity with the 2026-07-17 semantic-retry-removal decision — one agent retrying while four don't creates asymmetric stage latencies. Your gap_analyst empty-tolerance fix (the follow-up to the cross-stage break you flagged) also shipped in the same commit.
+- **`6cc6ffd`** feat(fabric): FabricMaterializerAgent + Livy client — brand-new 6th agent in the pipeline (Option A: deterministic Livy, Foundry as boundary supervisor). Not yours, but changes the pipeline shape: `interpret → control_mapper → gap_analyst → remediation_planner → materializer → ...`. Read-only from your perspective right now, but if you touch pipeline glue expect a new stage between OneLake upload and any downstream Fabric queries.
+- 76 passed / 7 deselected. The 6 v3/v4 drift tests + 1 network test remain deselected — tracked separately.
+- Your gap_analyst empty-tolerance rewrite note for Hicks (test needing `FabricGapAnalystAgent` stub) is still open — landed contract, test rewrite not yet done. Not blocking.

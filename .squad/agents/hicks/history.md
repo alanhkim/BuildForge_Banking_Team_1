@@ -91,3 +91,36 @@ Verified Bishop's Fixes 1/2/3/6 in `tests/test_fabric_workflow.py`. 11 new test 
 **Run**: 42 passed / 6 deselected (`defaults_to_deployed` — pre-existing agent_version drift 3→4/5, unrelated) in `tests/test_fabric_workflow.py`; broader Bishop-verification set (fabric_workflow + lakehouse + export_audit + impact_scoring + smoke) 56 passed / 6 deselected. Zero regressions.
 
 **No real bugs uncovered** — the hardening holds under all specified adversarial inputs. Documented cross-stage break at `pipeline.py:468` (`FabricGapAnalystAgent` rejects empty `control_ids`) is Bishop's known follow-up, not a regression.
+
+---
+
+## 2026-07-17 — Gap Analyst empty-tolerance test rewrite + contract tests
+
+Requested by Hamza, following Bishop's `bishop-gap-analyst-empty-tolerance.md` decision (GapAnalysisRequest now accepts empty control_ids when paired with a non-empty eason, mirroring the ControlMappingResponse empty-with-reason contract; pipeline forwards cm_response.reason and emits a second WARNING log at `pipeline.py:474`).
+
+### Rewrote (1)
+- `test_control_mapper_pipeline_stage_logs_warning_on_empty_with_reason` (`tests/test_fabric_workflow.py`): removed the old `pytest.raises(ValidationError, match=""control_ids"")` expectation. Added `_StubGapAnalystEmpty` and `_StubScoreNarrator` (drop-ins for `FabricGapAnalystAgent` / `FabricScoreNarratorAgent`). Wrapped monkeypatched agent classes as `lambda: shared_stub` so captured calls survive pipeline default-construction. Added `_remediation_should_not_be_called` sentinel to lock in the `if gap_ids:` guard for `FabricRemediationPlannerAgent`. Now asserts:
+  - Pipeline returns a report without raising.
+  - Two WARNING records fire: `control_mapper returned empty mappings with reason` AND `Fabric stage propagating empty control_ids stage=gap_analyst`.
+  - Both records contain `Shortlist exhausted for CHG-CM-STAGE-TEST.`.
+  - Captured `GapAnalysisRequest` has `control_ids == []` and `reason == "Shortlist exhausted for CHG-CM-STAGE-TEST."` — folded in Bishop's Test 5 (reason-propagation integration assertion) rather than duplicating.
+
+### Added (4 new tests, 3 parametrizations → 6 net invocations)
+Grouped as `GapAnalysisRequest contract` block, sibling to the existing `ControlMappingResponse contract` block:
+1. `test_gap_analysis_request_empty_control_ids_with_reason_accepted` — happy path for the new branch.
+2. `test_gap_analysis_request_empty_control_ids_without_reason_rejected` — parametrised over `[None, "", "   "]` (matches Bishop's whitespace-reason pattern in `ControlMappingResponse`). Asserts `ValidationError` matching `"control_ids is required"`.
+3. `test_gap_analysis_request_nonempty_control_ids_no_reason_still_valid` — regression on normal happy path.
+4. `test_gap_analysis_request_empty_obligation_ids_always_rejected` — locks in Bishop's decision that `obligation_ids` is not a legit-empty artefact even with a valid reason + populated control_ids.
+
+Imports updated: added `GapAnalysisResponse` and `ScoreNarrationResponse` (previously unused in this file).
+
+### Runs
+- `pytest tests/test_fabric_workflow.py -q --tb=short` → **48 passed / 6 failed (pre-existing `defaults_to_deployed` — agent_version drift 3→4/5, unrelated to this work)**.
+- `pytest tests/test_fabric_workflow.py -q -k "not defaults_to_deployed"` → **48 passed / 6 deselected**.
+- Broader regression (`tests/test_fabric_workflow.py tests/test_lakehouse.py tests/test_export_audit.py tests/test_impact_scoring.py tests/test_smoke.py -k "not defaults_to_deployed"`) → **62 passed / 6 deselected**. Zero regressions.
+
+### Learnings
+- **`monkeypatch.setattr` with `lambda: instance`** is the clean way to force the pipeline's `FabricXxxAgent()` default-construct call to return a shared stub. Assigning the class directly (as the pre-existing `_StubControlMapperEmptyWithReason` did) means every construction creates a fresh instance — fine when you only need behaviour, but useless if the test wants to inspect `calls` after the run. Merged both patterns in the rewritten test: control_mapper uses a shared instance, gap_analyst uses a shared instance, score_narrator uses a shared instance.
+- **Test 5 as folded assertion, not standalone test**: Bishop's spec offered a choice between a light unit test on a request-building helper or an assertion on the stub call from Task 1. The pipeline builds `GapAnalysisRequest` inline (no extractable helper), so folding into Task 1 was correct — a separate test would have needed identical scaffolding for a single extra assertion.
+- **Remediation stage sentinel** (`_remediation_should_not_be_called`): asserts the `if gap_ids:` guard at `pipeline.py:522` holds. Without it, a regression that dropped the guard would silently invoke the real `FabricRemediationPlannerAgent` and try to hit Foundry — the test would fail with a confusing config/network error instead of a clear "guard regressed" signal.
+- **No real bugs uncovered.** Bishop's fix is symmetric with the `ControlMappingResponse` pattern and the pipeline propagation logic is clean. The cross-stage break flagged in the previous session is now fully closed.
