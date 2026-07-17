@@ -181,10 +181,11 @@ Retry loop code was **deleted, not disabled**. To restore:
 
 ---
 
-### 2026-07-17: ControlMapper contract accepts documented empty mappings — IMPLEMENTED
+### 2026-07-17: ControlMapper contract accepts documented empty mappings
 
-**Status:** Implemented (`1df0f5c` on `hamza-dev`)
+**Status:** ACCEPTED (`1df0f5c` on `hamza-dev`) — flipped from PROPOSED after implementation + test verification
 **Author:** Bishop (Python Core Dev)
+**Verified by:** Hicks (13 contract/harness/retry/log tests, all green)
 **Requested by:** Hamza
 **Supersedes:** the "PROPOSED" version of this entry from earlier the same day.
 
@@ -278,7 +279,7 @@ Retry loop code was **deleted, not disabled**. To restore:
 
 ### 2026-07-17: Lambert — evidence-starvation is a Foundry prompt/version drift, not a harness bug
 
-**Status:** Investigated; fix is prompt-side (in Foundry portal, not this repo).
+**Status:** ACCEPTED — fix is prompt-side (in Foundry portal, not this repo); repo-side deliverable (paste-ready spec + version-pin recommendation) landed in `docs/foundry-agent-prompts/control-mapper.md` and `docs/foundry-fabric-agents.md`.
 **Author:** Lambert (Integration Engineer)
 **Requested by:** Hamza
 
@@ -294,6 +295,39 @@ Retry loop code was **deleted, not disabled**. To restore:
 - Duplicating the prompt fix in `CONTROL_MAPPER_SPEC.instructions`. Rejected — the portal is the single source of truth for prompt content; duplication invites drift.
 
 **Trigger for a code follow-up:** if after the portal fix operators still see `tool_evidence_count=1` combined with **non-empty** mappings, that's a different bug (agent producing valid mappings but under-documenting). At that point revisit whether the non-empty evidence requirement is achievable without harness-side augmentation.
+
+---
+
+### 2026-07-17: GapAnalyst empty-tolerance — close the cross-stage break
+
+**Status:** ACCEPTED (`1df0f5c` on `hamza-dev`)
+**Author:** Bishop (Python Core Dev)
+**Verified by:** Hicks (1 rewritten pipeline test + 4 new `GapAnalysisRequest` contract tests; 62 passed / 6 deselected)
+**Requested by:** Hamza
+**Closes:** the "Known downstream caveat" flagged as out-of-scope in Bishop's ControlMapper hardening implementation notes.
+
+**What shipped:**
+
+1. **`GapAnalysisRequest`** gained `reason: str | None = None`. `validate()` now accepts empty `control_ids` iff `reason.strip()` is non-empty; otherwise raises `ValidationError("control_ids is required (or provide non-empty reason)")`. **`obligation_ids` remains unconditionally required** — obligations are pipeline INPUT (from the Regulation Interpreter), not a downstream artefact. An empty obligation set is a genuine bug, never a legitimate agent outcome, even with a valid `reason` + populated `control_ids`.
+2. **Pipeline propagation** (`agents/pipeline.py`): the gap_analyst stage forwards `cm_response.reason` into `GapAnalysisRequest(reason=...)` when `cm_response.mappings` is empty. On the happy path (non-empty mappings), `reason` stays `None` — zero behaviour change.
+3. **New WARNING log** right before the gap_analyst call: `Fabric stage propagating empty control_ids stage=gap_analyst change_id=... reason=...`. Complements the existing ControlMapper-stage WARNING so an operator can trace the reason forward through the pipeline in a single log tail.
+
+**Contract shape consistency:** `reason: str | None` is now the standard shape for "empty output/input is legitimate" across the pipeline. `ControlMappingResponse.reason` (output) → `GapAnalysisRequest.reason` (input). Any future agent needing the pattern should mirror the same field name and the same `reason.strip()` validation shape.
+
+**Deliberately NOT shipped:**
+
+- **No response-side change to `GapAnalysisResponse`.** Already accepts empty `findings` as valid per its docstring ("every obligation→control pair meets its target maturity"). Only `tool_evidence` remains required.
+- **No retry wrapper on `analyze_gaps`.** ControlMapper retry template was reverted in `f3d6ab4` for latency parity; adding it back for one agent alone would recreate the exact asymmetry that decision moved us away from.
+- **No further downstream chain fix.** Audited to one hop: `remediation_planner` already guards with `if gap_ids:` at `pipeline.py:522` (empty findings skip the stage). `score_narrator` uses locally-precomputed floats from `_compute_local_score_facts`, independent of gap_analyst output. Chain intact.
+
+**Files touched:**
+- `src/regimpact/contracts.py`
+- `src/regimpact/agents/pipeline.py`
+- `tests/test_fabric_workflow.py` (1 rewrite + 4 new contract tests, parametrised 3× = 6 net invocations)
+
+**Verification:** 62 passed / 6 deselected (`pytest tests/test_fabric_workflow.py tests/test_lakehouse.py tests/test_export_audit.py tests/test_impact_scoring.py tests/test_smoke.py -q -k "not defaults_to_deployed"`). Zero regressions. Deselected = pre-existing `defaults_to_deployed` agent_version drift (3→4/5), unrelated.
+
+**Constitutional check:** Compliant. Empty-with-reason path still requires `tool_evidence` transitively via the ControlMapper contract that feeds it. No offline / deterministic fallback added. All behaviour flows through real Foundry/Fabric.
 
 ## Governance
 

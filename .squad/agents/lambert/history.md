@@ -7,6 +7,12 @@
 
 ## Learnings
 
+### 2026-07-17 — Team update: GapAnalyst now accepts empty control_ids with reason
+- Bishop (this session) extended the empty-with-reason contract to `GapAnalysisRequest`. Contract mirrors the `ControlMappingResponse` pattern: optional `reason: str | None` field, validator accepts empty `control_ids` iff `reason.strip()` is non-empty. `obligation_ids` remains unconditionally required (obligations are pipeline input, not a downstream artefact).
+- Pipeline now forwards `cm_response.reason` into `GapAnalysisRequest(reason=...)` when mappings is empty, and emits a second WARNING (`Fabric stage propagating empty control_ids stage=gap_analyst`) so the propagation is visible in log tails.
+- **If future Foundry prompt spec docs are written for `RegImpactGapAnalyst` (or any other downstream Fabric agent), use the same reason-required-when-empty language.** Same field name (`reason`), same `reason.strip()` validation shape — cross-pipeline consistency matters more than locally-clever names. The response contract also stays symmetric: only `tool_evidence` is required, `findings` may be empty when every obligation→control pair meets its target maturity.
+- Shipped in `1df0f5c`. 62 tests pass, 6 deselected (pre-existing agent_version drift).
+
 ### 2026-07-17 — Foundry prompt spec + evidence-starvation triage
 - Deliverable A: shipped `docs/foundry-agent-prompts/control-mapper.md` — the paste-ready Foundry portal prompt spec Hamza needs for `RegImpactControlMapper`. Covers the response contract (per-mapping + top-level + tool_evidence fields), two full JSON examples (populated mappings AND empty-with-reason), the paste-ready system-prompt directive block, the harness retry contract, numbered deployment steps, and the version-pin recommendation. Reconciled the v3/v4 drift in `docs/foundry-fabric-agents.md` with a note pointing at the new spec.
 - Deliverable B (evidence starvation): investigated and confirmed **no code fix available within the excluded surfaces**. Wrote up in `.squad/decisions/inbox/lambert-evidence-and-prompt.md`. Root cause = deployed `RegImpactControlMapper` v4 self-reports a single stub `tool_evidence` entry for the whole batch. Fix is prompt-side (directive 3 in the spec).

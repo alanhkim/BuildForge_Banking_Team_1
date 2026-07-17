@@ -7,6 +7,14 @@
 
 ## Learnings
 
+### 2026-07-17 — Team update: empty-with-reason pattern generalised across pipeline contracts
+- Team hardened the Fabric pipeline against legitimately-empty agent responses **without adding offline fallbacks** — constitution-compliant throughout.
+- **Pattern established:** optional `reason: str | None` field on request/response contracts; validation accepts empty result iff non-empty `reason.strip()`; pipeline logs WARNING and continues; downstream stages must be tolerant (or explicitly guarded) of the empty payload.
+- Applied to `ControlMappingResponse` (output side) and `GapAnalysisRequest` (input side, mirroring the same shape). Both shipped in `1df0f5c`. Downstream stages (`remediation_planner`, `score_narrator`) verified already tolerant — no additional changes.
+- **Grounding stays non-negotiable:** empty-with-reason branches still require `tool_evidence`. An agent returning `{"mappings": [], "reason": "..."}` with no evidence still fails validation. Accepting an ungrounded empty response would be a soft form of the offline fallback the Constitution rules out.
+- **Foundry portal prompt update still pending** — Hamza to update `RegImpactControlMapper` per `docs/foundry-agent-prompts/control-mapper.md` (Lambert's Deliverable A) and pin `FOUNDRY_CONTROL_MAPPER_AGENT_VERSION`. Until that lands, the harness is ready but the deployed v4 agent will still under-report evidence and never emit `reason`, so the empty-with-reason path won't activate in production.
+- **Latency posture preserved:** no retries added. The 2026-07-17 fail-fast decision (`f3d6ab4`) stands; empty-with-reason handles the documented no-op case without needing a resilience layer.
+
 ### 2026-07-17 — Team update: semantic retry removed from Fabric client
 - Coordinator direct-edit (per Hamza's explicit request) removed the 3-attempt semantic retry from `FabricDataAgentClient.ask` for latency. Commit `f3d6ab4` on `hamza-dev`, message `perf(fabric): remove semantic retry to cut interpret latency`.
 - **Architectural tradeoff you should know:** we traded resilience for speed. One malformed agent response now aborts the whole `interpret` pipeline. The lenient parser (`ccd35d8`) still runs on every response and recovers most sad paths on the first attempt, so the practical impact is bounded.
