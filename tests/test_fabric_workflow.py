@@ -596,48 +596,16 @@ def _fabric_client(agent):
     )
 
 
-def test_ask_retries_on_validation_failure(caplog):
-    good = json.dumps(
-        {
-            "answer": "recovered",
-            "citations": [source_ref_payload("compliance_scores")],
-            "tool_evidence": [
-                {
-                    "tool_name": "fabric_dataagent_preview",
-                    "data_source": "RegImpactLH",
-                    "query": "SELECT 1",
-                    "source_refs": [source_ref_payload("compliance_scores")],
-                }
-            ],
-            "confidence": "high",
-        }
-    )
-    stub = _StubAgent(["definitely not json", good])
+def test_ask_fails_fast_on_malformed_json():
+    # Semantic retry was removed for latency. Any semantic failure surfaces
+    # immediately after the first attempt.
+    stub = _StubAgent(["definitely not json"])
     client = _fabric_client(stub)
 
-    with caplog.at_level("WARNING"):
-        response = client.ask("How compliant is DORA?")
-
-    assert response.answer == "recovered"
-    assert len(stub.prompts) == 2
-    assert "IMPORTANT: Your previous response was rejected" in stub.prompts[1]
-    assert "malformed JSON" in stub.prompts[1]
-    assert any(
-        "semantic failure attempt 1/3" in rec.message for rec in caplog.records
-    )
-
-
-def test_ask_exhausts_retries_on_persistent_failure():
-    stub = _StubAgent(["nope", "still nope", "nope again"])
-    client = _fabric_client(stub)
-
-    with pytest.raises(FabricDataAgentError) as exc:
+    with pytest.raises(FabricDataAgentError, match="malformed JSON"):
         client.ask("How compliant is DORA?")
 
-    message = str(exc.value)
-    assert "after 3 attempts" in message
-    assert message.count("malformed JSON") >= 3
-    assert len(stub.prompts) == 3
+    assert len(stub.prompts) == 1
 
 
 def test_extract_json_block_from_prose():
@@ -752,60 +720,31 @@ def test_validate_inner_answer_accepts_prose_wrapped_json():
     assert _validate_inner_answer(response) is None
 
 
-def test_ask_retries_on_truncated_inner_answer(caplog):
+def test_ask_fails_fast_on_truncated_inner_answer():
     # Envelope parses, but the inner answer string is cut off mid-object.
+    # Semantic retry was removed for latency — surfaces immediately with a
+    # clear reason including truncated=true so operators can act.
     truncated_inner = '{"findings":[{"gap_id":"g1","control_id":"CTL-DQ-1"'
-    stub = _StubAgent([_envelope(truncated_inner), _good_envelope()])
-    client = _fabric_client(stub)
-
-    with caplog.at_level("WARNING"):
-        response = client.ask("How compliant is DORA?")
-
-    assert response.confidence == "high"
-    assert len(stub.prompts) == 2
-    second = stub.prompts[1]
-    # Base envelope reminder is still present...
-    assert "IMPORTANT: Your previous response was rejected" in second
-    # ...plus the truncation-specific concise nudge.
-    assert "TRUNCATED mid-generation" in second
-    assert "<= 200 characters" in second
-    assert "3500 characters" in second
-    assert any(
-        "truncated=true" in rec.message and "semantic failure attempt 1/3"
-        in rec.message
-        for rec in caplog.records
-    )
-
-
-def test_ask_retries_on_malformed_inner_answer_not_truncated():
-    # Balanced braces but invalid JSON inside -> truncated=false.
-    stub = _StubAgent(
-        [_envelope('{"findings": [WHOOPS]}'), _good_envelope()]
-    )
-    client = _fabric_client(stub)
-
-    response = client.ask("How compliant is DORA?")
-
-    assert response.confidence == "high"
-    assert len(stub.prompts) == 2
-    second = stub.prompts[1]
-    assert "IMPORTANT: Your previous response was rejected" in second
-    assert "truncated=false" in second
-    # No concise nudge for a malformed-but-complete response.
-    assert "TRUNCATED mid-generation" not in second
-    assert "3500 characters" not in second
-
-
-def test_ask_exhausts_retries_when_always_truncated():
-    truncated_inner = '{"findings":[{"gap_id":"g1"'
-    stub = _StubAgent([_envelope(truncated_inner)] * 3)
+    stub = _StubAgent([_envelope(truncated_inner)])
     client = _fabric_client(stub)
 
     with pytest.raises(FabricDataAgentError) as exc:
         client.ask("How compliant is DORA?")
 
     message = str(exc.value)
-    assert "after 3 attempts" in message
-    assert message.count("truncated=true") >= 3
-    assert len(stub.prompts) == 3
+    assert "truncated=true" in message
+    assert len(stub.prompts) == 1
+
+
+def test_ask_fails_fast_on_malformed_inner_answer_not_truncated():
+    # Balanced braces but invalid JSON inside -> truncated=false.
+    stub = _StubAgent([_envelope('{"findings": [WHOOPS]}')])
+    client = _fabric_client(stub)
+
+    with pytest.raises(FabricDataAgentError) as exc:
+        client.ask("How compliant is DORA?")
+
+    message = str(exc.value)
+    assert "truncated=false" in message
+    assert len(stub.prompts) == 1
 

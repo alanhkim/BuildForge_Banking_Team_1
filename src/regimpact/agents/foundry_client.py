@@ -502,7 +502,21 @@ class FabricDataAgentClient:
         )
 
     def ask(self, question: str) -> FabricQuestionResponse:
-        """Ask a Fabric-grounded question through Foundry and validate the answer."""
+        """Ask a Fabric-grounded question through Foundry and validate the answer.
+
+        Single-attempt: on any semantic failure (malformed JSON, missing
+        ``answer`` field, truncated inner payload) the error propagates
+        immediately. Semantic retry was removed intentionally — each
+        additional attempt was doubling / tripling wall-clock time on the
+        happy path when the model got noisy, and the transport-level retry
+        inside :meth:`FoundryAgentClient._invoke_with_retry` still handles
+        network / 5xx / active-run races.
+
+        Lenient PARSING (metadata defaults, inner-payload recovery,
+        markdown-fence extraction) is preserved — those never cost extra
+        round-trips. Constitutional constraint remains: no hardcoded /
+        offline agent-behavior fallback.
+        """
         self.config.validate()
         foundry_config = self.foundry_client.config
         request = FabricQuestionRequest(
@@ -516,91 +530,16 @@ class FabricDataAgentClient:
         request.validate()
 
         prompt = _fabric_prompt(request)
-        return self._ask_with_semantic_retry(prompt, request, max_attempts=3)
-
-    def _ask_with_semantic_retry(
-        self,
-        prompt: str,
-        request: FabricQuestionRequest,
-        max_attempts: int = 3,
-    ) -> FabricQuestionResponse:
-        """Invoke the Fabric agent with bounded semantic retry.
-
-        This sits ABOVE the transport-level retry inside
-        :meth:`FoundryAgentClient._invoke_with_retry`. Transport retry handles
-        network / 5xx / active-run races. Semantic retry handles the model
-        returning malformed JSON or an envelope missing the required
-        ``answer`` field. On retry, the prompt is augmented with corrective
-        feedback so the model can course-correct without operator help.
-
-        Constitutional constraint: this never substitutes hardcoded findings
-        or mappings — it only retries and augments the prompt.
-        """
-        reasons: list[str] = []
-        base_prompt = prompt
-        current_prompt = prompt
-        for attempt in range(1, max_attempts + 1):
-            try:
-                raw_response = self.foundry_client.invoke(current_prompt)
-            except FoundryAgentError as exc:
-                raise FabricDataAgentError(
-                    f"Foundry Fabric Data Agent invocation failed: {exc}"
-                ) from exc
-            try:
-                payload = _parse_json_payload(raw_response.text)
-                response = _fabric_response_from_payload(payload, request)
-                _validate_inner_answer(response)
-                return response
-            except FabricDataAgentError as exc:
-                reason = str(exc)
-                reasons.append(f"attempt {attempt}: {reason}")
-                if attempt >= max_attempts:
-                    raise FabricDataAgentError(
-                        f"Fabric Data Agent failed after {max_attempts} "
-                        f"attempts: {'; '.join(reasons)}"
-                    ) from exc
-                logger.warning(
-                    "Fabric Data Agent semantic failure attempt %d/%d "
-                    "agent=%s v%s reason=%s",
-                    attempt,
-                    max_attempts,
-                    request.agent_name,
-                    request.agent_version,
-                    reason,
-                )
-                current_prompt = (
-                    f"{base_prompt}\n\n"
-                    "IMPORTANT: Your previous response was rejected because: "
-                    f"{reason}. Return a single JSON object with keys: "
-                    "answer (a JSON-encoded string of the inner payload), "
-                    "citations (array), tool_evidence (array), "
-                    'confidence ("low"|"medium"|"high"). '
-                    "Do not include markdown fences or prose."
-                )
-                # When the previous attempt failed because the inner answer
-                # was cut off mid-generation, envelope-shape reminders are
-                # not the right nudge — the model needs to be *shorter*,
-                # not restructure. Detect via the reason substring set by
-                # ``_validate_inner_answer`` / ``_extract_json_block``.
-                if "truncated=true" in reason or "likely truncated" in reason:
-                    current_prompt = current_prompt + (
-                        "\n\nCRITICAL: Your previous response was "
-                        "TRUNCATED mid-generation. You MUST be more "
-                        "concise this time:\n"
-                        "- Keep every 'rationale' field <= 200 characters\n"
-                        "- Include at most 1 source_ref per item "
-                        "(not multiple)\n"
-                        "- Drop optional prose fields -- return only "
-                        "required schema keys\n"
-                        "- Prefer terse phrases over full sentences\n"
-                        "Your entire answer JSON string must fit under "
-                        "3500 characters."
-                    )
-        # Defensive: loop always returns or raises inside; keep for type safety.
-        raise FabricDataAgentError(
-            f"Fabric Data Agent failed after {max_attempts} attempts: "
-            f"{'; '.join(reasons)}"
-        )
+        try:
+            raw_response = self.foundry_client.invoke(prompt)
+        except FoundryAgentError as exc:
+            raise FabricDataAgentError(
+                f"Foundry Fabric Data Agent invocation failed: {exc}"
+            ) from exc
+        payload = _parse_json_payload(raw_response.text)
+        response = _fabric_response_from_payload(payload, request)
+        _validate_inner_answer(response)
+        return response
 
 
 def _resolve_response(response: Any) -> Any:
