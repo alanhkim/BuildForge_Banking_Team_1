@@ -46,3 +46,8 @@
 - Bishop's implementation: clean separation (contracts → catalog → interpreter), deterministic DORA path operational, no hallucination
 - Hicks' validation enhancements: malformed input tests, `.strip()` checks, expanded to 29 tests (all passing)
 - Decisions merged into `.squad/decisions.md`; team proceeding to CLI wireup (task 5) and Control Mapper deterministic path
+
+## Team Updates
+
+### 2026-07-17 — OneLake writeback wired into `interpret`
+Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local Parquet under `output/tables/` is still the source of truth; the Fabric upload is gated on `FABRIC_WORKSPACE_ID` + `FABRIC_LAKEHOUSE_ID` and fails soft (non-fatal). To enable: set both env vars and run `pip install .[fabric]` (new optional extra). See `.squad/decisions.md` §0.

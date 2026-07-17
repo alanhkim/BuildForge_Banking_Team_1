@@ -33,6 +33,11 @@ from .export import export_graph, export_report, export_tables
 from .generator import generate_estate
 from .gold import export_gold
 from .impact import ImpactEngine
+from .lakehouse import (
+    LakehouseNotConfiguredError,
+    LakehouseWriteError,
+    export_to_lakehouse,
+)
 from .purview import export_purview
 from .scoring import score_change as score_change_fn
 from .settings import settings
@@ -143,6 +148,25 @@ def interpret(
 
     export_tables(est, settings.tables_dir)
     export_graph(est, settings.graph_dir)
+    # Push Parquet tables to the configured Fabric lakehouse (best-effort).
+    try:
+        uploaded = export_to_lakehouse(
+            settings.tables_dir,
+            workspace_id=settings.fabric_workspace_id,
+            lakehouse_id=settings.fabric_lakehouse_id,
+        )
+        console.print(
+            f"[green]Uploaded {len(uploaded)} Parquet file(s) to OneLake:[/] "
+            f"[cyan]{settings.fabric_lakehouse_id}.Lakehouse/Files/tables[/]"
+        )
+    except LakehouseNotConfiguredError:
+        console.print(
+            "[yellow]OneLake upload skipped:[/] "
+            "set FABRIC_WORKSPACE_ID and FABRIC_LAKEHOUSE_ID to enable."
+        )
+    except LakehouseWriteError as exc:
+        console.print(f"[red]OneLake upload failed:[/] {exc}")
+        # Do NOT raise — local export succeeded, this is best-effort writeback.
     export_purview(est, settings.purview_dir)
     # Report is built from Fabric-persisted gaps/remediations in the estate.
     # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that
