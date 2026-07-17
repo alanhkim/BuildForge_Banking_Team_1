@@ -47,3 +47,6 @@
 
 ### 2026-07-17 — OneLake writeback wired into `interpret`
 Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local Parquet under `output/tables/` is still the source of truth; the Fabric upload is gated on `FABRIC_WORKSPACE_ID` + `FABRIC_LAKEHOUSE_ID` and fails soft (non-fatal). 5 new tests in `tests/test_lakehouse.py` (all green); `tests/test_export_audit.py` still passes. To enable: set both env vars and run `pip install .[fabric]` (new optional extra). See `.squad/decisions.md` §0.
+
+### 2026-07-17 — Fabric response layer hardened
+2026-07-17 — Bishop hardened the Fabric Data Agent response layer. Envelope missing `citations`/`tool_evidence`/`confidence` now defaults with a warning instead of aborting. Semantic retry (3 attempts) sits above transport retry. Inner-payload recovery treats known inner-shape JSON as the answer when the envelope is missing. See decisions.md.

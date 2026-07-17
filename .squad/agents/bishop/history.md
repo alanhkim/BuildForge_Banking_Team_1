@@ -57,3 +57,27 @@
 
 ### 2026-07-17 — OneLake writeback wired into `interpret`
 Lambert landed opt-in OneLake writeback for the `interpret` CLI command. Local Parquet under `output/tables/` is still the source of truth; the Fabric upload is gated on `FABRIC_WORKSPACE_ID` + `FABRIC_LAKEHOUSE_ID` and fails soft (non-fatal). To enable: set both env vars and run `pip install .[fabric]` (new optional extra). See `.squad/decisions.md` §0.
+
+### 2026-07-17 — Fabric Data Agent response layer hardened
+
+**Problem:** `interpret` was aborting mid-pipeline with `Fabric Data Agent response missing required field(s): answer` — a single misbehaved response from Fabric killed the whole run, forcing operators to re-execute manually.
+
+**Solution — three-layer resilience, no offline agent-behavior fallback (constitution respected):**
+
+1. **Lenient envelope defaults** (`_fabric_response_from_payload` in `foundry_client.py`): only `answer` is truly required. Missing `citations`/`tool_evidence`/`confidence` default to `[]`/`[]`/`"low"` with a WARNING log listing what was defaulted, agent name/version, and observed keys. Also handles `answer` being a dict/list instead of a string (JSON-encodes it).
+2. **Inner-payload recovery** (`_RECOVERABLE_INNER_KEYS` frozenset): when the envelope lacks `answer` but the top-level JSON has any of `{mappings, findings, actions, narrative, change_id, impacted_entities}`, treat the whole payload as the inner answer and synthesize the envelope. WARNING logged — silent recovery would hide real agent misbehavior.
+3. **Semantic retry** (`_ask_with_semantic_retry`, max 3 attempts, 0s backoff): distinct from the transport retry inside `FoundryAgentClient._invoke_with_retry`. This handles model-level glitches (bad JSON, missing `answer` after recovery attempt). On retry, prompt is augmented with corrective feedback: `"IMPORTANT: Your previous response was rejected because: {reason}. Return a single JSON object with keys: answer, citations, tool_evidence, confidence..."`. On exhaustion, raises with comma-joined reasons from all attempts.
+
+**Also hardened:**
+- `_parse_json_payload`: replaced `.strip("`")` (fragile — strips backticks anywhere) with regex-matched markdown-fence handling. Added `_extract_json_block` fallback that walks brace depth (string-aware) to pull the first JSON object out of prose.
+- `_json_answer` (fabric_workflow.py): now accepts dict-typed `answer` directly (paired with the envelope change), plus prose-embedded JSON via `_extract_json_block`.
+- Removed noise/PII risk: leftover `logger.error(fabric_response.answer)  # testing` was dumping the entire raw answer at ERROR on every call.
+
+**Constitutional guardrail:** The whole design retries and parses more forgivingly, but NEVER substitutes hardcoded findings/mappings/actions for what the agent should have said. If the agent truly cannot produce a valid response after 3 tries, the pipeline still fails — loudly, with the full reason chain.
+
+**Verification:**
+- 8 new tests in `tests/test_fabric_workflow.py`: defaults on missing metadata, inner-payload recovery, dict-typed answer, still-raises when truly empty, retry succeeds on 2nd attempt, retry exhaustion, JSON extraction from prose, dict-through-`_json_answer`.
+- 26/26 fabric_workflow tests pass. Existing lakehouse/export/audit/impact tests still pass.
+- 17 pre-existing failures in `test_fabric_agents.py` + `test_interpreter.py` are unchanged (verified by baseline stash comparison — they fail identically without Bishop's changes; unrelated to this work).
+
+**Files:** `src/regimpact/agents/foundry_client.py` (+~220 lines net), `src/regimpact/agents/fabric_workflow.py` (+~20 lines net), `tests/test_fabric_workflow.py` (+219 lines).

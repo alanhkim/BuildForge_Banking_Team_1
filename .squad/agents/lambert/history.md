@@ -16,3 +16,8 @@
 - **Why upload is best-effort, not fatal:** local Parquet in `output/tables/` is the source of truth. The `interpret` command wraps the OneLake call in a try/except that catches `LakehouseNotConfiguredError` (skip silently with a yellow hint) and `LakehouseWriteError` (red warning, but DO NOT re-raise). Rationale: a Fabric outage, expired token, or capacity-off state should never break a local pipeline run — the user still has their Parquet on disk and can re-upload manually.
 - **Constitution alignment:** this is I/O plumbing, not agent behavior, so the "no deterministic offline fallback for agent behavior" rule doesn't apply — best-effort writeback for a data-export path is fine.
 - **Testing:** all 5 new tests in `tests/test_lakehouse.py` pass; `tests/test_export_audit.py` unchanged (4/4 pass). Pre-existing failures in `test_cli.py::test_ask_fabric_cli_surfaces_missing_configuration` and `test_interpret_cli_surfaces_missing_foundry_configuration` are environmental (real `.env` credentials override `Settings()` defaults) and predate this change.
+
+## Team Updates
+
+### 2026-07-17 — Fabric response layer hardened
+2026-07-17 — Bishop hardened the Fabric Data Agent response layer. Envelope missing `citations`/`tool_evidence`/`confidence` now defaults with a warning instead of aborting. Semantic retry (3 attempts) sits above transport retry. Inner-payload recovery treats known inner-shape JSON as the answer when the envelope is missing. See decisions.md.

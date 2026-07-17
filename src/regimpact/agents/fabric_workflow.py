@@ -25,7 +25,11 @@ from ..contracts import (
     SourceReference,
     ValidationError,
 )
-from .foundry_client import FabricDataAgentClient, FabricDataAgentError
+from .foundry_client import (
+    FabricDataAgentClient,
+    FabricDataAgentError,
+    _extract_json_block,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -421,31 +425,65 @@ class FabricAgentHarness:
 
 
 def _json_answer(fabric_response: FabricQuestionResponse) -> dict[str, Any]:
-    """Parse the Fabric answer field as the agent-specific JSON payload."""
-    try:
-        logger.error( # testing
-            fabric_response.answer
-        )
-        payload = json.loads(fabric_response.answer)
-    except json.JSONDecodeError as exc:
-        # Log both ends of the answer so we can distinguish a truncated
-        # response (tail cut mid-token) from a well-formed response with
-        # trailing garbage (e.g. markdown fence, prose). Include the exact
-        # decoder error position so operators can jump straight to the fault.
-        answer = fabric_response.answer
-        logger.error(
-            "Fabric JSON parse failed for agent=%s version=%s "
-            "answer_bytes=%d decode_error=%s decode_pos=%d "
-            "answer_head=%r answer_tail=%r",
+    """Parse the Fabric answer field as the agent-specific JSON payload.
+
+    Accepts three answer shapes so this stays tolerant of Fabric agents that
+    occasionally strip the envelope or wrap JSON in markdown / prose:
+
+    1. ``dict`` — kept by :func:`_fabric_response_from_payload` when the
+       upstream envelope was recovered from an inner-shape payload.
+    2. Plain JSON string.
+    3. JSON embedded in markdown fences or prose (extracted via
+       :func:`_extract_json_block`).
+    """
+    answer = fabric_response.answer
+    if isinstance(answer, dict):
+        logger.debug(
+            "Fabric answer arrived as dict agent=%s version=%s keys=%s",
             fabric_response.agent_name,
             fabric_response.agent_version,
-            len(answer),
-            exc.msg,
-            exc.pos,
-            answer[:400],
-            answer[-400:] if len(answer) > 400 else "",
+            sorted(answer.keys()),
         )
-        raise FabricAgentHarnessError("Fabric agent answer was not valid JSON") from exc
+        return answer
+    if not isinstance(answer, str):
+        logger.error(
+            "Fabric answer wrong type agent=%s version=%s type=%s",
+            fabric_response.agent_name,
+            fabric_response.agent_version,
+            type(answer).__name__,
+        )
+        raise FabricAgentHarnessError(
+            "Fabric agent answer must be a string or dict"
+        )
+
+    text = answer.strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as first_exc:
+        try:
+            extracted = _extract_json_block(text)
+            payload = json.loads(extracted)
+        except (FabricDataAgentError, json.JSONDecodeError) as exc:
+            # Log both ends of the answer so we can distinguish a truncated
+            # response (tail cut mid-token) from a well-formed response with
+            # trailing garbage. Include the exact decoder position from the
+            # first attempt so operators can jump straight to the fault.
+            logger.error(
+                "Fabric JSON parse failed for agent=%s version=%s "
+                "answer_bytes=%d decode_error=%s decode_pos=%d "
+                "extract_error=%s answer_head=%r answer_tail=%r",
+                fabric_response.agent_name,
+                fabric_response.agent_version,
+                len(answer),
+                first_exc.msg,
+                first_exc.pos,
+                exc,
+                answer[:400],
+                answer[-400:] if len(answer) > 400 else "",
+            )
+            raise FabricAgentHarnessError(
+                "Fabric agent answer was not valid JSON"
+            ) from exc
     if not isinstance(payload, dict):
         logger.error(
             "Fabric JSON root type invalid for agent=%s version=%s type=%s",

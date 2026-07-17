@@ -17,7 +17,6 @@ from ..contracts import (
     FabricQuestionResponse,
     SourceReference,
     ToolEvidence,
-    ValidationError,
 )
 from ..settings import Settings, settings
 from .foundry_interpreter import foundry_runtime_error_types
@@ -517,22 +516,70 @@ class FabricDataAgentClient:
         request.validate()
 
         prompt = _fabric_prompt(request)
-        try:
-            raw_response = self.foundry_client.invoke(prompt)
-        except FoundryAgentError as exc:
-            raise FabricDataAgentError(
-                f"Foundry Fabric Data Agent invocation failed: {exc}"
-            ) from exc
+        return self._ask_with_semantic_retry(prompt, request, max_attempts=3)
 
-        payload = _parse_json_payload(raw_response.text)
-        response = _fabric_response_from_payload(payload, request)
-        try:
-            response.validate()
-        except ValidationError as exc:
-            raise FabricDataAgentError(
-                "Fabric Data Agent response failed contract validation"
-            ) from exc
-        return response
+    def _ask_with_semantic_retry(
+        self,
+        prompt: str,
+        request: FabricQuestionRequest,
+        max_attempts: int = 3,
+    ) -> FabricQuestionResponse:
+        """Invoke the Fabric agent with bounded semantic retry.
+
+        This sits ABOVE the transport-level retry inside
+        :meth:`FoundryAgentClient._invoke_with_retry`. Transport retry handles
+        network / 5xx / active-run races. Semantic retry handles the model
+        returning malformed JSON or an envelope missing the required
+        ``answer`` field. On retry, the prompt is augmented with corrective
+        feedback so the model can course-correct without operator help.
+
+        Constitutional constraint: this never substitutes hardcoded findings
+        or mappings — it only retries and augments the prompt.
+        """
+        reasons: list[str] = []
+        base_prompt = prompt
+        current_prompt = prompt
+        for attempt in range(1, max_attempts + 1):
+            try:
+                raw_response = self.foundry_client.invoke(current_prompt)
+            except FoundryAgentError as exc:
+                raise FabricDataAgentError(
+                    f"Foundry Fabric Data Agent invocation failed: {exc}"
+                ) from exc
+            try:
+                payload = _parse_json_payload(raw_response.text)
+                return _fabric_response_from_payload(payload, request)
+            except FabricDataAgentError as exc:
+                reason = str(exc)
+                reasons.append(f"attempt {attempt}: {reason}")
+                if attempt >= max_attempts:
+                    raise FabricDataAgentError(
+                        f"Fabric Data Agent failed after {max_attempts} "
+                        f"attempts: {'; '.join(reasons)}"
+                    ) from exc
+                logger.warning(
+                    "Fabric Data Agent semantic failure attempt %d/%d "
+                    "agent=%s v%s reason=%s",
+                    attempt,
+                    max_attempts,
+                    request.agent_name,
+                    request.agent_version,
+                    reason,
+                )
+                current_prompt = (
+                    f"{base_prompt}\n\n"
+                    "IMPORTANT: Your previous response was rejected because: "
+                    f"{reason}. Return a single JSON object with keys: "
+                    "answer (a JSON-encoded string of the inner payload), "
+                    "citations (array), tool_evidence (array), "
+                    'confidence ("low"|"medium"|"high"). '
+                    "Do not include markdown fences or prose."
+                )
+        # Defensive: loop always returns or raises inside; keep for type safety.
+        raise FabricDataAgentError(
+            f"Fabric Data Agent failed after {max_attempts} attempts: "
+            f"{'; '.join(reasons)}"
+        )
 
 
 def _resolve_response(response: Any) -> Any:
@@ -634,19 +681,96 @@ def _application_agent_name_version(
     return agent_settings[agent]
 
 
-def _parse_json_payload(text: str) -> dict[str, Any]:
-    """Decode a JSON-only Fabric agent response."""
+# Inner-payload keys that indicate a Fabric agent returned the inner
+# answer directly (envelope stripped by the model). When we see one of
+# these at the top level and no ``answer`` key, we recover by treating
+# the whole payload as the inner answer.
+_RECOVERABLE_INNER_KEYS = frozenset(
+    {
+        "mappings",
+        "findings",
+        "actions",
+        "narrative",
+        "change_id",
+        "impacted_entities",
+        "hops",
+    }
+)
+
+# Matches a markdown fenced code block, optionally tagged ``json``.
+# Non-greedy body capture; anchored to a fence on both sides.
+_FENCE_RE = re.compile(
+    r"```(?:json)?\s*(?P<body>\{.*?\})\s*```",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extract_json_block(text: str) -> str:
+    """Return the JSON-object substring embedded in ``text``.
+
+    Handles three shapes:
+    1. Markdown fences: ``` ```json {...} ``` `` or ``` ``` {...} ``` ``
+    2. Bare JSON with leading/trailing whitespace.
+    3. Prose containing a JSON object (balanced-brace scan from first ``{``).
+
+    Raises ``FabricDataAgentError`` if no JSON object can be located.
+    """
     stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.strip("`")
-        if stripped.lower().startswith("json"):
-            stripped = stripped[4:].strip()
+    match = _FENCE_RE.search(stripped)
+    if match:
+        return match.group("body").strip()
+    start = stripped.find("{")
+    if start == -1:
+        raise FabricDataAgentError("Fabric Data Agent returned malformed JSON")
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(stripped)):
+        ch = stripped[i]
+        if escape:
+            escape = False
+            continue
+        if in_string:
+            if ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return stripped[start : i + 1]
+    raise FabricDataAgentError("Fabric Data Agent returned malformed JSON")
+
+
+def _parse_json_payload(text: str) -> dict[str, Any]:
+    """Decode a JSON-only Fabric agent response with lenient extraction.
+
+    First tries a strict ``json.loads`` on the trimmed text. If that fails,
+    delegates to :func:`_extract_json_block` to peel off markdown fences or
+    surrounding prose, then decodes the extracted block. Raises the existing
+    ``FabricDataAgentError("Fabric Data Agent returned malformed JSON")`` if
+    both attempts fail.
+    """
+    stripped = text.strip()
     try:
         payload = json.loads(stripped)
-    except json.JSONDecodeError as exc:
-        raise FabricDataAgentError("Fabric Data Agent returned malformed JSON") from exc
+    except json.JSONDecodeError:
+        extracted = _extract_json_block(stripped)
+        try:
+            payload = json.loads(extracted)
+        except json.JSONDecodeError as exc:
+            raise FabricDataAgentError(
+                "Fabric Data Agent returned malformed JSON"
+            ) from exc
     if not isinstance(payload, dict):
-        raise FabricDataAgentError("Fabric Data Agent response JSON must be an object")
+        raise FabricDataAgentError(
+            "Fabric Data Agent response JSON must be an object"
+        )
     return payload
 
 
@@ -654,28 +778,85 @@ def _fabric_response_from_payload(
     payload: dict[str, Any],
     request: FabricQuestionRequest,
 ) -> FabricQuestionResponse:
-    """Convert decoded JSON into a validated FabricQuestionResponse."""
-    missing = {
-        key
-        for key in ("answer", "citations", "tool_evidence", "confidence")
-        if key not in payload
-    }
-    if missing:
-        raise FabricDataAgentError(
-            f"Fabric Data Agent response missing required field(s): "
-            f"{', '.join(sorted(missing))}"
+    """Convert decoded JSON into a ``FabricQuestionResponse``.
+
+    Only ``answer`` is truly required for downstream processing. Metadata
+    (``citations``, ``tool_evidence``, ``confidence``) is defaulted with a
+    WARNING when missing so operators still see the misbehavior.
+
+    Recovery: when ``answer`` is missing but the top-level payload contains a
+    key from :data:`_RECOVERABLE_INNER_KEYS`, treat the whole payload as the
+    inner answer (agents sometimes drop the envelope entirely). Also handles
+    ``answer`` values that arrive as ``dict``/``list`` by JSON-encoding them.
+    """
+    top_keys = sorted(payload.keys())
+    if "answer" not in payload:
+        if any(key in payload for key in _RECOVERABLE_INNER_KEYS):
+            logger.warning(
+                "Fabric response envelope missing 'answer'; recovered by "
+                "treating top-level JSON as inner payload "
+                "agent=%s v%s top_keys=%s",
+                request.agent_name,
+                request.agent_version,
+                top_keys,
+            )
+            recovered = json.dumps(payload)
+            payload = {
+                "answer": recovered,
+                **{
+                    k: v
+                    for k, v in payload.items()
+                    if k in ("citations", "tool_evidence", "confidence", "question")
+                },
+            }
+        else:
+            raise FabricDataAgentError(
+                "Fabric Data Agent response missing required field(s): answer"
+            )
+
+    defaulted: list[str] = []
+    citations_payload = payload.get("citations")
+    if citations_payload is None:
+        citations_payload = []
+        defaulted.append("citations")
+    tool_evidence_payload = payload.get("tool_evidence")
+    if tool_evidence_payload is None:
+        tool_evidence_payload = []
+        defaulted.append("tool_evidence")
+    confidence_value = payload.get("confidence")
+    if confidence_value is None:
+        confidence_value = "low"
+        defaulted.append("confidence")
+
+    if defaulted:
+        logger.warning(
+            "Fabric Data Agent response missing metadata field(s) %s; "
+            "using defaults agent=%s v%s top_keys=%s",
+            defaulted,
+            request.agent_name,
+            request.agent_version,
+            top_keys,
         )
 
-    citations = [_source_ref_from_payload(item) for item in payload["citations"]]
-    tool_evidence = [_tool_evidence_from_payload(item) for item in payload["tool_evidence"]]
+    citations = [_source_ref_from_payload(item) for item in citations_payload]
+    tool_evidence = [
+        _tool_evidence_from_payload(item) for item in tool_evidence_payload
+    ]
+
+    raw_answer = payload["answer"]
+    if isinstance(raw_answer, (dict, list)):
+        answer = json.dumps(raw_answer)
+    else:
+        answer = str(raw_answer)
+
     return FabricQuestionResponse(
         question=str(payload.get("question", request.question)),
-        answer=str(payload["answer"]),
+        answer=answer,
         agent_name=request.agent_name,
         agent_version=request.agent_version,
         citations=citations,
         tool_evidence=tool_evidence,
-        confidence=str(payload["confidence"]),  # type: ignore[arg-type]
+        confidence=str(confidence_value),
     )
 
 

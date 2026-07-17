@@ -6,6 +6,7 @@ from regimpact.agents.fabric_workflow import (
     CONTROL_MAPPER_SPEC,
     FabricAgentHarness,
     FabricAgentHarnessError,
+    _json_answer,
 )
 from regimpact.agents.fabric_control_mapper import FabricControlMapperAgent
 from regimpact.agents.fabric_executive_qa import FabricExecutiveQAAgent
@@ -13,8 +14,18 @@ from regimpact.agents.fabric_gap_analyst import FabricGapAnalystAgent
 from regimpact.agents.fabric_lineage import FabricLineageAgent
 from regimpact.agents.fabric_remediation_planner import FabricRemediationPlannerAgent
 from regimpact.agents.fabric_score_narrator import FabricScoreNarratorAgent
+from regimpact.agents.foundry_client import (
+    FabricDataAgentClient,
+    FabricDataAgentConfig,
+    FabricDataAgentError,
+    FoundryAgentClient,
+    FoundryAgentConfig,
+    _extract_json_block,
+    _fabric_response_from_payload,
+)
 from regimpact.contracts import (
     ControlMappingRequest,
+    FabricQuestionRequest,
     FabricQuestionResponse,
     GapAnalysisRequest,
     LineageRequest,
@@ -471,3 +482,211 @@ def test_harness_rejects_missing_source_refs():
                 fabric_context_question="Map DORA obligations.",
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# Fabric response hardening: lenient parsing, recovery, and semantic retry.
+# ---------------------------------------------------------------------------
+
+
+def _fabric_request(question: str = "How compliant is DORA?"):
+    return FabricQuestionRequest(
+        question=question,
+        agent_name="RegImpactQA",
+        agent_version="1",
+        workspace_id="ws-1",
+        data_agent_id="da-1",
+        allowed_sources=["RegImpactLH"],
+    )
+
+
+def test_fabric_response_defaults_missing_metadata_fields(caplog):
+    request = _fabric_request()
+    payload = {"answer": "DORA moves from 54.8 to 59.6."}
+
+    with caplog.at_level("WARNING"):
+        response = _fabric_response_from_payload(payload, request)
+
+    assert response.answer.startswith("DORA moves")
+    assert response.citations == []
+    assert response.tool_evidence == []
+    assert response.confidence == "low"
+    assert any(
+        "missing metadata field(s)" in rec.message and "citations" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_fabric_response_recovers_inner_payload_when_answer_missing(caplog):
+    request = _fabric_request()
+    inner = {
+        "mappings": [
+            {
+                "obligation_id": "OBL-DORA-01",
+                "control_id": "CTL-OR-3",
+                "capability_id": "CAP-RES",
+                "rationale": "ICT resilience obligation.",
+                "confidence": "high",
+                "source_refs": [source_ref_payload("v_obligation_control_map")],
+            }
+        ]
+    }
+
+    with caplog.at_level("WARNING"):
+        response = _fabric_response_from_payload(inner, request)
+
+    assert any(
+        "recovered by treating top-level JSON as inner payload" in rec.message
+        for rec in caplog.records
+    )
+    parsed = json.loads(response.answer)
+    assert parsed == inner
+
+
+def test_fabric_response_handles_answer_as_dict():
+    request = _fabric_request()
+    inner = {"findings": [{"obligation_id": "OBL-DORA-01"}]}
+    payload = {"answer": inner, "citations": [], "tool_evidence": [], "confidence": "medium"}
+
+    response = _fabric_response_from_payload(payload, request)
+
+    assert isinstance(response.answer, str)
+    assert json.loads(response.answer) == inner
+    assert response.confidence == "medium"
+
+
+def test_fabric_response_still_raises_when_answer_truly_missing():
+    request = _fabric_request()
+    payload = {"citations": [], "tool_evidence": [], "confidence": "low"}
+
+    with pytest.raises(FabricDataAgentError, match="missing required field"):
+        _fabric_response_from_payload(payload, request)
+
+
+class _StubAgent:
+    """Minimal Foundry runtime stub cycling through canned responses."""
+
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.prompts = []
+
+    def run(self, prompt):
+        self.prompts.append(prompt)
+        if not self._responses:
+            raise AssertionError("No more canned responses")
+        return self._responses.pop(0)
+
+
+def _fabric_client(agent):
+    return FabricDataAgentClient(
+        foundry_client=FoundryAgentClient(
+            config=FoundryAgentConfig(
+                project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+                agent_name="RegImpactQA",
+                agent_version="1",
+                model_deployment_name="gpt-4o-mini",
+            ),
+            agent=agent,
+        ),
+        config=FabricDataAgentConfig(
+            workspace_id="ws-1",
+            data_agent_id="da-1",
+        ),
+    )
+
+
+def test_ask_retries_on_validation_failure(caplog):
+    good = json.dumps(
+        {
+            "answer": "recovered",
+            "citations": [source_ref_payload("compliance_scores")],
+            "tool_evidence": [
+                {
+                    "tool_name": "fabric_dataagent_preview",
+                    "data_source": "RegImpactLH",
+                    "query": "SELECT 1",
+                    "source_refs": [source_ref_payload("compliance_scores")],
+                }
+            ],
+            "confidence": "high",
+        }
+    )
+    stub = _StubAgent(["definitely not json", good])
+    client = _fabric_client(stub)
+
+    with caplog.at_level("WARNING"):
+        response = client.ask("How compliant is DORA?")
+
+    assert response.answer == "recovered"
+    assert len(stub.prompts) == 2
+    assert "IMPORTANT: Your previous response was rejected" in stub.prompts[1]
+    assert "malformed JSON" in stub.prompts[1]
+    assert any(
+        "semantic failure attempt 1/3" in rec.message for rec in caplog.records
+    )
+
+
+def test_ask_exhausts_retries_on_persistent_failure():
+    stub = _StubAgent(["nope", "still nope", "nope again"])
+    client = _fabric_client(stub)
+
+    with pytest.raises(FabricDataAgentError) as exc:
+        client.ask("How compliant is DORA?")
+
+    message = str(exc.value)
+    assert "after 3 attempts" in message
+    assert message.count("malformed JSON") >= 3
+    assert len(stub.prompts) == 3
+
+
+def test_extract_json_block_from_prose():
+    text = 'Sure, here is the answer:\n{"findings": []}\n\nHope that helps!'
+    assert _extract_json_block(text) == '{"findings": []}'
+
+
+def test_extract_json_block_from_markdown_fence():
+    text = '```json\n{"findings": [{"id": "F-1"}]}\n```'
+    assert _extract_json_block(text) == '{"findings": [{"id": "F-1"}]}'
+
+
+def test_extract_json_block_handles_nested_braces_and_strings():
+    text = 'noise {"a": {"b": "text with } inside"}, "c": 1} trailing'
+    extracted = _extract_json_block(text)
+    assert json.loads(extracted) == {"a": {"b": "text with } inside"}, "c": 1}
+
+
+def test_extract_json_block_raises_on_no_json():
+    with pytest.raises(FabricDataAgentError, match="malformed JSON"):
+        _extract_json_block("no json here at all")
+
+
+def test_json_answer_accepts_dict_directly():
+    inner = {"findings": [{"obligation_id": "OBL-1"}]}
+    response = FabricQuestionResponse(
+        question="Q",
+        answer=inner,  # type: ignore[arg-type]
+        agent_name="RegImpactQA",
+        agent_version="1",
+        citations=[source_ref("gaps")],
+        tool_evidence=[tool_evidence()],
+        confidence="low",
+    )
+
+    assert _json_answer(response) is inner
+
+
+def test_json_answer_extracts_json_from_markdown_fence():
+    inner = {"actions": [{"id": "A-1"}]}
+    fenced = f"```json\n{json.dumps(inner)}\n```"
+    response = FabricQuestionResponse(
+        question="Q",
+        answer=fenced,
+        agent_name="RegImpactQA",
+        agent_version="1",
+        citations=[source_ref("remediation_actions")],
+        tool_evidence=[tool_evidence()],
+        confidence="low",
+    )
+
+    assert _json_answer(response) == inner
+
