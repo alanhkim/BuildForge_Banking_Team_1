@@ -2,6 +2,41 @@
 
 ## Active Decisions
 
+### 2026-07-17: Remove semantic retry from Fabric client (fail-fast)
+
+**Author:** Coordinator (direct edit, per user directive)
+**Requested by:** Hamza
+**Status:** Implemented (`f3d6ab4` on `hamza-dev`)
+
+**What:**
+Semantic retry loop removed from `FabricDataAgentClient.ask` in `src/regimpact/agents/foundry_client.py`. Production is now single-attempt: one call to the transport layer, one pass of lenient parsing, immediate raise on failure. `_ask_with_semantic_retry` helper deleted.
+
+**Why:**
+User reported `interpret` command too slow. The 3-attempt retry (added in `412d695`) doubled or tripled round-trip latency on any sad-path response. Latency win outweighs the incremental resilience the retry provided, given that lenient parsing already recovers most malformed responses on the first attempt.
+
+**Tradeoff:**
+- **Gained:** ~2–3× faster failure path; simpler code; single obvious error surface.
+- **Lost:** One bad agent response now aborts the whole `interpret` pipeline. Operator must re-run. Diagnostic hint (`truncated=true/false`) still surfaces from the lenient parser so the failure is legible.
+
+**Preserved:**
+- Lenient parsing: metadata defaults, inner-payload recovery, markdown-fence stripping, prose-embedded JSON extraction (from `ccd35d8`).
+- Transport-level retry inside `FoundryAgentClient._invoke_with_retry` — network, 429, and 5xx retries are unchanged.
+- Constitutional constraint: no offline/deterministic fallback for agent behavior. This decision does not introduce any hardcoded agent responses.
+
+**Reversal:**
+Retry loop code was **deleted, not disabled**. To restore:
+1. Re-add `_ask_with_semantic_retry` to `FabricDataAgentClient` (see commit `412d695` for prior implementation).
+2. Change `ask()` to delegate to it instead of calling the transport directly.
+3. Restore the 5 retry-behavior tests in `tests/test_fabric_workflow.py` (see commit `412d695`).
+
+**Constitutional check:** Compliant. No offline path introduced; agent behavior still flows entirely through Microsoft Foundry / Fabric.
+
+**Tests:**
+- `tests/test_fabric_workflow.py`: 5 retry tests replaced with 3 fail-fast tests.
+- 43/43 pass across fabric_workflow, impact_scoring, export_audit, smoke, lakehouse.
+
+---
+
 ### 0. OneLake Writeback Scope & Failure Semantics
 
 **Date:** 2026-07-17

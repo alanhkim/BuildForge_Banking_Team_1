@@ -7,6 +7,13 @@
 
 ## Learnings
 
+### 2026-07-17 — Team update: semantic retry removed from Fabric client
+- Coordinator direct-edit (per Hamza's explicit request) removed the 3-attempt semantic retry from `FabricDataAgentClient.ask` for latency. Commit `f3d6ab4` on `hamza-dev`, message `perf(fabric): remove semantic retry to cut interpret latency`.
+- **Architectural tradeoff you should know:** we traded resilience for speed. One malformed agent response now aborts the whole `interpret` pipeline. The lenient parser (`ccd35d8`) still runs on every response and recovers most sad paths on the first attempt, so the practical impact is bounded.
+- **Constitutional check passed:** no offline / hardcoded agent behavior introduced. Agent execution still flows entirely through Microsoft Foundry / Fabric per the project constitution.
+- Reversal is documented in `.squad/decisions.md` (2026-07-17 entry) — the retry code was deleted, not disabled, so restoring it means re-adding `_ask_with_semantic_retry` from commit `412d695`.
+- If future latency concerns surface, review whether transport-level retry in `FoundryAgentClient._invoke_with_retry` also needs tuning before adding any new retry layer.
+
 ### 2026-07-06 10:28 — Regulation Interpreter Core Review (Tasks 1-4)
 
 **Review Scope:** Portable deterministic Regulation Interpreter for tasks 1-4 only: contracts, catalog fixture, fallback, schema validation.

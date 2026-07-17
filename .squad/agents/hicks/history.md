@@ -7,6 +7,12 @@
 
 ## Learnings
 
+### 2026-07-17 — Team update: retry tests replaced with fail-fast tests
+- The 5 retry-behavior tests in `tests/test_fabric_workflow.py` (added when the semantic retry landed in `412d695`) were replaced with 3 fail-fast equivalents in commit `f3d6ab4` on hamza-dev.
+- The lenient-parsing tests (metadata defaults, inner-payload recovery, markdown fence, prose-embedded JSON) are unchanged — those still assert single-pass parsing behavior.
+- 43/43 pass across `test_fabric_workflow`, `test_impact_scoring`, `test_export_audit`, `test_smoke`, `test_lakehouse`. Six pre-existing `defaults_to_deployed` failures are unrelated and were excluded via `-k`.
+- If you add new fail-fast coverage: assert that a single bad response raises immediately (no re-invocation of the transport mock).
+
 ### Interpreter Validation (2026-07-06)
 **Test Coverage:**
 - Validated core tasks 1-4: interpreter-contracts, interpreter-catalog-fixture, interpreter-fallback, interpreter-schema-validation

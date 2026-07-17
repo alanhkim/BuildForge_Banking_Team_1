@@ -7,6 +7,11 @@
 
 ## Learnings
 
+### 2026-07-17 — Team update: semantic retry removed from Fabric client
+- The semantic retry loop that wrapped `FabricDataAgentClient.ask` (commit `412d695`) has been removed for latency (commit `f3d6ab4`, hamza-dev). `ask` is now single-attempt.
+- Transport-level retry inside `FoundryAgentClient._invoke_with_retry` is untouched — network / 429 / 5xx retries still work. The change only removed the *semantic* retry that was re-issuing calls when the parsed payload looked wrong.
+- OneLake writeback path is unaffected — `export_to_lakehouse()` and the `[fabric]` extra pattern are unchanged.
+
 ### 2026-07-17 — OneLake writeback for `interpret`
 - Built `src/regimpact/lakehouse.py` — uploads every `*.parquet` from `settings.tables_dir` into a Fabric lakehouse under `Files/tables/`. Wired into `interpret` only (not `demo`, `analyze`, `score`, `audit`) — that's phase 1 scope.
 - **ABFSS URL pattern** for OneLake-hosted lakehouses:
