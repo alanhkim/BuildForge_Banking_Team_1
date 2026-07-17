@@ -7,7 +7,58 @@
 
 ## Learnings
 
-### 2026-07-17 — Team update: semantic retry removed from Fabric client
+### 2026-07-17 — Gap Analyst empty-tolerance: close the cross-stage break I flagged
+
+**Followup to the Control Mapper hardening below.** That pass added a documented empty-with-reason exit for `ControlMappingResponse`, but `GapAnalysisRequest.validate()` still raised `"control_ids is required"` the moment control_mapper legitimately returned empty. `interpret` would fail one hop later. This pass closes that loop with the same shape.
+
+**Delivered:**
+
+- **`contracts.py::GapAnalysisRequest`** — added `reason: str | None = None`. `validate()` now accepts empty `control_ids` when `reason.strip()` is non-empty; otherwise still raises `ValidationError("control_ids is required (or provide non-empty reason)")`. `obligation_ids` still required unconditionally (obligations are pipeline input, not a downstream artefact — an empty obligation set is a genuine bug).
+- **`pipeline.py`** — the gap_analyst stage now forwards `cm_response.reason` into `GapAnalysisRequest(reason=...)` when `cm_response.mappings` is empty. On the happy path (non-empty mappings), `reason` stays `None` — zero behaviour change.
+- **`pipeline.py` WARNING log** — new log line right before the gap_analyst call: `Fabric stage propagating empty control_ids stage=gap_analyst change_id=... reason=...`. Complements the existing WARNING at the control_mapper stage so an operator can trace the reason forward through the pipeline in a single log tail.
+
+**Deliberately NOT done, with justification:**
+
+1. **No response-side change** to `GapAnalysisResponse`. It already accepts empty `findings` as a valid outcome ("every obligation→control pair meets its target maturity" — documented in the class docstring). Only `tool_evidence` is required, and that stays required. No mirror of the empty-with-reason pattern needed on the response.
+2. **No retry wrapper on `analyze_gaps`.** Per Hamza's rule 4, only add retry if the ControlMapper pattern makes it cheap. That pattern was REMOVED from `map_controls` in commit `f3d6ab4` (2026-07-17 fail-fast decision). Adding it to `analyze_gaps` alone would create an asymmetry — one agent retries, four don't. Flagged as a follow-up if empty-with-reason turns out to be common enough to justify a general harness-level retry.
+3. **No downstream chain fix beyond one hop.** Per Hamza's rule 6. I audited the immediate next stage (remediation_planner) — the pipeline already guards it with `if gap_ids:` at line ~522, so empty findings skip that stage cleanly. Score_narrator receives locally-precomputed floats, not agent output, so it's independent. Chain intact after this fix.
+
+**Test result:** 55 passed, 7 deselected. One test (`test_control_mapper_pipeline_stage_logs_warning_on_empty_with_reason`) hangs because it asserts the OLD behaviour — `pytest.raises(ValidationError, match="control_ids")` — and only stubs `FabricControlMapperAgent`, so once the pipeline no longer raises there it tries to instantiate a real `FabricGapAnalystAgent` and hangs on the Foundry client. Flagged for Hicks to rewrite (see summary).
+
+**Files touched:**
+- `src/regimpact/contracts.py` — `GapAnalysisRequest` gets `reason`, validation loosened symmetrically with `ControlMappingResponse`.
+- `src/regimpact/agents/pipeline.py` — forward `cm_response.reason` into the request; new WARNING log for the gap_analyst propagation path.
+- `.squad/decisions/inbox/bishop-gap-analyst-empty-tolerance.md` — decision note documenting the contract extension and the remaining "one hop at a time" audit.
+
+**Consistency win:** `reason: str | None` is now the standard shape for "empty output is legitimate" across the pipeline. `ControlMappingResponse.reason` (output) → `GapAnalysisRequest.reason` (input). Any future agent that needs this pattern should follow the same naming.
+
+### 2026-07-17 — Control Mapper hardening: unwrap validation, request context logging, empty-with-reason contract, bounded retry
+
+**Delivered fixes 1/2/3/6 from Hamza's approved plan:**
+
+- **Fix 1 (`fabric_workflow.py::_validated`)**: `FabricAgentHarnessError` now embeds the underlying `ValidationError` detail plus a 500-char raw-answer snippet in the message. CLI operators no longer need debug logs to see WHY validation failed.
+- **Fix 2 (`fabric_workflow.py::_ask` + new `_payload_cardinalities` helper)**: Every Fabric agent request now logs list-field cardinalities (obligation_ids_count, tool_evidence_count, candidate_controls_count, etc.) at INFO. Payload body stays at DEBUG. Same log line covers all agents — no per-agent bespoke fields.
+- **Fix 3 (`contracts.py::ControlMappingResponse`)**: Added `reason: str | None = None` field. `validate()` accepts empty mappings ONLY when `reason.strip()` is non-empty; otherwise raises `ValidationError("mappings is required (or provide non-empty reason)")`. Both branches still require `tool_evidence` (no unfounded empty responses).
+- **Fix 6 (`fabric_workflow.py::map_controls`)**: Refactored into `map_controls` + private `_map_controls_attempt`. On empty-without-reason, retries once with `retry_attempt=2` added to the payload. Both attempts log at INFO with `attempt=`, `mappings=`, `reason_present=`. Other failure modes (invalid JSON, wrong types) still bubble up on first attempt — no retry.
+- **Pipeline empty-with-reason handling (`pipeline.py`)**: After control_mapper stage, if `mappings == []` and `reason` is present, log at WARNING with the reason and continue. Downstream stages will see empty inputs.
+
+**Gotchas / decisions on ambiguous spots:**
+
+1. **Retry needed to split `map_controls`** into a "parse but don't validate" helper (`_map_controls_attempt`) + a validate-once caller. Reason: with Fix 3 in place, `_validated` would fail-fast on empty-without-reason before the retry could fire. Splitting lets us inspect the parsed shape and decide whether to retry BEFORE contract validation. Kept scoped to control_mapper as the plan requested.
+2. **Kept `tool_evidence` required in the empty-with-reason branch of `ControlMappingResponse.validate()`.** The plan didn't specify — I chose to preserve grounding so an agent can't return `{"mappings": [], "reason": "..."}` with zero evidence. Flagged for Hicks.
+3. **Pipeline `continue vs raise` ambiguity**: Plan literally says "continue the pipeline (not raise)". I do exactly that — log WARNING with reason at the CM stage and let control flow proceed. Note: `GapAnalysisRequest.validate()` requires non-empty `control_ids`, so an empty-with-reason CM result will fail at the gap_analyst stage. That's out of scope for this fix; documented in the decisions inbox.
+4. **No `to_schema()` / `model_json_schema()` in the repo** — grep returned no matches, so no JSON Schema export to update.
+5. **`_payload_cardinalities`** is a module-level helper (not a method) so it can be reused by any future agent adapter without needing a harness instance.
+
+**Test result:** 43 passed, 6 deselected (the requested `not defaults_to_deployed` filter). Ran with `pytest tests/test_fabric_workflow.py tests/test_lakehouse.py tests/test_export_audit.py tests/test_impact_scoring.py tests/test_smoke.py -q -k "not defaults_to_deployed" --tb=short`.
+
+**Files touched:**
+- `src/regimpact/contracts.py` — `ControlMappingResponse` gets `reason`, validation loosened for documented empty case.
+- `src/regimpact/agents/fabric_workflow.py` — Fix 1 (`_validated`), Fix 2 (`_ask` + `_payload_cardinalities`), Fix 6 (`map_controls` + `_map_controls_attempt`).
+- `src/regimpact/agents/pipeline.py` — empty-with-reason WARNING log in control_mapper stage.
+- `.squad/decisions/inbox/bishop-control-mapper-implementation.md` — decision note on the split validation flow + downstream gap_analyst caveat.
+
+
 - The 3-attempt semantic retry loop in `FabricDataAgentClient.ask` (which layered on top of the lenient parser you built in `ccd35d8`) has been removed for latency. Production is now single-attempt / fail-fast (commit `f3d6ab4`, hamza-dev).
 - **Your lenient parser stays.** Metadata defaults, inner-payload recovery, markdown-fence stripping, and prose-embedded JSON extraction all still run — just once per call now instead of up to three times.
 - Practical impact: any malformed agent response that the lenient parser cannot recover now aborts the `interpret` pipeline immediately. Operator sees the `truncated=true/false` diagnostic and re-runs.

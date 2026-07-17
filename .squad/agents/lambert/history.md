@@ -7,6 +7,12 @@
 
 ## Learnings
 
+### 2026-07-17 — Foundry prompt spec + evidence-starvation triage
+- Deliverable A: shipped `docs/foundry-agent-prompts/control-mapper.md` — the paste-ready Foundry portal prompt spec Hamza needs for `RegImpactControlMapper`. Covers the response contract (per-mapping + top-level + tool_evidence fields), two full JSON examples (populated mappings AND empty-with-reason), the paste-ready system-prompt directive block, the harness retry contract, numbered deployment steps, and the version-pin recommendation. Reconciled the v3/v4 drift in `docs/foundry-fabric-agents.md` with a note pointing at the new spec.
+- Deliverable B (evidence starvation): investigated and confirmed **no code fix available within the excluded surfaces**. Wrote up in `.squad/decisions/inbox/lambert-evidence-and-prompt.md`. Root cause = deployed `RegImpactControlMapper` v4 self-reports a single stub `tool_evidence` entry for the whole batch. Fix is prompt-side (directive 3 in the spec).
+- **Key architecture insight**: `tool_evidence` on `FabricQuestionResponse` is a **passthrough** from `foundry_client._fabric_response_from_payload` — it's not gathered by the harness. `lakehouse.py` is writeback-only, not a query path. `pipeline.py` already sends `candidate_controls` shortlist + per-obligation `candidate_control_ids` inline, so the agent isn't starved of *data*; it's starved of *reporting discipline*.
+- **Guardrails observed**: did NOT touch `contracts.py`, `_validated` / `_ask` / `map_controls` in `fabric_workflow.py`, or the control_mapper stage in `pipeline.py`. Considered and rejected post-hoc synthesizing `tool_evidence` (Constitutional "no offline fallback" violation) and touching `CONTROL_MAPPER_SPEC.instructions` (would duplicate the prompt fix and invite drift with the portal).
+
 ### 2026-07-17 — Team update: semantic retry removed from Fabric client
 - The semantic retry loop that wrapped `FabricDataAgentClient.ask` (commit `412d695`) has been removed for latency (commit `f3d6ab4`, hamza-dev). `ask` is now single-attempt.
 - Transport-level retry inside `FoundryAgentClient._invoke_with_retry` is untouched — network / 429 / 5xx retries still work. The change only removed the *semantic* retry that was re-issuing calls when the parsed payload looked wrong.

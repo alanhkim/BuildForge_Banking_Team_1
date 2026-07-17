@@ -226,38 +226,50 @@ class AgentPipeline:
             ob for ob in self.est.obligations if ob.change_id == change_id
         ]
         obligation_ids = [ob.id for ob in change_obligations]
-        # Build in-context obligation facts so Fabric agents can reason about
-        # freshly-interpreted obligations that don't yet exist in the lakehouse.
-        # summary is truncated to keep the prompt small (agent matches by theme,
-        # not by full statement text).
-        obligation_facts = [
-            {
-                "id": ob.id,
-                "theme": ob.theme,
-                "summary": _truncate(ob.statement, 200),
-                "criticality": ob.criticality.value if hasattr(ob.criticality, "value") else str(ob.criticality),
-                "target_maturity": int(ob.target_maturity),
-                "affected_data_domain_ids": [
-                    e.target_id for e in self.est.edges
-                    if e.source_id == ob.id and e.rel_type == RelType.OBLIGATION_CONCERNS_DATA_DOMAIN
-                ],
-            }
-            for ob in change_obligations
-        ]
         # Pre-filter controls by theme so the Fabric agent picks from a small
         # shortlist instead of scanning every control in the lakehouse.
-        candidate_capability_ids: set[str] = set()
+        # Also build a per-obligation candidate control map so each obligation
+        # in the request payload carries an explicit list of control IDs that
+        # match its theme. Without this, the agent has to infer the mapping
+        # from a global candidate list against a global obligation list and
+        # (as observed with ControlMapper v4) sometimes returns empty
+        # mappings when the inference doesn't lock in. Per-obligation hints
+        # remove the ambiguity — the agent still validates against inline
+        # facts, but the "which controls apply to which obligation" signal
+        # is now explicit rather than derived.
+        obligation_candidates: dict[str, list[str]] = {}
+        unmapped_themes: set[str] = set()
         for ob in change_obligations:
-            for cap_id in _THEME_TO_CAPABILITY_IDS.get(ob.theme, ()):
-                candidate_capability_ids.add(cap_id)
+            cap_ids = _THEME_TO_CAPABILITY_IDS.get(ob.theme, ())
+            if not cap_ids:
+                unmapped_themes.add(ob.theme)
+            matching_ids = [
+                c.id for c in self.est.controls
+                if c.capability_id in cap_ids
+            ]
+            obligation_candidates[ob.id] = matching_ids
+        # Global capability filter — union across obligations. Kept because
+        # the harness prompt still emits a top-level 'candidate_controls'
+        # shortlist that the agent uses as the enumerable universe.
+        candidate_capability_ids: set[str] = set()
+        for cap_ids in (
+            _THEME_TO_CAPABILITY_IDS.get(ob.theme, ()) for ob in change_obligations
+        ):
+            candidate_capability_ids.update(cap_ids)
         if candidate_capability_ids:
             candidate_controls_source = [
                 c for c in self.est.controls
                 if c.capability_id in candidate_capability_ids
             ]
         else:
-            # Unknown themes -> fall back to sending all controls (rare).
+            # Every obligation had an unrecognised theme -> fall back to
+            # sending all controls so the agent has *something* to match
+            # against. This is a last resort; the WARNING below tells
+            # operators to add the missing theme(s) to _THEME_TO_CAPABILITY_IDS.
             candidate_controls_source = list(self.est.controls)
+            for ob in change_obligations:
+                # Every obligation now sees the full estate as its shortlist.
+                obligation_candidates[ob.id] = [c.id for c in candidate_controls_source]
         candidate_control_facts = [
             {
                 "id": c.id,
@@ -269,12 +281,70 @@ class AgentPipeline:
             }
             for c in candidate_controls_source
         ]
-        logger.debug(
-            "Fabric pipeline start change_id=%s obligation_count=%d candidate_controls=%d",
+        # Build in-context obligation facts so Fabric agents can reason about
+        # freshly-interpreted obligations that don't yet exist in the lakehouse.
+        # summary is truncated to keep the prompt small (agent matches by theme,
+        # not by full statement text). candidate_control_ids carries the
+        # per-obligation shortlist derived from the theme -> capability map.
+        obligation_facts = [
+            {
+                "id": ob.id,
+                "theme": ob.theme,
+                "summary": _truncate(ob.statement, 200),
+                "criticality": ob.criticality.value if hasattr(ob.criticality, "value") else str(ob.criticality),
+                "target_maturity": int(ob.target_maturity),
+                "candidate_control_ids": obligation_candidates.get(ob.id, []),
+                "affected_data_domain_ids": [
+                    e.target_id for e in self.est.edges
+                    if e.source_id == ob.id and e.rel_type == RelType.OBLIGATION_CONCERNS_DATA_DOMAIN
+                ],
+            }
+            for ob in change_obligations
+        ]
+        # Evidence cardinality — the primary signal for diagnosing empty-
+        # mapping failures. Bishop's harness logs the RESPONSE side
+        # (mappings/reason after the Fabric call); we log the REQUEST side
+        # (what the agent was given to reason about) so the two together
+        # answer "was the agent starved of context, or did it ignore what
+        # it had?". INFO-level because operators need this on the happy path.
+        candidates_per_obligation = [
+            len(obligation_candidates.get(ob.id, [])) for ob in change_obligations
+        ]
+        min_candidates = min(candidates_per_obligation) if candidates_per_obligation else 0
+        avg_candidates = (
+            sum(candidates_per_obligation) / len(candidates_per_obligation)
+            if candidates_per_obligation
+            else 0.0
+        )
+        obligations_with_zero_candidates = [
+            ob.id
+            for ob, count in zip(change_obligations, candidates_per_obligation)
+            if count == 0
+        ]
+        logger.info(
+            "Fabric control_mapper request evidence change_id=%s obligations=%d "
+            "candidate_controls=%d candidates_per_obligation_min=%d "
+            "candidates_per_obligation_avg=%.1f obligations_with_zero_candidates=%d "
+            "unmapped_themes=%s",
             change_id,
             len(obligation_ids),
             len(candidate_control_facts),
+            min_candidates,
+            avg_candidates,
+            len(obligations_with_zero_candidates),
+            sorted(unmapped_themes) if unmapped_themes else "[]",
         )
+        if obligations_with_zero_candidates:
+            logger.warning(
+                "Fabric control_mapper obligations with zero candidate controls "
+                "change_id=%s count=%d ids=%s unmapped_themes=%s — "
+                "add missing themes to _THEME_TO_CAPABILITY_IDS to give the "
+                "agent a per-obligation shortlist",
+                change_id,
+                len(obligations_with_zero_candidates),
+                obligations_with_zero_candidates[:10],
+                sorted(unmapped_themes) if unmapped_themes else "[]",
+            )
 
         # Stage 1: Control Mapper — ground obligation-to-control mappings in Fabric
         try:
@@ -286,7 +356,14 @@ class AgentPipeline:
                     fabric_context_question=(
                         f"Map all obligations for regulatory change {change_id} "
                         "to controls from the provided 'candidate_controls' "
-                        "shortlist. Use inline 'obligations' facts as authoritative."
+                        "shortlist. Use inline 'obligations' facts as authoritative. "
+                        "Each obligation carries a 'candidate_control_ids' array "
+                        "listing the shortlist entries whose capability_id matches "
+                        "its theme — prefer those IDs first, and fall back to the "
+                        "wider 'candidate_controls' list only if none of the "
+                        "per-obligation candidates fit. Every obligation MUST "
+                        "receive either at least one mapping or a documented "
+                        "'reason' entry explaining why no mapping was possible."
                     ),
                 )
             )
@@ -300,12 +377,42 @@ class AgentPipeline:
             raise FabricPipelineError(
                 f"Fabric stage 'control_mapper' failed for {change_id}: {exc}"
             ) from exc
+        # Documented empty-with-reason: control_mapper returned no mappings
+        # but supplied a reason (e.g. shortlist exhausted). This is a valid
+        # outcome per the ControlMappingResponse contract — log at WARNING
+        # and let the pipeline continue. Downstream stages will see empty
+        # inputs; that surfaces naturally rather than being masked here.
+        if not cm_response.mappings and cm_response.reason:
+            logger.warning(
+                "Fabric control_mapper returned empty mappings with reason "
+                "change_id=%s obligations=%d reason=%s",
+                change_id,
+                len(obligation_ids),
+                cm_response.reason,
+            )
         control_ids = list({m.control_id for m in cm_response.mappings})
         logger.debug(
             "Fabric stage complete stage=control_mapper change_id=%s mappings=%d controls=%d",
             change_id,
             len(cm_response.mappings),
             len(control_ids),
+        )
+        # INFO-level response evidence pairs with the pre-call request-side
+        # log above. Together they answer "did the agent honour the inputs
+        # it was given?" — a mappings=0 with candidates_per_obligation_avg
+        # > 0 in the request log means the agent ignored the shortlist.
+        mapped_obligations = {m.obligation_id for m in cm_response.mappings}
+        logger.info(
+            "Fabric control_mapper response evidence change_id=%s "
+            "mappings=%d unique_obligations_mapped=%d/%d "
+            "unique_controls=%d tool_evidence=%d reason_present=%s",
+            change_id,
+            len(cm_response.mappings),
+            len(mapped_obligations),
+            len(obligation_ids),
+            len(control_ids),
+            len(cm_response.tool_evidence),
+            cm_response.reason is not None,
         )
         # Persist Fabric-authoritative control mappings into the estate
         edges_added = self._persist_control_mappings(cm_response.mappings)
@@ -357,6 +464,18 @@ class AgentPipeline:
                     else str(control.status),
                 }
             )
+        # Propagate empty-with-reason from control_mapper to the next stage
+        # rather than crashing GapAnalysisRequest.validate(). The request
+        # will carry the ControlMapper's reason forward so the Gap Analyst
+        # can still be invoked with grounded context (obligation facts) and
+        # emit findings for uncovered obligations.
+        if not cm_response.mappings and cm_response.reason:
+            logger.warning(
+                "Fabric stage propagating empty control_ids "
+                "stage=gap_analyst change_id=%s reason=%s",
+                change_id,
+                cm_response.reason,
+            )
         try:
             ga_response = FabricGapAnalystAgent().analyze(
                 GapAnalysisRequest(
@@ -366,6 +485,13 @@ class AgentPipeline:
                     obligations=obligation_facts,
                     controls=control_facts,
                     mappings=mapping_facts,
+                    # Forward the ControlMapper's documented empty-with-reason
+                    # so GapAnalysisRequest.validate() accepts an empty
+                    # control_ids list (mirrors ControlMappingResponse's
+                    # empty-with-reason contract). If control_mapper returned
+                    # normal results, cm_response.reason is None and this is
+                    # a no-op on the happy path.
+                    reason=cm_response.reason if not cm_response.mappings else None,
                 )
             )
         except FabricDataAgentError as exc:

@@ -268,7 +268,15 @@ class FabricAgentHarness:
         self.fabric_client = fabric_client
 
     def map_controls(self, request: ControlMappingRequest) -> ControlMappingResponse:
-        """Run the Fabric-backed Control Mapper framing."""
+        """Run the Fabric-backed Control Mapper framing.
+
+        Single-attempt: any Fabric-side failure (invalid JSON, empty
+        mappings without a documented ``reason``) propagates immediately.
+        Retry was removed for latency parity with the other Fabric agents
+        after the 2026-07-17 semantic-retry removal — see
+        ``.squad/decisions.md``. Empty-with-reason remains a documented
+        success path per :class:`ControlMappingResponse.validate`.
+        """
         request.validate()
         fabric_response = self._ask(CONTROL_MAPPER_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
@@ -285,10 +293,22 @@ class FabricAgentHarness:
             )
             for item in raw_mappings
         ]
+        reason_raw = payload.get("reason")
+        reason = (
+            reason_raw.strip()
+            if isinstance(reason_raw, str) and reason_raw.strip()
+            else None
+        )
+        logger.info(
+            "Fabric control_mapper mappings=%d reason_present=%s",
+            len(mappings),
+            reason is not None,
+        )
         return _validated(
             ControlMappingResponse(
                 mappings=mappings,
                 tool_evidence=fabric_response.tool_evidence,
+                reason=reason,
             ),
             fabric_response=fabric_response,
         )
@@ -404,9 +424,15 @@ class FabricAgentHarness:
             payload_json = json.dumps(request_payload, default=str, sort_keys=True)
         except (TypeError, ValueError):
             payload_json = repr(request_payload)
+        cardinalities = _payload_cardinalities(request_payload)
+        cardinality_str = " ".join(
+            f"{key}_count={count}" for key, count in cardinalities
+        )
         logger.info(
-            "Fabric agent request agent=%s request_keys=%s payload_bytes=%d prompt_bytes=%d",
+            "Fabric agent request agent=%s %s request_keys=%s "
+            "payload_bytes=%d prompt_bytes=%d",
             spec.name,
+            cardinality_str,
             sorted(request_payload.keys()),
             len(payload_json),
             len(prompt),
@@ -422,6 +448,23 @@ class FabricAgentHarness:
             prompt,
         )
         return self.fabric_client.ask(prompt)
+
+
+def _payload_cardinalities(
+    request_payload: dict[str, Any],
+) -> list[tuple[str, int]]:
+    """Return ``(key, len)`` pairs for list-valued fields in the payload.
+
+    Used to log request cardinalities (obligation_ids count, tool_evidence
+    count, candidate_controls count, etc.) without dumping the whole payload
+    at INFO level. Keys are returned in sorted order for stable log lines.
+    """
+    counts: list[tuple[str, int]] = []
+    for key in sorted(request_payload.keys()):
+        value = request_payload[key]
+        if isinstance(value, list):
+            counts.append((key, len(value)))
+    return counts
 
 
 def _json_answer(fabric_response: FabricQuestionResponse) -> dict[str, Any]:
@@ -507,11 +550,18 @@ def _validated(response, fabric_response: FabricQuestionResponse | None = None):
         response.validate()
     except ValidationError as exc:
         answer_preview = ""
+        answer_snippet = ""
         agent_name = ""
         agent_version = ""
         evidence_count = 0
         if fabric_response is not None:
-            answer_preview = fabric_response.answer[:2000]
+            raw_answer = fabric_response.answer
+            if isinstance(raw_answer, str):
+                answer_preview = raw_answer[:2000]
+                answer_snippet = raw_answer[:500]
+            else:
+                answer_preview = repr(raw_answer)[:2000]
+                answer_snippet = repr(raw_answer)[:500]
             agent_name = fabric_response.agent_name
             agent_version = fabric_response.agent_version
             evidence_count = len(fabric_response.tool_evidence)
@@ -525,7 +575,14 @@ def _validated(response, fabric_response: FabricQuestionResponse | None = None):
             evidence_count,
             answer_preview,
         )
-        raise FabricAgentHarnessError("Fabric agent response failed validation") from exc
+        # Surface the underlying reason (and a short raw-answer snippet, when
+        # available) directly in the harness error. This lets the CLI show
+        # WHY validation failed without operators needing to dig through
+        # debug logs.
+        message = f"Fabric agent response failed validation: {exc}"
+        if answer_snippet:
+            message = f"{message} (raw answer snippet: {answer_snippet!r})"
+        raise FabricAgentHarnessError(message) from exc
     return response
 
 

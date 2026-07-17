@@ -368,11 +368,19 @@ class ControlMapping:
 
 @dataclass(frozen=True)
 class ControlMappingResponse:
-    """Control Mapper agent response."""
+    """Control Mapper agent response.
+
+    ``reason`` documents why an otherwise-successful call returned an empty
+    ``mappings`` list (e.g. shortlist exhausted, no plausible match for the
+    obligation set). An empty ``mappings`` list is only accepted when
+    ``reason`` is a non-empty string; a bare empty list without a reason is
+    still a validation failure.
+    """
 
     mappings: list[ControlMapping]
     tool_evidence: list[ToolEvidence]
     error: AgentError | None = None
+    reason: str | None = None
 
     def validate(self) -> None:
         """Validate mapped controls and Fabric evidence."""
@@ -380,7 +388,21 @@ class ControlMappingResponse:
             self.error.validate()
             return
         if not self.mappings:
-            raise ValidationError("mappings is required")
+            # Empty mappings are only acceptable when the agent supplies a
+            # non-empty reason string. Otherwise the response is treated as
+            # a validation failure (preserves prior contract for callers
+            # that omit reason entirely).
+            if self.reason is None or not self.reason.strip():
+                raise ValidationError(
+                    "mappings is required (or provide non-empty reason)"
+                )
+            if not self.tool_evidence:
+                raise MissingCitationError(
+                    "control mapping requires tool_evidence"
+                )
+            for evidence in self.tool_evidence:
+                evidence.validate()
+            return
         if not self.tool_evidence:
             raise MissingCitationError("control mapping requires tool_evidence")
         for mapping in self.mappings:
@@ -398,6 +420,13 @@ class GapAnalysisRequest:
     obligation→control pairs produced by stage 1 so the Gap Analyst does not
     have to re-derive them (fresh mappings won't exist in the lakehouse yet).
     All three are optional to preserve backward compatibility.
+
+    ``reason`` documents why ``control_ids`` is empty when the upstream
+    Control Mapper legitimately returned zero mappings (e.g. shortlist
+    exhausted, no plausible match). Empty ``control_ids`` is only
+    accepted when ``reason`` is a non-empty string — a bare empty list
+    without a reason is still a validation failure. Mirrors the
+    empty-with-reason contract on :class:`ControlMappingResponse`.
     """
 
     change_id: str
@@ -406,6 +435,7 @@ class GapAnalysisRequest:
     obligations: list[dict] = field(default_factory=list)
     controls: list[dict] = field(default_factory=list)
     mappings: list[dict] = field(default_factory=list)
+    reason: str | None = None
 
     def validate(self) -> None:
         """Validate gap analysis request."""
@@ -414,7 +444,14 @@ class GapAnalysisRequest:
         if not self.obligation_ids:
             raise ValidationError("obligation_ids is required")
         if not self.control_ids:
-            raise ValidationError("control_ids is required")
+            # Empty control_ids are only acceptable when the caller supplies
+            # a non-empty reason string explaining why (typically forwarded
+            # from an empty-with-reason ControlMappingResponse). Preserves
+            # the prior contract for callers that omit reason entirely.
+            if self.reason is None or not self.reason.strip():
+                raise ValidationError(
+                    "control_ids is required (or provide non-empty reason)"
+                )
 
 
 @dataclass(frozen=True)
