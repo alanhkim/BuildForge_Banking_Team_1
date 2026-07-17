@@ -109,6 +109,9 @@ class Settings:
             os.getenv("FOUNDRY_AGENT_MAX_OUTPUT_TOKENS")
         )
     )
+    fabric_materialize_timeout_seconds: int = int(
+        os.getenv("FABRIC_MATERIALIZE_TIMEOUT_SECONDS") or "600"
+    )
 
     @property
     def foundry_enabled(self) -> bool:

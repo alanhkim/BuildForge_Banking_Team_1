@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 _ONELAKE_ACCOUNT_URL = "https://onelake.dfs.fabric.microsoft.com"
 
+# Folder layout expected by ``notebooks/08_fabric/01_load_lakehouse.ipynb``.
+# The PySpark loader reads Parquet from these two Files/ subfolders and
+# materialises them as managed Delta tables plus the ``v_impact``,
+# ``v_compliance`` and ``v_capability_health`` views. Keep these constants
+# in sync with ``RAW_FOLDER`` / ``GOLD_FOLDER`` in that notebook.
+RAW_SUBPATH = "regimpact_raw"
+GOLD_SUBPATH = "regimpact_gold"
+
 
 class LakehouseError(Exception):
     """Base class for OneLake writeback errors."""
@@ -121,3 +129,91 @@ def export_to_lakehouse(
         target_dir,
     )
     return uploaded
+
+
+def export_regimpact_lakehouse(
+    tables_dir: Path,
+    gold_dir: Path,
+    workspace_id: str,
+    lakehouse_id: str,
+    credential=None,
+) -> dict[str, list[str]]:
+    """Upload the raw entity + gold star-schema Parquet sets to a Fabric lakehouse.
+
+    This is the high-level entry point the ``interpret`` CLI uses. It matches
+    the folder layout expected by the companion PySpark notebook
+    (``notebooks/08_fabric/01_load_lakehouse.ipynb``), which reads:
+
+    * ``Files/regimpact_raw/*.parquet``  — 17 entity tables
+    * ``Files/regimpact_gold/*.parquet`` — dim_* / fact_* / bridge_* tables
+
+    ...and then materialises them as managed Delta tables plus the
+    ``v_impact``, ``v_compliance`` and ``v_capability_health`` views inside
+    Fabric. Delta conversion and view creation require the Fabric-provided
+    Spark session, so they stay in the notebook — this function only lands
+    the Parquet in the right place.
+
+    Both directories are optional at runtime: if either is empty or missing,
+    that half of the upload is skipped and reported as an empty list. This
+    lets ``interpret`` run before ``demo`` has produced gold outputs without
+    failing the pipeline.
+
+    Parameters
+    ----------
+    tables_dir:
+        Local directory holding the raw entity Parquet files (from
+        :func:`regimpact.exporter.export_tables`).
+    gold_dir:
+        Local directory holding the star-schema Parquet files (from
+        :func:`regimpact.gold.export_gold`).
+    workspace_id:
+        Fabric workspace ID (GUID).
+    lakehouse_id:
+        Fabric lakehouse ID (GUID).
+    credential:
+        Optional Azure credential. Defaults to
+        :class:`azure.identity.DefaultAzureCredential`.
+
+    Returns
+    -------
+    dict[str, list[str]]
+        ``{"raw": [...abfss urls...], "gold": [...abfss urls...]}``.
+
+    Raises
+    ------
+    LakehouseNotConfiguredError
+        If ``workspace_id`` or ``lakehouse_id`` is empty.
+    LakehouseWriteError
+        If any Parquet upload fails.
+    """
+    cred = credential if credential is not None else _default_credential()
+
+    raw_uploaded: list[str] = []
+    if tables_dir.exists() and any(tables_dir.glob("*.parquet")):
+        raw_uploaded = export_to_lakehouse(
+            tables_dir,
+            workspace_id=workspace_id,
+            lakehouse_id=lakehouse_id,
+            files_subpath=RAW_SUBPATH,
+            credential=cred,
+        )
+    else:
+        logger.warning(
+            "OneLake raw upload skipped: %s has no Parquet files.", tables_dir
+        )
+
+    gold_uploaded: list[str] = []
+    if gold_dir.exists() and any(gold_dir.glob("*.parquet")):
+        gold_uploaded = export_to_lakehouse(
+            gold_dir,
+            workspace_id=workspace_id,
+            lakehouse_id=lakehouse_id,
+            files_subpath=GOLD_SUBPATH,
+            credential=cred,
+        )
+    else:
+        logger.warning(
+            "OneLake gold upload skipped: %s has no Parquet files.", gold_dir
+        )
+
+    return {"raw": raw_uploaded, "gold": gold_uploaded}

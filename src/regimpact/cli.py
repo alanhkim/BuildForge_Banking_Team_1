@@ -20,6 +20,10 @@ from rich.console import Console
 from rich.table import Table
 
 from .agents import AgentPipeline
+from .agents.fabric_materializer import (
+    FabricMaterializerAgent,
+    FabricMaterializerError,
+)
 from .agents.foundry_client import (
     FabricDataAgentClient,
     FabricDataAgentConfig,
@@ -36,7 +40,7 @@ from .impact import ImpactEngine
 from .lakehouse import (
     LakehouseNotConfiguredError,
     LakehouseWriteError,
-    export_to_lakehouse,
+    export_regimpact_lakehouse,
 )
 from .purview import export_purview
 from .scoring import score_change as score_change_fn
@@ -147,18 +151,28 @@ def interpret(
         raise typer.Exit(code=1) from exc
 
     export_tables(est, settings.tables_dir)
+    export_gold(est, settings.gold_dir)
     export_graph(est, settings.graph_dir)
     # Push Parquet tables to the configured Fabric lakehouse (best-effort).
+    # Uploads raw entity tables to Files/regimpact_raw/ and the gold star
+    # schema to Files/regimpact_gold/, matching the layout the PySpark
+    # loader notebook (notebooks/08_fabric/01_load_lakehouse.ipynb) reads.
+    upload_succeeded = False
     try:
-        uploaded = export_to_lakehouse(
+        uploaded = export_regimpact_lakehouse(
             settings.tables_dir,
+            settings.gold_dir,
             workspace_id=settings.fabric_workspace_id,
             lakehouse_id=settings.fabric_lakehouse_id,
         )
         console.print(
-            f"[green]Uploaded {len(uploaded)} Parquet file(s) to OneLake:[/] "
-            f"[cyan]{settings.fabric_lakehouse_id}.Lakehouse/Files/tables[/]"
+            f"[green]Uploaded to OneLake:[/] "
+            f"[cyan]{len(uploaded['raw'])}[/] raw + "
+            f"[cyan]{len(uploaded['gold'])}[/] gold Parquet file(s) into "
+            f"[cyan]{settings.fabric_lakehouse_id}.Lakehouse/Files/"
+            f"{{regimpact_raw,regimpact_gold}}[/]"
         )
+        upload_succeeded = True
     except LakehouseNotConfiguredError:
         console.print(
             "[yellow]OneLake upload skipped:[/] "
@@ -167,6 +181,26 @@ def interpret(
     except LakehouseWriteError as exc:
         console.print(f"[red]OneLake upload failed:[/] {exc}")
         # Do NOT raise — local export succeeded, this is best-effort writeback.
+
+    # Materialize the uploaded parquet into managed Delta tables + views.
+    # Only fires when the OneLake upload actually landed — no point running
+    # the Livy batch if there's nothing new in Files/. This is best-effort
+    # from the CLI's perspective (a Livy failure prints red and continues),
+    # but the FabricMaterializerAgent itself raises rather than silently
+    # succeeding — that's the constitutional guardrail.
+    if upload_succeeded:
+        try:
+            console.print(
+                "[cyan]Materializing lakehouse (Delta + views)...[/]"
+            )
+            summary = FabricMaterializerAgent().materialize()
+            console.print(
+                f"[green]Materialized:[/] batch [cyan]{summary['batch_id']}[/] "
+                f"state=[cyan]{summary['state']}[/] "
+                f"duration=[cyan]{summary['duration_seconds']:.1f}s[/]"
+            )
+        except FabricMaterializerError as exc:
+            console.print(f"[red]Materialize failed:[/] {exc}")
     export_purview(est, settings.purview_dir)
     # Report is built from Fabric-persisted gaps/remediations in the estate.
     # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that
