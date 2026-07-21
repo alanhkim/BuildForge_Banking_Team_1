@@ -1,4 +1,4 @@
 Score_Key,Change_ID,Scope_Type,Scope_ID,Scope_Name,Scenario,Score,Status,As_Of
 Overall|BANK|AsIs|CHG-EUAIACT-UPLOAD|2026-06-25,CHG-EUAIACT-UPLOAD,Overall,BANK,Enterprise,AsIs,52.2,Partially Compliant,2026-06-25
-Overall|BANK|PostChange|CHG-EUAIACT-UPLOAD|2026-06-25,CHG-EUAIACT-UPLOAD,Overall,BANK,Enterprise,PostChange,51.3,Partially Compliant,2026-06-25
+Overall|BANK|PostChange|CHG-EUAIACT-UPLOAD|2026-06-25,CHG-EUAIACT-UPLOAD,Overall,BANK,Enterprise,PostChange,53.1,Partially Compliant,2026-06-25
 Overall|BANK|PostRemediation|CHG-EUAIACT-UPLOAD|2026-06-25,CHG-EUAIACT-UPLOAD,Overall,BANK,Enterprise,PostRemediation,57.1,Partially Compliant,2026-06-25

@@ -913,11 +913,11 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-01",
       "node_type": "Obligation",
-      "label": "Establish data governance controls over training, validation, and testing data f",
+      "label": "Establish data governance controls for training, validation, and testing data us",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-01",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Establish data governance controls over training, validation, and testing data for high-risk AI systems used in creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete.",
+      "Statement": "Establish data governance controls for training, validation, and testing data used in high-risk AI systems for creditworthiness, pricing, fraud detection, and customer eligibility decisions; ensure datasets are relevant, representative, accurate, and complete.",
       "Article": "Source text paragraph 1",
       "Theme": "DATA_QUALITY",
       "Criticality": "High",
@@ -958,9 +958,9 @@
       "Regulation_ID": "REG-EUAIACT",
       "Statement": "Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",
       "Article": "Source text paragraph 4",
-      "Theme": "AI_GOVERNANCE",
+      "Theme": "MODEL_RISK",
       "Criticality": "High",
-      "Target_Maturity": 4
+      "Target_Maturity": 3
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-05",
@@ -969,7 +969,7 @@
       "ID": "OBL-CHG-EUAIACT-UPLOAD-05",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.",
+      "Statement": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when performance falls below approved thresholds.",
       "Article": "Source text paragraph 5",
       "Theme": "MODEL_RISK",
       "Criticality": "High",
@@ -4638,13 +4638,28 @@
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-01",
+      "target": "CTL-DQ-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
       "source": "OBL-CHG-EUAIACT-UPLOAD-02",
       "target": "CTL-LIN-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
+      "target": "CTL-AU-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
       "source": "OBL-CHG-EUAIACT-UPLOAD-03",
       "target": "CTL-TR-1",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-03",
+      "target": "CTL-AU-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
@@ -4655,6 +4670,11 @@
     {
       "source": "OBL-CHG-EUAIACT-UPLOAD-05",
       "target": "CTL-MR-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "target": "CTL-MR-3",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {

@@ -181,3 +181,50 @@ The generic error message will not tell you which layer is failing — the SDK s
 
 Extracted from the 2026-07-21 (afternoon) fix in `src/regimpact/lakehouse.py::export_to_lakehouse` after the same operator hit `FriendlyNameSupportDisabled` a **third** time this week — GUIDs and endpoint were both correct by then; the failing layer was the `.Lakehouse` suffix that had lived in the code (and its docstring) since day one, copied from a Spark-mount doc. See `.squad/decisions/inbox/bishop-onelake-drop-lakehouse-suffix.md` for the full rationale and the diagnostic funnel writeup in `.squad/agents/bishop/history.md` under the same date.
 
+### Extension: delta-rs writes against OneLake `Tables/`
+
+Applies when materialising Delta tables directly from Python (no Fabric notebook, no Spark), using the `deltalake` (delta-rs) library. Adds three rules on top of rules 1-16 above:
+
+17. **URL host = the resolved endpoint host, NOT canonical.** Unlike the Files upload path — where the returned ABFSS URL keeps `onelake.dfs.fabric.microsoft.com` because Spark shortcuts and OneLake lineage parse it downstream — delta-rs uses the URL host as the actual endpoint it will hit. There is no separate `endpoint` key in `storage_options` for OneLake; the URL host IS the endpoint. Passing canonical host with `FABRIC_ONELAKE_DFS_ENDPOINT` set silently reproduces the pre-trilogy regional-capacity misroute.
+
+    ```python
+    # CORRECT for delta-rs writes
+    host = _resolve_onelake_endpoint(endpoint).split("://", 1)[-1].rstrip("/")
+    url = f"abfss://{workspace_id}@{host}/{lakehouse_id}/Tables/{table_name}"
+    ```
+
+    All other trilogy invariants still apply: bare-GUID form, no `.Lakehouse` suffix, GUIDs pre-validated via `_normalize_fabric_id`.
+
+18. **`storage_options` shape is fixed.** For OneLake specifically:
+
+    ```python
+    storage_options = {
+        "bearer_token": credential.get_token("https://storage.azure.com/.default").token,
+        "use_fabric_endpoint": "true",   # required — object_store special-cases OneLake
+    }
+    ```
+
+    - Without `use_fabric_endpoint`, delta-rs's underlying `object_store` layer attempts generic ADLS Gen2 discovery and may misroute.
+    - Bearer-token audience is `https://storage.azure.com/.default` — same audience the Files SDK uses implicitly via `DefaultAzureCredential`.
+    - Refetch the token per write inside a batch. `DefaultAzureCredential` caches internally so this is cheap, and it immunises long batches against mid-run token expiry.
+
+19. **Missing `deltalake` package = `LakehouseNotConfiguredError`, not `LakehouseWriteError`.** Lazy-import behind a helper; catch `ImportError` and raise the config-class error with a message pointing at `pip install 'regimpact[fabric]'`. Matches the decision-§0 taxonomy: config gap = yellow skip, transient/auth/write failure = red warn.
+
+    ```python
+    def _load_write_deltalake():
+        try:
+            from deltalake import write_deltalake
+        except ImportError as exc:
+            raise LakehouseNotConfiguredError(
+                "The 'deltalake' package is required for OneLake Tables/ "
+                "writeback. Install it with: pip install 'regimpact[fabric]'."
+            ) from exc
+        return write_deltalake
+    ```
+
+### Related origin (delta-rs OneLake extension)
+
+Added 2026-07-21 (late evening) while landing `write_delta_table` and `export_regimpact_tables` in `src/regimpact/lakehouse.py`. Full rationale for rules 17-19 lives in `.squad/decisions/inbox/bishop-onelake-delta-tables.md` and the corresponding writeup in `.squad/agents/bishop/history.md` under the same date. Test coverage: `tests/test_lakehouse.py` grew 21 → 34 tests; the 13 new tests mock at the `deltalake.write_deltalake` boundary via a `sys.modules` fake so no live Fabric writes fire during CI.
+
+
+

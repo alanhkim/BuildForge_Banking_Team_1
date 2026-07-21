@@ -378,3 +378,325 @@ def export_regimpact_lakehouse(
         )
 
     return {"raw": raw_uploaded, "gold": gold_uploaded}
+
+
+# ---------------------------------------------------------------------------
+# Delta table writeback (OneLake ``Tables/`` via delta-rs)
+# ---------------------------------------------------------------------------
+#
+# The Files/ upload above lands raw Parquet + CSV in the lakehouse and stops
+# there. Historically the ``01_load_lakehouse.ipynb`` Fabric notebook then
+# had to be opened and run manually to promote those files into managed
+# Delta tables (and to create the ``v_impact`` / ``v_compliance`` /
+# ``v_capability_health`` views).
+#
+# The functions below eliminate the notebook step for table materialisation
+# by writing Delta tables directly to OneLake ``Tables/`` using the
+# ``deltalake`` (delta-rs) Python library. Views still require SQL, so
+# they stay in the notebook as a one-time setup — but the *tables* they
+# read from now materialise automatically at the end of every ``interpret``
+# run.
+#
+# Design decisions (see ``.squad/decisions/inbox/bishop-onelake-delta-tables.md``):
+#
+# 1. **Append mode, never overwrite.** Rows accumulate across ``interpret``
+#    runs — every run adds new obligation/control/gap rows and preserves
+#    prior state. Overwriting would silently lose history and defeat the
+#    audit purpose of the lakehouse.
+# 2. **Flat namespace under ``Tables/``.** No ``regimpact_raw`` /
+#    ``regimpact_gold`` subfolders. The raw entity names
+#    (``controls``, ``obligations``, ``regulations``) and the gold names
+#    (``dim_control``, ``fact_gap``, ``bridge_gap_entity``) don't collide,
+#    so Fabric UI shows a clean flat list of ~34 tables. The Fabric SQL
+#    endpoint surfaces flat table names most cleanly; nested "table
+#    schemas" under ``Tables/`` are supported but add UI clutter with no
+#    upside here.
+# 3. **Schema evolution: ``schema_mode="merge"``.** Additive column
+#    changes (a new column landing in an upstream regenerator) are
+#    absorbed automatically. Incompatible type drift still fails loudly,
+#    surfaced as ``LakehouseWriteError`` with the table name in the
+#    message. NEVER silently drop columns.
+# 4. **``deltalake`` import is lazy.** Same pattern as ``DataLakeServiceClient``
+#    above — missing package maps to ``LakehouseNotConfiguredError``
+#    pointing at ``pip install regimpact[fabric]``.
+
+# Format of a Delta table URL in OneLake — mirrors the Files pattern
+# (bare-GUID canonical form, no ``.Lakehouse`` suffix). Confirmed against
+# ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` → ``properties.oneLakeTablesPath``.
+_DELTA_URL_TEMPLATE = "abfss://{workspace_id}@{host}/{lakehouse_id}/Tables/{table_name}"
+
+# Azure Storage token audience — same scope the Files upload path uses
+# implicitly through ``DefaultAzureCredential``. delta-rs takes the token
+# explicitly via ``storage_options["bearer_token"]``.
+_STORAGE_SCOPE = "https://storage.azure.com/.default"
+
+
+def _host_from_endpoint(endpoint_url: str) -> str:
+    """Strip the ``https://`` scheme from a resolved OneLake endpoint URL.
+
+    delta-rs consumes the ABFSS URL as its write target, so the host
+    embedded in the URL is what it will hit — unlike the Files SDK where
+    the account URL is a separate parameter. Passing the resolved endpoint
+    host (regional if ``FABRIC_ONELAKE_DFS_ENDPOINT`` is set) keeps
+    behaviour parity with the Files upload path.
+    """
+    return endpoint_url.split("://", 1)[-1].rstrip("/")
+
+
+def _load_write_deltalake():
+    """Lazy-import ``deltalake.write_deltalake``.
+
+    Kept out of module top-level so the core CLI can import ``regimpact``
+    without the ``fabric`` extra installed. Missing package is treated as
+    a configuration issue (soft-skip class per decision §0), not a
+    transient write error.
+    """
+    try:
+        from deltalake import write_deltalake
+    except ImportError as exc:  # pragma: no cover — exercised via patch
+        raise LakehouseNotConfiguredError(
+            "The 'deltalake' package is required for OneLake Tables/ "
+            "writeback. Install it with: pip install 'regimpact[fabric]'."
+        ) from exc
+    return write_deltalake
+
+
+def _read_parquet_table(parquet_path: Path):
+    """Read a Parquet file into a ``pyarrow.Table``.
+
+    ``pyarrow`` is a core (non-optional) dependency, so this needs no
+    ``ImportError`` guard. Reads happen against files the local pipeline
+    just wrote, so the OS-level file itself is trusted; any failure here
+    (corrupted file, disk error) is genuinely a write-side problem and
+    maps to :class:`LakehouseWriteError`.
+    """
+    import pyarrow.parquet as pq
+
+    return pq.read_table(parquet_path)
+
+
+def _bearer_token(credential) -> str:
+    """Fetch a fresh bearer token for the Azure Storage audience.
+
+    ``DefaultAzureCredential`` caches internally, so calling this once per
+    Delta write is cheap in the common case. Refetching per-table also
+    avoids a mid-batch expiry on a very slow run.
+    """
+    try:
+        token = credential.get_token(_STORAGE_SCOPE)
+    except Exception as exc:  # noqa: BLE001 — wrap all credential errors
+        raise LakehouseWriteError(
+            f"Failed to acquire Azure Storage bearer token for OneLake "
+            f"Delta write: {exc}"
+        ) from exc
+    return token.token
+
+
+def write_delta_table(
+    parquet_path: Path,
+    *,
+    workspace_id: str,
+    lakehouse_id: str,
+    table_name: str,
+    credential=None,
+    onelake_endpoint: str | None = None,
+) -> str:
+    """Append the contents of ``parquet_path`` to a Delta table in OneLake ``Tables/``.
+
+    The table is created on the first call and appended to on every
+    subsequent call. Schema evolution is opt-in via delta-rs's
+    ``schema_mode="merge"`` — additive column changes are absorbed
+    automatically; incompatible type drift raises
+    :class:`LakehouseWriteError` naming the offending table.
+
+    Parameters
+    ----------
+    parquet_path:
+        Local Parquet file to append. Table rows are read via ``pyarrow``.
+    workspace_id:
+        Fabric workspace ID (GUID). Same validation as :func:`export_to_lakehouse`.
+    lakehouse_id:
+        Fabric lakehouse ID (GUID). Same validation as :func:`export_to_lakehouse`.
+    table_name:
+        Name of the target Delta table under ``Tables/``. Should be a
+        Fabric-friendly identifier (letters, digits, underscores). File
+        stem of ``parquet_path`` is the typical choice.
+    credential:
+        Optional Azure credential. Defaults to
+        :class:`azure.identity.DefaultAzureCredential`.
+    onelake_endpoint:
+        Optional OneLake DFS endpoint URL. Regional endpoint override,
+        honoured exactly like :func:`export_to_lakehouse`.
+
+    Returns
+    -------
+    str
+        The ABFSS URL of the Delta table (``abfss://<ws>@<host>/<lh>/Tables/<name>``).
+
+    Raises
+    ------
+    LakehouseNotConfiguredError
+        If ``workspace_id`` / ``lakehouse_id`` are unset or malformed, if
+        ``onelake_endpoint`` is malformed, or if the ``deltalake`` package
+        is not installed.
+    LakehouseWriteError
+        If token acquisition, Parquet read, or the Delta append itself
+        fails. The table name appears in the message so operators can
+        pinpoint schema drift or a single bad table in a batch run.
+    """
+    workspace_id = _normalize_fabric_id(workspace_id, "FABRIC_WORKSPACE_ID")
+    lakehouse_id = _normalize_fabric_id(lakehouse_id, "FABRIC_LAKEHOUSE_ID")
+    account_url = _resolve_onelake_endpoint(onelake_endpoint)
+    host = _host_from_endpoint(account_url)
+
+    # Fail fast on missing library BEFORE touching credentials / disk.
+    write_deltalake = _load_write_deltalake()
+
+    cred = credential if credential is not None else _default_credential()
+    token = _bearer_token(cred)
+
+    try:
+        arrow_table = _read_parquet_table(parquet_path)
+    except Exception as exc:  # noqa: BLE001
+        raise LakehouseWriteError(
+            f"Failed to read Parquet file for Delta table '{table_name}' "
+            f"(path={parquet_path}): {exc}"
+        ) from exc
+
+    table_url = _DELTA_URL_TEMPLATE.format(
+        workspace_id=workspace_id,
+        host=host,
+        lakehouse_id=lakehouse_id,
+        table_name=table_name,
+    )
+    storage_options = {
+        "bearer_token": token,
+        # Tells the underlying object_store layer to treat this URL as a
+        # Fabric OneLake endpoint. Without this flag delta-rs may attempt
+        # generic ADLS Gen2 discovery and misroute the request.
+        "use_fabric_endpoint": "true",
+    }
+
+    try:
+        # ``schema_mode="merge"`` absorbs additive schema drift (new
+        # columns in an upstream regenerator). Incompatible drift still
+        # fails and is re-raised as ``LakehouseWriteError`` below with
+        # the table name in the message — never silently drop columns.
+        write_deltalake(
+            table_url,
+            arrow_table,
+            mode="append",
+            schema_mode="merge",
+            storage_options=storage_options,
+        )
+    except Exception as exc:  # noqa: BLE001 — wrap all delta-rs errors
+        raise LakehouseWriteError(
+            f"Failed to append Parquet '{parquet_path.name}' to Delta "
+            f"table '{table_name}' in OneLake: {exc}"
+        ) from exc
+
+    logger.info(
+        "Appended %s to Delta table %s (%s)",
+        parquet_path.name,
+        table_name,
+        table_url,
+    )
+    return table_url
+
+
+def export_regimpact_tables(
+    tables_dir: Path,
+    gold_dir: Path,
+    *,
+    workspace_id: str,
+    lakehouse_id: str,
+    credential=None,
+    onelake_endpoint: str | None = None,
+) -> dict[str, list[str]]:
+    """Materialise every Parquet file in ``tables_dir`` and ``gold_dir`` as
+    a Delta table under OneLake ``Tables/`` (append mode).
+
+    Parquet is the source of truth (typed, larger, exactly what the
+    ``export_tables`` / ``export_gold`` local pipeline just produced) —
+    CSV siblings are ignored here. Table name for each file is the file
+    stem (``dim_control.parquet`` → Delta table ``dim_control``).
+
+    Namespacing is deliberately flat: raw entity table names
+    (``controls``, ``obligations``) and gold names
+    (``dim_control``, ``fact_gap``) don't collide, so both sets land at
+    the top of ``Tables/`` for a clean Fabric UI view.
+
+    Both directories are optional at runtime: missing / empty →
+    that half is skipped and reported as an empty list. Mirrors the
+    ``export_regimpact_lakehouse`` shape for the Files/ path.
+
+    Parameters
+    ----------
+    tables_dir:
+        Local directory holding raw entity Parquet files.
+    gold_dir:
+        Local directory holding star-schema Parquet files.
+    workspace_id:
+        Fabric workspace ID (GUID).
+    lakehouse_id:
+        Fabric lakehouse ID (GUID).
+    credential:
+        Optional Azure credential. Defaults to
+        :class:`azure.identity.DefaultAzureCredential`.
+    onelake_endpoint:
+        Optional OneLake DFS endpoint URL. Regional endpoint override,
+        honoured exactly like :func:`export_regimpact_lakehouse`.
+
+    Returns
+    -------
+    dict[str, list[str]]
+        ``{"raw": [...table urls...], "gold": [...table urls...]}``.
+
+    Raises
+    ------
+    LakehouseNotConfiguredError
+        If ``workspace_id`` / ``lakehouse_id`` are unset or malformed, if
+        ``onelake_endpoint`` is malformed, or if the ``deltalake`` package
+        is not installed.
+    LakehouseWriteError
+        If any Delta append fails. The failing table name appears in the
+        message.
+    """
+    # Resolve credential once so all writes reuse the same identity.
+    cred = credential if credential is not None else _default_credential()
+
+    def _write_dir(source: Path) -> list[str]:
+        if not source.exists():
+            logger.warning(
+                "OneLake Delta writeback skipped: %s does not exist.", source
+            )
+            return []
+        parquet_files = sorted(source.glob("*.parquet"))
+        if not parquet_files:
+            logger.warning(
+                "OneLake Delta writeback skipped: %s has no Parquet files.",
+                source,
+            )
+            return []
+        urls: list[str] = []
+        for parquet_path in parquet_files:
+            url = write_delta_table(
+                parquet_path,
+                workspace_id=workspace_id,
+                lakehouse_id=lakehouse_id,
+                table_name=parquet_path.stem,
+                credential=cred,
+                onelake_endpoint=onelake_endpoint,
+            )
+            urls.append(url)
+        return urls
+
+    raw_urls = _write_dir(tables_dir)
+    gold_urls = _write_dir(gold_dir)
+
+    logger.info(
+        "OneLake Delta writeback complete: %d raw + %d gold table(s) appended.",
+        len(raw_urls),
+        len(gold_urls),
+    )
+    return {"raw": raw_urls, "gold": gold_urls}

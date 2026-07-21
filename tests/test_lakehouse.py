@@ -578,3 +578,367 @@ def test_export_to_lakehouse_returns_urls_for_both_formats(tmp_path, monkeypatch
             f"{_LH_GUID}/Files/tables/regulations.csv",
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# Delta table writeback tests (``export_regimpact_tables`` / ``write_delta_table``)
+# ---------------------------------------------------------------------------
+#
+# These mirror the shape of the Files/ tests above but target the delta-rs
+# writeback path. Key differences:
+#
+# * ``deltalake.write_deltalake`` is the boundary we mock. A fake
+#   ``deltalake`` module is installed in ``sys.modules`` before the lazy
+#   import fires inside ``write_delta_table``.
+# * ``pyarrow`` is a core (non-optional) dependency, so tests write real
+#   Parquet files instead of stubs — the mock captures the ``pa.Table``
+#   argument and we assert on its shape.
+# * Credentials are ``MagicMock``s that respond to ``get_token(scope)``
+#   with a mock whose ``.token`` attribute is a canned string.
+
+from regimpact.lakehouse import (  # noqa: E402 — grouped with Delta tests
+    export_regimpact_tables,
+    write_delta_table,
+)
+
+
+def _install_fake_deltalake_module(monkeypatch, write_fn) -> MagicMock:
+    """Register a fake ``deltalake`` module exposing ``write_deltalake``.
+
+    Returns the ``write_deltalake`` mock so tests can assert on call args.
+    Mirrors :func:`_install_fake_datalake_module` but for delta-rs.
+    """
+    write_mock = MagicMock(name="write_deltalake", side_effect=write_fn)
+    deltalake_mod = types.ModuleType("deltalake")
+    deltalake_mod.write_deltalake = write_mock
+    monkeypatch.setitem(sys.modules, "deltalake", deltalake_mod)
+    return write_mock
+
+
+def _write_real_parquet(path: Path, *, rows: int = 2) -> None:
+    """Write a small but valid Parquet file so pyarrow.parquet.read_table works."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pa.table(
+        {
+            "id": list(range(rows)),
+            "name": [f"row-{i}" for i in range(rows)],
+        }
+    )
+    pq.write_table(table, path)
+
+
+def _mock_credential(token_value: str = "fake-bearer-token") -> MagicMock:
+    cred = MagicMock(name="credential")
+    token = MagicMock(name="token")
+    token.token = token_value
+    cred.get_token.return_value = token
+    return cred
+
+
+def test_write_delta_table_happy_path_appends_and_returns_url(tmp_path, monkeypatch):
+    parquet = tmp_path / "dim_control.parquet"
+    _write_real_parquet(parquet, rows=3)
+
+    captured: dict = {}
+
+    def fake_write(url, data, **kwargs):
+        captured["url"] = url
+        captured["data"] = data
+        captured["kwargs"] = kwargs
+
+    write_mock = _install_fake_deltalake_module(monkeypatch, fake_write)
+    cred = _mock_credential()
+
+    url = write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="dim_control",
+        credential=cred,
+    )
+
+    # URL uses bare-GUID canonical form, no ``.Lakehouse`` suffix.
+    assert url == (
+        f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
+        f"{_LH_GUID}/Tables/dim_control"
+    )
+    write_mock.assert_called_once()
+    # Contract: always append, always merge schema.
+    assert captured["kwargs"]["mode"] == "append"
+    assert captured["kwargs"]["schema_mode"] == "merge"
+    # Storage options carry the bearer token and the Fabric flag.
+    storage_options = captured["kwargs"]["storage_options"]
+    assert storage_options["bearer_token"] == "fake-bearer-token"
+    assert storage_options["use_fabric_endpoint"] == "true"
+    # Credential was asked for a Storage token.
+    cred.get_token.assert_called_once_with("https://storage.azure.com/.default")
+
+
+def test_write_delta_table_honours_regional_endpoint_override(tmp_path, monkeypatch):
+    parquet = tmp_path / "controls.parquet"
+    _write_real_parquet(parquet)
+
+    captured: dict = {}
+
+    def fake_write(url, data, **kwargs):
+        captured["url"] = url
+
+    _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    regional = "https://northcentralus-onelake.dfs.fabric.microsoft.com"
+    url = write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+        onelake_endpoint=regional,
+    )
+
+    # Unlike the Files/ path (where the returned URL keeps the canonical
+    # host because Spark shortcuts parse it), the Delta URL uses the
+    # actual host delta-rs will hit — regional when overridden.
+    expected_host = "northcentralus-onelake.dfs.fabric.microsoft.com"
+    assert url == (
+        f"abfss://{_WS_GUID}@{expected_host}/{_LH_GUID}/Tables/controls"
+    )
+    assert captured["url"] == url
+
+
+def test_write_delta_table_rejects_malformed_workspace_id(tmp_path, monkeypatch):
+    parquet = tmp_path / "controls.parquet"
+    _write_real_parquet(parquet)
+    _install_fake_deltalake_module(monkeypatch, lambda *a, **k: None)
+
+    with pytest.raises(LakehouseNotConfiguredError):
+        write_delta_table(
+            parquet,
+            workspace_id="not-a-guid",
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+
+def test_write_delta_table_missing_deltalake_package_raises_configured_error(
+    tmp_path, monkeypatch
+):
+    parquet = tmp_path / "controls.parquet"
+    _write_real_parquet(parquet)
+    # Simulate deltalake not installed: ensure any real one is masked out,
+    # and register a sentinel that will raise ImportError on ``from``-import.
+    monkeypatch.setitem(sys.modules, "deltalake", None)
+
+    with pytest.raises(LakehouseNotConfiguredError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+    # Message must point users at the extras install so this is actionable.
+    assert "regimpact[fabric]" in str(excinfo.value)
+
+
+def test_write_delta_table_wraps_deltalake_errors_with_table_name(
+    tmp_path, monkeypatch
+):
+    parquet = tmp_path / "dim_control.parquet"
+    _write_real_parquet(parquet)
+
+    def fake_write(url, data, **kwargs):
+        # Simulate delta-rs schema-mismatch or transient IO failure.
+        raise RuntimeError("Schema mismatch: column 'x' type Int64 != Utf8")
+
+    _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="dim_control",
+            credential=_mock_credential(),
+        )
+
+    # Table name must appear in the message so operators can pinpoint
+    # which of the 34 tables in a batch failed.
+    assert "dim_control" in str(excinfo.value)
+    assert isinstance(excinfo.value.__cause__, RuntimeError)
+
+
+def test_write_delta_table_wraps_credential_errors(tmp_path, monkeypatch):
+    parquet = tmp_path / "controls.parquet"
+    _write_real_parquet(parquet)
+    _install_fake_deltalake_module(monkeypatch, lambda *a, **k: None)
+
+    cred = MagicMock(name="credential")
+    cred.get_token.side_effect = RuntimeError("MSAL cache corrupted")
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=cred,
+        )
+
+    assert "bearer token" in str(excinfo.value).lower()
+
+
+def test_export_regimpact_tables_writes_raw_and_gold_with_flat_names(
+    tmp_path, monkeypatch
+):
+    raw_dir = tmp_path / "raw"
+    gold_dir = tmp_path / "gold"
+    raw_dir.mkdir()
+    gold_dir.mkdir()
+
+    # Real Fabric shape: raw ``controls`` vs gold ``dim_control`` — verified
+    # no name collision, so flat namespace under Tables/ is safe.
+    _write_real_parquet(raw_dir / "controls.parquet")
+    _write_real_parquet(raw_dir / "regulations.parquet")
+    _write_real_parquet(gold_dir / "dim_control.parquet")
+    _write_real_parquet(gold_dir / "fact_gap.parquet")
+
+    called_urls: list[str] = []
+
+    def fake_write(url, data, **kwargs):
+        called_urls.append(url)
+
+    _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    result = export_regimpact_tables(
+        raw_dir,
+        gold_dir,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=_mock_credential(),
+    )
+
+    assert set(result) == {"raw", "gold"}
+    assert len(result["raw"]) == 2
+    assert len(result["gold"]) == 2
+
+    # Names come from file stems; no ``regimpact_raw`` / ``regimpact_gold``
+    # prefix — flat under Tables/.
+    all_urls = result["raw"] + result["gold"]
+    assert any(u.endswith("/Tables/controls") for u in all_urls)
+    assert any(u.endswith("/Tables/regulations") for u in all_urls)
+    assert any(u.endswith("/Tables/dim_control") for u in all_urls)
+    assert any(u.endswith("/Tables/fact_gap") for u in all_urls)
+    # No .Lakehouse suffix anywhere — same invariant as the Files path.
+    assert not any(".Lakehouse" in u for u in all_urls)
+
+
+def test_export_regimpact_tables_ignores_csv_siblings(tmp_path, monkeypatch):
+    raw_dir = tmp_path / "raw"
+    gold_dir = tmp_path / "gold"
+    raw_dir.mkdir()
+    gold_dir.mkdir()
+
+    _write_real_parquet(raw_dir / "controls.parquet")
+    # CSV sibling must be ignored — Parquet is source of truth for Delta.
+    (raw_dir / "controls.csv").write_bytes(b"id,name\n1,x\n")
+    (raw_dir / "notes.txt").write_bytes(b"skip me")
+
+    call_count = {"n": 0}
+
+    def fake_write(url, data, **kwargs):
+        call_count["n"] += 1
+
+    _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    result = export_regimpact_tables(
+        raw_dir,
+        gold_dir,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=_mock_credential(),
+    )
+
+    # Exactly one write — just the .parquet, never the .csv or .txt.
+    assert call_count["n"] == 1
+    assert len(result["raw"]) == 1
+    assert result["gold"] == []
+
+
+def test_export_regimpact_tables_missing_dirs_return_empty_lists(
+    tmp_path, monkeypatch
+):
+    # Neither dir exists — this happens on a fresh checkout before demo
+    # has produced gold outputs. Should return empty, not raise.
+    _install_fake_deltalake_module(monkeypatch, lambda *a, **k: None)
+
+    result = export_regimpact_tables(
+        tmp_path / "missing-raw",
+        tmp_path / "missing-gold",
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=_mock_credential(),
+    )
+
+    assert result == {"raw": [], "gold": []}
+
+
+def test_export_regimpact_tables_propagates_write_failure_with_table_name(
+    tmp_path, monkeypatch
+):
+    raw_dir = tmp_path / "raw"
+    gold_dir = tmp_path / "gold"
+    raw_dir.mkdir()
+    gold_dir.mkdir()
+    _write_real_parquet(raw_dir / "regulations.parquet")
+
+    def fake_write(url, data, **kwargs):
+        raise RuntimeError("delta-rs: transient IO error")
+
+    _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        export_regimpact_tables(
+            raw_dir,
+            gold_dir,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            credential=_mock_credential(),
+        )
+
+    # Table name (file stem) must appear in the message.
+    assert "regulations" in str(excinfo.value)
+
+
+def test_export_regimpact_tables_shares_single_credential_across_writes(
+    tmp_path, monkeypatch
+):
+    raw_dir = tmp_path / "raw"
+    gold_dir = tmp_path / "gold"
+    raw_dir.mkdir()
+    gold_dir.mkdir()
+    _write_real_parquet(raw_dir / "controls.parquet")
+    _write_real_parquet(raw_dir / "regulations.parquet")
+    _write_real_parquet(gold_dir / "dim_control.parquet")
+
+    _install_fake_deltalake_module(monkeypatch, lambda *a, **k: None)
+    cred = _mock_credential()
+
+    export_regimpact_tables(
+        raw_dir,
+        gold_dir,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=cred,
+    )
+
+    # 3 writes → 3 token fetches on the SAME credential object. This
+    # confirms the credential is reused across writes (no per-table
+    # DefaultAzureCredential churn) and each write gets a fresh token
+    # to survive a mid-batch expiry.
+    assert cred.get_token.call_count == 3
+    for call in cred.get_token.call_args_list:
+        assert call.args == ("https://storage.azure.com/.default",)

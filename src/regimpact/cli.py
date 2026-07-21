@@ -37,6 +37,7 @@ from .lakehouse import (
     LakehouseNotConfiguredError,
     LakehouseWriteError,
     export_regimpact_lakehouse,
+    export_regimpact_tables,
 )
 from .purview import export_purview
 from .scoring import score_change as score_change_fn
@@ -178,6 +179,33 @@ def interpret(
     except LakehouseWriteError as exc:
         console.print(f"[red]OneLake upload failed:[/] {exc}")
         # Do NOT raise — local export succeeded, this is best-effort writeback.
+
+    # Materialise Parquet files as Delta tables directly in the lakehouse
+    # ``Tables/`` area via delta-rs. Append mode — rows accumulate across
+    # ``interpret`` runs. Views (v_impact / v_compliance /
+    # v_capability_health) still live in the notebook because they need
+    # SQL, but the tables they read from now materialise without any
+    # notebook click.
+    try:
+        delta_uploaded = export_regimpact_tables(
+            settings.tables_dir,
+            settings.gold_dir,
+            workspace_id=settings.fabric_workspace_id,
+            lakehouse_id=settings.fabric_lakehouse_id,
+            onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
+        )
+        console.print(
+            f"[green]📊 Wrote {len(delta_uploaded['raw'])} raw + "
+            f"{len(delta_uploaded['gold'])} gold Delta table(s) to "
+            f"lakehouse Tables/[/] (append)"
+        )
+    except LakehouseNotConfiguredError as exc:
+        console.print(f"[yellow]OneLake Delta writeback skipped:[/] {exc}")
+    except LakehouseWriteError as exc:
+        console.print(f"[red]OneLake Delta writeback failed:[/] {exc}")
+        # Do NOT raise — Files/ upload above already succeeded, this is
+        # a best-effort additional writeback for automatic table
+        # materialisation.
 
     export_purview(est, settings.purview_dir)
     # Report is built from Fabric-persisted gaps/remediations in the estate.

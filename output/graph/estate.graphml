@@ -884,11 +884,11 @@
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-01">
       <data key="d0">Obligation</data>
-      <data key="d1">Establish data governance controls over training, validation, and testing data f</data>
+      <data key="d1">Establish data governance controls for training, validation, and testing data us</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-01</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Establish data governance controls over training, validation, and testing data for high-risk AI systems used in creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete.</data>
+      <data key="d18">Establish data governance controls for training, validation, and testing data used in high-risk AI systems for creditworthiness, pricing, fraud detection, and customer eligibility decisions; ensure datasets are relevant, representative, accurate, and complete.</data>
       <data key="d19">Source text paragraph 1</data>
       <data key="d20">DATA_QUALITY</data>
       <data key="d16">High</data>
@@ -926,9 +926,9 @@
       <data key="d9">REG-EUAIACT</data>
       <data key="d18">Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.</data>
       <data key="d19">Source text paragraph 4</data>
-      <data key="d20">AI_GOVERNANCE</data>
+      <data key="d20">MODEL_RISK</data>
       <data key="d16">High</data>
-      <data key="d21">4</data>
+      <data key="d21">3</data>
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-05">
       <data key="d0">Obligation</data>
@@ -936,7 +936,7 @@
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-05</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.</data>
+      <data key="d18">Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when performance falls below approved thresholds.</data>
       <data key="d19">Source text paragraph 5</data>
       <data key="d20">MODEL_RISK</data>
       <data key="d16">High</data>
@@ -4132,11 +4132,23 @@
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
+    <edge source="OBL-CHG-EUAIACT-UPLOAD-01" target="CTL-DQ-2" id="OBLIGATION_REQUIRES_CONTROL">
+      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
+      <data key="d40">1.0</data>
+    </edge>
     <edge source="OBL-CHG-EUAIACT-UPLOAD-02" target="CTL-LIN-1" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
+    <edge source="OBL-CHG-EUAIACT-UPLOAD-02" target="CTL-AU-2" id="OBLIGATION_REQUIRES_CONTROL">
+      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
+      <data key="d40">1.0</data>
+    </edge>
     <edge source="OBL-CHG-EUAIACT-UPLOAD-03" target="CTL-TR-1" id="OBLIGATION_REQUIRES_CONTROL">
+      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
+      <data key="d40">1.0</data>
+    </edge>
+    <edge source="OBL-CHG-EUAIACT-UPLOAD-03" target="CTL-AU-1" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
@@ -4145,6 +4157,10 @@
       <data key="d40">1.0</data>
     </edge>
     <edge source="OBL-CHG-EUAIACT-UPLOAD-05" target="CTL-MR-2" id="OBLIGATION_REQUIRES_CONTROL">
+      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
+      <data key="d40">1.0</data>
+    </edge>
+    <edge source="OBL-CHG-EUAIACT-UPLOAD-05" target="CTL-MR-3" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>

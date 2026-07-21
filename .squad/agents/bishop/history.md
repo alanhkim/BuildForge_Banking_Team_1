@@ -8,6 +8,33 @@
 
 ## Learnings
 
+### 2026-07-21 (late evening) — OneLake Delta writeback via delta-rs (auto-materialisation, notebook step gone)
+
+**Ask.** User (Option 1 of the three post-trilogy options): "Add Delta-table writeback to OneLake `Tables/` using the `deltalake` (delta-rs) Python library. **Append mode**, not overwrite." Goal: eliminate the manual notebook click that was still required to promote Files/ Parquet into managed Delta tables. Rows must accumulate across `interpret` runs (audit-safe), never overwrite.
+
+**Design decisions.**
+
+1. **Flat namespace under `Tables/` (no `regimpact_raw` / `regimpact_gold` subfolders).** Verified raw entity names (`controls`, `obligations`, `regulations`, …) and gold names (`dim_control`, `fact_gap`, `bridge_gap_entity`, …) don't collide — 17 + 17 = 34 unique. Fabric UI shows a clean flat list; the SQL endpoint surfaces flat table names most cleanly. Nested table schemas under `Tables/` are supported but add UI clutter for no upside here.
+2. **Append + `schema_mode="merge"`.** Additive column drift (a new column landing in an upstream regenerator) is absorbed automatically; incompatible type drift still fails loudly and is re-raised as `LakehouseWriteError` **naming the table** so operators can pinpoint which of 34 tables in a batch failed. NEVER silently drop columns.
+3. **`storage_options` shape:** `{"bearer_token": token, "use_fabric_endpoint": "true"}`. The `bearer_token` comes from `credential.get_token("https://storage.azure.com/.default")` (same audience the Files SDK uses implicitly). The `use_fabric_endpoint` flag tells the underlying `object_store` layer to special-case Fabric OneLake URLs — without it delta-rs may attempt generic ADLS Gen2 discovery and misroute.
+4. **URL host = resolved endpoint (regional if overridden).** Unlike the Files path — where the returned ABFSS keeps the canonical host because Spark shortcuts / OneLake lineage parse it — the delta-rs write URL IS what the library will actually hit. Passing the resolved endpoint host (`northcentralus-onelake.dfs.fabric.microsoft.com` when `FABRIC_ONELAKE_DFS_ENDPOINT` is set) is the correct behaviour: honours the regional-capacity fix from the trilogy and no downstream consumer parses these URLs (they're purely internal to the write). Documented in-code so future me doesn't "fix" it back to canonical.
+5. **Bare-GUID URL form.** `abfss://{workspace_id}@{host}/{lakehouse_id}/Tables/{table_name}` — no `.Lakehouse` suffix. Same trilogy invariant as Files. Reused `_normalize_fabric_id` and `_resolve_onelake_endpoint` unchanged.
+6. **Missing `deltalake` package = soft-skip.** Wraps `ImportError` in `LakehouseNotConfiguredError` with a message pointing at `pip install regimpact[fabric]`. Matches the decision-§0 taxonomy: config gap = yellow, transient/write failure = red.
+7. **Credential shared across writes, token refetched per write.** `export_regimpact_tables` builds one `DefaultAzureCredential` and reuses it; `write_delta_table` refetches `get_token(...)` on every call. `DefaultAzureCredential` caches internally so this is cheap, and refetching per-write immunises the batch against a mid-run token expiry.
+
+**Delivered.**
+
+- `src/regimpact/lakehouse.py` — new public `write_delta_table(parquet_path, *, workspace_id, lakehouse_id, table_name, credential=None, onelake_endpoint=None)` returns the ABFSS URL of the appended table. New public `export_regimpact_tables(tables_dir, gold_dir, *, workspace_id, lakehouse_id, credential=None, onelake_endpoint=None)` returns `{"raw": [urls], "gold": [urls]}` — mirrors `export_regimpact_lakehouse`. Both directories optional (missing/empty → empty list, logged as skip). Helpers: `_host_from_endpoint`, `_load_write_deltalake` (lazy import + ImportError→NotConfigured wrap), `_read_parquet_table` (pyarrow, always available as core dep), `_bearer_token` (credential errors → LakehouseWriteError). Extensive design-decision comment block above the new functions for future maintainers.
+- `src/regimpact/cli.py` — `interpret` command now calls `export_regimpact_tables(...)` immediately after `export_regimpact_lakehouse(...)`. Same yellow-skip / red-warn-non-fatal error posture. Console: `📊 Wrote N raw + M gold Delta table(s) to lakehouse Tables/ (append)`.
+- `pyproject.toml` — added `"deltalake>=0.17"` to `[project.optional-dependencies].fabric`. Nothing else changed.
+- `tests/test_lakehouse.py` — 21 → 34 tests (+13 new). Mocks at the `deltalake.write_deltalake` boundary via a `sys.modules["deltalake"]` fake (same pattern as `_install_fake_datalake_module`). Real Parquet files written via pyarrow (core dep) so `pq.read_table` is genuine — only the delta write is mocked. Covers: happy path (URL shape + append + schema_mode + storage_options), regional endpoint override, GUID validation, missing-package → NotConfigured with `regimpact[fabric]` hint, delta-rs write failure → WriteError with table name, credential failure → WriteError, flat namespace / raw+gold split, CSV siblings ignored, missing dirs return empty, write failure surfaces table name, single credential shared across writes with per-write token fetch.
+
+**Test outcome.** 34/34 lakehouse tests green. Import sanity check `from regimpact.lakehouse import export_regimpact_tables` clean.
+
+**Deliberately NOT done.** No live write from this session — user's next step. No changes to the notebook: the `v_impact` / `v_compliance` / `v_capability_health` views still require SQL and stay in the notebook as a one-time setup. Only the *tables* they read from are now auto-materialised.
+
+**Trap avoided.** Initial instinct was to keep the URL host canonical (mirroring Files) and pass regional endpoint via `storage_options`. But delta-rs derives the endpoint from the URL host directly — there's no separate `endpoint` key in `storage_options` for OneLake. Trying to force canonical host with a regional override would have silently reproduced the pre-trilogy capacity misroute. Passing the resolved endpoint host directly is the correct shape here.
+
 ### 2026-07-21 (evening) — OneLake writeback extended to CSV alongside Parquet (glob stays restricted)
 
 **Ask.** User: "nice it worked — wrote to the lakehouse. however, i only see parquet written — can we also write the equivalent csv files please..." Additive extension to the boundary hardened earlier today.

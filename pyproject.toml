@@ -28,6 +28,7 @@ foundry = [
 fabric = [
     "azure-storage-file-datalake>=12.14",
     "azure-identity>=1.16",
+    "deltalake>=0.17",
 ]
 
 [project.scripts]
