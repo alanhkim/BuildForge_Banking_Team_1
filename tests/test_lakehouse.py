@@ -106,7 +106,7 @@ def test_export_uploads_all_parquet_files(tmp_path, monkeypatch):
 
     service_instance.get_file_system_client.assert_called_once_with(_WS_GUID)
     file_system.get_directory_client.assert_called_once_with(
-        f"{_LH_GUID}.Lakehouse/Files/tables"
+        f"{_LH_GUID}/Files/tables"
     )
 
     assert set(file_clients) == {"regulations.parquet", "controls.parquet"}
@@ -120,9 +120,9 @@ def test_export_uploads_all_parquet_files(tmp_path, monkeypatch):
     assert sorted(urls) == sorted(
         [
             f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
-            f"{_LH_GUID}.Lakehouse/Files/tables/regulations.parquet",
+            f"{_LH_GUID}/Files/tables/regulations.parquet",
             f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
-            f"{_LH_GUID}.Lakehouse/Files/tables/controls.parquet",
+            f"{_LH_GUID}/Files/tables/controls.parquet",
         ]
     )
 
@@ -234,7 +234,7 @@ def test_export_strips_trailing_newline_from_workspace_id(tmp_path, monkeypatch)
     # The ABFSS URL must contain the stripped GUID, not the raw newline value.
     assert urls == [
         f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
-        f"{_LH_GUID}.Lakehouse/Files/tables/regulations.parquet"
+        f"{_LH_GUID}/Files/tables/regulations.parquet"
     ]
 
 
@@ -253,7 +253,7 @@ def test_export_strips_newline_and_passes_clean_guid_to_sdk(tmp_path, monkeypatc
     # Filesystem name (workspace) must be the stripped GUID, not the raw input.
     service_instance.get_file_system_client.assert_called_once_with(_WS_GUID)
     file_system.get_directory_client.assert_called_once_with(
-        f"{_LH_GUID}.Lakehouse/Files/tables"
+        f"{_LH_GUID}/Files/tables"
     )
 
 
@@ -299,9 +299,174 @@ def test_export_strips_surrounding_quotes_from_lakehouse_id(tmp_path, monkeypatc
     service_instance = service_cls.return_value
     service_instance.get_file_system_client.assert_called_once_with(_WS_GUID)
     file_system.get_directory_client.assert_called_once_with(
-        f"{_LH_GUID}.Lakehouse/Files/tables"
+        f"{_LH_GUID}/Files/tables"
     )
     assert urls == [
         f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
-        f"{_LH_GUID}.Lakehouse/Files/tables/regulations.parquet"
+        f"{_LH_GUID}/Files/tables/regulations.parquet"
     ]
+
+
+# --- OneLake DFS endpoint override (FriendlyNameSupportDisabled hardening) ---
+#
+# Some Fabric capacities advertise a *regional* OneLake endpoint via
+# ``GET /v1/workspaces/{id}`` → ``oneLakeEndpoints.dfsEndpoint``. On those
+# capacities the global endpoint returns ``FriendlyNameSupportDisabled``
+# instead of forwarding, so callers must point the SDK at the regional host
+# directly. The ABFSS URL format is unchanged — regional routing is a
+# data-plane detail, not a name-plane one.
+
+_REGIONAL_ENDPOINT = "https://northcentralus-onelake.dfs.fabric.microsoft.com"
+
+
+@pytest.mark.parametrize("endpoint_arg", [None, "", "   "])
+def test_export_uses_global_endpoint_when_override_unset(
+    tmp_path, monkeypatch, endpoint_arg
+):
+    """``None`` / empty / whitespace-only → falls back to the global default."""
+    _write_parquet_stub(tmp_path / "regulations.parquet")
+    service_cls, _, _ = _wire_mock_datalake(monkeypatch)
+
+    export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+        onelake_endpoint=endpoint_arg,
+    )
+
+    account_url = service_cls.call_args.args[0]
+    assert account_url == "https://onelake.dfs.fabric.microsoft.com"
+
+
+def test_export_uses_regional_endpoint_when_override_set(tmp_path, monkeypatch):
+    """Explicit regional endpoint → passed straight through to the SDK."""
+    _write_parquet_stub(tmp_path / "regulations.parquet")
+    service_cls, _, _ = _wire_mock_datalake(monkeypatch)
+
+    export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+        onelake_endpoint=_REGIONAL_ENDPOINT,
+    )
+
+    account_url = service_cls.call_args.args[0]
+    assert account_url == _REGIONAL_ENDPOINT
+
+
+def test_export_abfss_url_uses_canonical_host_even_with_regional_endpoint(
+    tmp_path, monkeypatch
+):
+    """Regional routing is a data-plane detail — ABFSS URLs stay canonical.
+
+    Downstream tools (Spark shortcuts, notebook loaders) parse these URLs
+    and expect the non-regional ``onelake.dfs.fabric.microsoft.com`` host.
+    Accidentally region-tainting the URL would break them.
+    """
+    _write_parquet_stub(tmp_path / "regulations.parquet")
+    _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+        onelake_endpoint=_REGIONAL_ENDPOINT,
+    )
+
+    assert urls == [
+        f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
+        f"{_LH_GUID}/Files/tables/regulations.parquet"
+    ]
+    # Belt-and-braces: no regional prefix leaked into the returned URL.
+    assert "northcentralus-onelake" not in urls[0]
+
+
+def test_export_rejects_endpoint_missing_scheme(tmp_path):
+    """Missing ``https://`` → soft-skip via LakehouseNotConfiguredError."""
+    with pytest.raises(LakehouseNotConfiguredError) as excinfo:
+        export_to_lakehouse(
+            tmp_path,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            credential=object(),
+            onelake_endpoint="onelake.dfs.fabric.microsoft.com",
+        )
+
+    msg = str(excinfo.value)
+    assert "FABRIC_ONELAKE_DFS_ENDPOINT" in msg
+    assert "onelake.dfs.fabric.microsoft.com" in msg
+
+
+def test_export_rejects_endpoint_pointing_at_non_onelake_host(tmp_path):
+    """https:// but not a OneLake host → soft-skip via LakehouseNotConfiguredError."""
+    with pytest.raises(LakehouseNotConfiguredError) as excinfo:
+        export_to_lakehouse(
+            tmp_path,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            credential=object(),
+            onelake_endpoint="https://example.com",
+        )
+
+    msg = str(excinfo.value)
+    assert "FABRIC_ONELAKE_DFS_ENDPOINT" in msg
+    assert "example.com" in msg
+
+
+# --- Regression guards: bare-GUID canonical ADLS path (no `.Lakehouse` suffix) ---
+#
+# Confirmed against Fabric REST: ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` →
+# ``properties.oneLakeFilesPath`` returns
+# ``https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Files``
+# — no ``.Lakehouse`` suffix. The suffix is a Fabric UI / Spark-shortcut
+# convention that the ADLS Gen2 name-plane rejects with
+# ``FriendlyNameSupportDisabled``. These guards ensure nobody re-adds it
+# from a stale blog post or Spark-mount doc.
+
+
+def test_export_to_lakehouse_uses_bare_guid_directory_no_lakehouse_suffix(
+    tmp_path, monkeypatch
+):
+    """The directory client MUST be created with the bare lakehouse GUID."""
+    _write_parquet_stub(tmp_path / "regulations.parquet")
+    _, file_system, _ = _wire_mock_datalake(monkeypatch)
+
+    export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    file_system.get_directory_client.assert_called_once_with(
+        f"{_LH_GUID}/Files/tables"
+    )
+    # The passed directory string must not contain the stale `.Lakehouse`
+    # suffix anywhere — not as a prefix, not as a nested segment.
+    (target_dir,) = file_system.get_directory_client.call_args.args
+    assert ".Lakehouse" not in target_dir
+
+
+def test_export_returned_abfss_urls_never_contain_lakehouse_suffix(
+    tmp_path, monkeypatch
+):
+    """Returned ABFSS URLs must use the bare lakehouse GUID as the top-level dir."""
+    _write_parquet_stub(tmp_path / "regulations.parquet")
+    _write_parquet_stub(tmp_path / "controls.parquet")
+    _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    assert urls, "expected at least one uploaded URL"
+    for url in urls:
+        assert ".Lakehouse" not in url, (
+            f"stale `.Lakehouse` suffix leaked into ABFSS URL: {url}"
+        )

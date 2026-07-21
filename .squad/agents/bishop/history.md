@@ -8,6 +8,108 @@
 
 ## Learnings
 
+### 2026-07-21 (afternoon) — OneLake canonical ADLS path is the bare lakehouse GUID (no `.Lakehouse` suffix)
+
+**Bug (third `FriendlyNameSupportDisabled` incident this week, same operator, same workspace).** GUIDs are canonical (yesterday's `_normalize_fabric_id` fix). Endpoint is regional and correctly overridden (this morning's `_resolve_onelake_endpoint` fix). Uploads *still* fail with `FriendlyNameSupportDisabled`. Same generic error string — third root cause.
+
+**Definitive diagnosis (via Fabric REST, not blogs).** `GET /v1/workspaces/{ws}/lakehouses/{lh}` returns:
+
+```json
+"oneLakeFilesPath":  "https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Files"
+"oneLakeTablesPath": "https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Tables"
+```
+
+Fabric's canonical ADLS Gen2 path uses the **bare lakehouse GUID** as the top-level directory. Our code has always built `{lakehouse_id}.Lakehouse/Files/{subpath}` — copied from Microsoft docs about mounting lakehouses in **Spark shortcuts**, where the `.Lakehouse` suffix is a valid UI/notebook mount convention. That convention does NOT apply to direct ADLS Gen2 access via `DataLakeServiceClient`. The name-plane rejects `<guid>.Lakehouse` as unresolvable → `FriendlyNameSupportDisabled`.
+
+**Fix (`src/regimpact/lakehouse.py`, one-liner in each of two spots inside `export_to_lakehouse`):**
+- `target_dir = f"{lakehouse_id}/Files/{files_subpath}"` (was `{lakehouse_id}.Lakehouse/Files/…`).
+- `abfss_url = f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/{lakehouse_id}/Files/{files_subpath}/{local_path.name}"` (was `{lakehouse_id}.Lakehouse/Files/…`).
+- Module docstring + `lakehouse_id:` param docstring + inline comment updated to state the canonical form is the bare GUID and call out that `.Lakehouse` is a shortcut/UI convention only.
+- Also updated `cli.py` display string (`f"{settings.fabric_lakehouse_id}/Files/…"`) — it advertises where the Python upload landed, so it must match the SDK path.
+
+**Why this hid for so long.** Two reasons converged:
+1. The two prior `FriendlyNameSupportDisabled` fixes (GUID normalization → regional endpoint override) were each real bugs *and* were each necessary preconditions before this third layer became visible. With malformed GUIDs the SDK never got as far as looking up the directory; with wrong regional routing it never got past the account-URL resolution. Each fix unblocked the next failure mode.
+2. Microsoft's own docs use the `.Lakehouse` suffix in Spark/shortcut examples — which is correct for those contexts. The doc set doesn't clearly distinguish "mount path for a notebook" from "direct ADLS Gen2 name-plane identifier"; a reader porting one example to the other silently gets it wrong.
+
+**Diagnostic funnel for future `FriendlyNameSupportDisabled` occurrences (canonical sequence — run in order, cheapest first):**
+1. **GUID validation at the boundary.** Strip + `uuid.UUID()` + canonical-form check. Covers env-var copy/paste artefacts. → `_normalize_fabric_id`.
+2. **Regional endpoint check.** Hit `GET /v1/workspaces/{ws}` and read `oneLakeEndpoints.dfsEndpoint`. If it's regional, the hardcoded global endpoint's routing layer will refuse to forward. → `_resolve_onelake_endpoint` + `FABRIC_ONELAKE_DFS_ENDPOINT`.
+3. **Canonical path verification.** Hit `GET /v1/workspaces/{ws}/lakehouses/{lh}` and read `properties.oneLakeFilesPath` / `oneLakeTablesPath`. Fabric will tell you *exactly* what the ADLS Gen2 path prefix is. Do not trust blogs or Spark examples for the direct-ADLS path — trust the metadata API.
+
+`FriendlyNameSupportDisabled` is Fabric's generic "identifier could not be resolved" error and covers all three: bad GUID, wrong region routing, or malformed path prefix. The funnel above is the right sequence for triage.
+
+**Rule that falls out of this pattern.** Anytime you build a Fabric ADLS Gen2 URL from documented conventions, cross-check it against `GET /v1/workspaces/{ws}/lakehouses/{lh}` → `properties.oneLakeFilesPath`. That REST response is the authoritative canonical form. If the string you're constructing does not match it byte-for-byte (after substituting your workspace_id and lakehouse_id), your URL is wrong regardless of what any doc/blog/tutorial says.
+
+**Tests (`tests/test_lakehouse.py`):** 19/19 green (17 existing, all updated to drop `.Lakehouse` in expected values, + 2 new regression guards).
+- `test_export_to_lakehouse_uses_bare_guid_directory_no_lakehouse_suffix` — asserts `get_directory_client("{lh_guid}/Files/tables")` and that `.Lakehouse` appears nowhere in the passed string.
+- `test_export_returned_abfss_urls_never_contain_lakehouse_suffix` — asserts `.Lakehouse` appears nowhere in any returned ABFSS URL.
+
+**Backward-compat call-out.** ABFSS URLs returned by `export_to_lakehouse` and `export_regimpact_lakehouse` change format (drop `.Lakehouse`). That is intentional and correct — the old URLs were structurally invalid and nobody could have been using them successfully, because every upload was failing before returning anything.
+
+**Deliberately NOT done:**
+- Did not touch `_normalize_fabric_id`. GUID validation itself was and is fine — the previous fixes were correct, just insufficient.
+- Did not touch `_resolve_onelake_endpoint`. Regional endpoint work stands.
+- Did not change any public function signature.
+- Did not touch `pipeline.py`, `foundry_client.py`, `agents/`, or `01_load_lakehouse.ipynb`. The notebook uses paths *relative* to the attached lakehouse's `Files/` root (`Files/regimpact_raw`, `Files/regimpact_gold`), so it never spells out the `.Lakehouse` prefix in the first place — it was never part of the bug surface.
+- Did not re-open the FabricMaterializer discussion. Pure path-string fix.
+
+**Grep sweep results.** After the fix, all remaining `.Lakehouse` occurrences in the tree are either (a) explanatory prose in `lakehouse.py` docstrings / `test_lakehouse.py` comments explaining why we don't use it, (b) the two regression-guard assertions themselves (`assert ".Lakehouse" not in target_dir`), (c) the `regimpact.lakehouse` Python module name (unrelated), or (d) `.squad/agents/lambert/history.md` (historical record of the pre-fix state — left unchanged per user instruction). `docs/` had zero hits. `01_load_lakehouse.ipynb` had zero hits. `pyproject.toml` had zero hits. Nothing else needed updating.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — module docstring, `lakehouse_id:` param docstring, `target_dir` line, `abfss_url` line + inline comment.
+- `src/regimpact/cli.py` — one display-string kwarg (`{settings.fabric_lakehouse_id}/Files/…`).
+- `tests/test_lakehouse.py` — 6 expected-value updates + 2 new regression tests.
+- `.squad/decisions/inbox/bishop-onelake-drop-lakehouse-suffix.md` — decision drop.
+- `.squad/skills/fabric-resource-id-validation/SKILL.md` — new section on canonical ADLS path verification.
+
+**For the operator:** no `.env` change needed. Just re-run `python -m regimpact interpret ...` after `pip install -e .` picks up the code change. This should be the last `FriendlyNameSupportDisabled` — GUIDs, endpoint, and path prefix are all now correct simultaneously for the first time.
+
+### 2026-07-21 — OneLake regional endpoint: env-var override, ABFSS stays canonical
+
+**Bug (follow-on to yesterday's GUID hardening).** Same operator, same workspace, canonical GUIDs — and `interpret` still failed with `(FriendlyNameSupportDisabled) Request Failed with WorkspaceId and ArtifactId should be either valid Guids or valid Names`. The GUIDs pass `_normalize_fabric_id`, so `FriendlyNameSupportDisabled` was coming from a *different* boundary this time.
+
+**Diagnosis.** Hit `GET https://api.fabric.microsoft.com/v1/workspaces/{id}` directly and the workspace advertises a **regional** OneLake endpoint via `oneLakeEndpoints.dfsEndpoint`: `https://northcentralus-onelake.dfs.fabric.microsoft.com`. Our `lakehouse.py` hardcoded the global endpoint (`https://onelake.dfs.fabric.microsoft.com`) as the ADLS account URL. On some capacity SKUs the global endpoint's routing layer does not forward transparently — it returns the same opaque `FriendlyNameSupportDisabled` error that a malformed GUID does. Hitting the regional endpoint directly works. So the same server-side error string covers two entirely different root causes (bad ID *or* wrong endpoint for this capacity), which is why yesterday's fix looked like it solved the problem but the user was actually going to hit the second cause on their next run.
+
+**Fix (`src/regimpact/lakehouse.py`, `src/regimpact/settings.py`, `src/regimpact/cli.py`):**
+- `_ONELAKE_ACCOUNT_URL = "https://onelake.dfs.fabric.microsoft.com"` stays as the module-level *fallback default* (backward-compat — anyone already relying on it sees no change).
+- New `_resolve_onelake_endpoint(raw)` helper: `None` / empty / whitespace → returns the default; otherwise strip whitespace + surrounding quotes, then validate the shape at the boundary (must start with `https://` and contain `onelake.dfs.fabric.microsoft.com`). Same failure-class reasoning as yesterday's GUID validator: malformed config fails every run until fixed → `LakehouseNotConfiguredError` (soft yellow skip per §0), never `LakehouseWriteError` (transient/red).
+- New optional parameter `onelake_endpoint: str | None = None` on both `export_to_lakehouse` and `export_regimpact_lakehouse`. Signature-additive, default-preserving.
+- `DataLakeServiceClient(account_url, credential=...)` uses the resolved endpoint.
+- **ABFSS URLs are unchanged** — always `abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/…`. This is deliberate: ABFSS is a *name-plane* identifier that downstream Spark shortcuts, `01_load_lakehouse.ipynb`, and lineage tools parse; the regional prefix is a *data-plane* routing detail OneLake applies for you. Region-tainting the URL would break those consumers. Added an explicit test guarding that invariant.
+- `settings.py`: `fabric_onelake_dfs_endpoint: str = os.getenv("FABRIC_ONELAKE_DFS_ENDPOINT") or ""` — pure env passthrough, no default baked into `Settings`. The default lives in the domain module where the SDK call happens. Keeps the "settings are dumb bindings" pattern intact.
+- `cli.py`: one-line threading — `onelake_endpoint=settings.fabric_onelake_dfs_endpoint` on the existing `export_regimpact_lakehouse` call. Everything else unchanged.
+
+**Fix pattern (generalizable).** Env-var override → optional parameter (defaults to `None`) → resolver helper that falls back to a module-level default when the override is empty/unset → validate at the boundary and map malformed values to the "not configured" soft-skip class. Same shape as the GUID validator; same §0 failure semantics. Backward-compatible by construction (empty env var → same behavior as before). Explicit config beats magic auto-retry (do NOT "try global first, fall back to regional" — one round-trip per run, silent regional fallback hides capacity misconfiguration).
+
+**Why NOT auto-detect the endpoint from `GET /v1/workspaces/{id}`?** Considered and rejected. Pros: no operator config needed. Cons: (a) adds a synchronous Fabric REST hop to every `interpret` run, (b) needs a token for `api.fabric.microsoft.com` (different scope than `storage.azure.com`), (c) failure mode when the metadata call fails is unclear — silently fall back to global? Fail hard? Neither is obviously right. An env var is one line in `.env` and zero runtime cost. Explicit > magic.
+
+**Why NOT change ABFSS URL format.** Even on a regional capacity, the workspace advertises the canonical `onelake.dfs.fabric.microsoft.com` host as its `oneLakeEndpoints.blobEndpoint` for ABFSS-style access — regional routing is a *data-plane* concern, applied transparently by OneLake based on the caller's location and the workspace's capacity region. Downstream tools (Spark shortcuts, `01_load_lakehouse.ipynb`, Purview lineage) expect the canonical form. If we started emitting `abfss://{ws}@northcentralus-onelake.dfs.fabric.microsoft.com/...` we would (a) break those consumers, (b) fragment lineage records by region, (c) leak an operational detail into a logical identifier. Test `test_export_abfss_url_uses_canonical_host_even_with_regional_endpoint` guards this invariant.
+
+**Failure-class semantics (unchanged, still per §0).** `LakehouseNotConfiguredError` = soft yellow skip: unset workspace/lakehouse GUID, malformed GUID, *and now malformed endpoint*. `LakehouseWriteError` = hard red: transient network / auth / capacity failures at upload time. Malformed `FABRIC_ONELAKE_DFS_ENDPOINT` slots into the soft-skip bucket for the same reason a malformed GUID does — it fails every run until the operator fixes it, so it is definitionally "not configured".
+
+**Tests (`tests/test_lakehouse.py`):** 17/17 green (10 existing + 7 new). New coverage:
+- `None` / `""` / `"   "` for `onelake_endpoint` → SDK receives the global default (parametrized).
+- Explicit regional endpoint → SDK receives the regional URL verbatim.
+- Regional endpoint + ABFSS URL invariant → returned URLs still use the canonical `onelake.dfs.fabric.microsoft.com` host; belt-and-braces `assert "northcentralus-onelake" not in urls[0]`.
+- `"onelake.dfs.fabric.microsoft.com"` (no scheme) → `LakehouseNotConfiguredError`, message names the env var and the offending value.
+- `"https://example.com"` (wrong host) → `LakehouseNotConfiguredError`, message names the env var and the offending value.
+
+**Deliberately NOT done:**
+- Did not touch `pipeline.py`, `foundry_client.py`, or the agent stack (out of scope; only OneLake writeback consumes the DFS endpoint).
+- Did not re-validate GUIDs differently — `_normalize_fabric_id` stays as-is.
+- Did not add auto-detect from `oneLakeEndpoints.dfsEndpoint`. Reasoning above.
+- Did not change the ABFSS URL format. Reasoning above.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — module comment + `_ONELAKE_ENDPOINT_MARKER` constant + `_resolve_onelake_endpoint` helper + new `onelake_endpoint` parameter on both public functions + SDK call uses resolved endpoint.
+- `src/regimpact/settings.py` — one field: `fabric_onelake_dfs_endpoint`.
+- `src/regimpact/cli.py` — one kwarg on the existing `export_regimpact_lakehouse` call.
+- `tests/test_lakehouse.py` — 5 new test functions (one parametrized across 3 values).
+- `.squad/decisions/inbox/bishop-onelake-regional-endpoint.md` — decision drop.
+- `.squad/skills/fabric-resource-id-validation/SKILL.md` — related-pattern section appended.
+
+**For the operator:** add `FABRIC_ONELAKE_DFS_ENDPOINT=https://northcentralus-onelake.dfs.fabric.microsoft.com` to `.env`, then re-run `python -m regimpact interpret ...`.
+
 ### 2026-07-21 — Team update: your GUID validation is now the ENTIRE OneLake boundary — Livy client is gone
 - Lambert removed the FabricMaterializer + Livy layer today (reverses the 2026-07-17 Option-A decision). Files deleted: `fabric_materializer.py`, `fabric_materializer_spec.py`, `fabric_livy_client.py`, plus both test modules. See top of `.squad/decisions.md` for the governing reversal.
 - **Direct impact on your work:** the `fabric_livy_client.py` GUID revalidation follow-up you flagged in your 2026-07-20 "Deliberately NOT done" list is now MOOT — the file is gone. Your `_normalize_fabric_id` in `lakehouse.py::export_to_lakehouse` is the ENTIRE OneLake ID validation surface for the Python pipeline. There is no longer a second consumer of `FABRIC_WORKSPACE_ID` / `FABRIC_LAKEHOUSE_ID` that needs the pattern re-applied. Cross that off your follow-up list.

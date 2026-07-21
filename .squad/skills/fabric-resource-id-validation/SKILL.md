@@ -80,3 +80,104 @@ def upload(workspace_id: str, lakehouse_id: str, ...) -> ...:
 ## Origin
 
 Extracted from the 2026-07-20 fix in `src/regimpact/lakehouse.py::export_to_lakehouse` after a user hit the opaque `FriendlyNameSupportDisabled` Fabric error caused by a trailing `\n` in `FABRIC_WORKSPACE_ID`. See `.squad/decisions/inbox/bishop-onelake-guid-validation.md` for the full rationale, and `.squad/agents/bishop/history.md` for the story.
+
+## Related pattern — env-var override of hardcoded regional URLs
+
+The same shape (strip → validate at boundary → soft-skip class on malformed → fall back to a module-level default) also works for **regional endpoint overrides** — cases where a hardcoded global URL is fine for most workspaces but fails on capacities that advertise a regional endpoint via `GET /v1/workspaces/{id}` → `oneLakeEndpoints.dfsEndpoint`. The failure mode is the same opaque `FriendlyNameSupportDisabled` server error, so the same validate-at-boundary + soft-skip pattern applies.
+
+```python
+_ONELAKE_ACCOUNT_URL = "https://onelake.dfs.fabric.microsoft.com"
+_ONELAKE_ENDPOINT_MARKER = "onelake.dfs.fabric.microsoft.com"
+
+
+def _resolve_onelake_endpoint(raw: str | None) -> str:
+    """None/empty → global default; else validate shape and pass through."""
+    if raw is None:
+        return _ONELAKE_ACCOUNT_URL
+    cleaned = raw.strip().strip("'").strip('"').strip()
+    if not cleaned:
+        return _ONELAKE_ACCOUNT_URL
+    lowered = cleaned.lower()
+    if not lowered.startswith("https://") or _ONELAKE_ENDPOINT_MARKER not in lowered:
+        raise LakehouseNotConfiguredError(
+            f"FABRIC_ONELAKE_DFS_ENDPOINT must be an https:// URL containing "
+            f"'{_ONELAKE_ENDPOINT_MARKER}' (got '{cleaned}')."
+        )
+    return cleaned
+```
+
+Then:
+
+```python
+def export_to_lakehouse(..., onelake_endpoint: str | None = None) -> ...:
+    account_url = _resolve_onelake_endpoint(onelake_endpoint)
+    service = DataLakeServiceClient(account_url, credential=cred)
+    # ...but do NOT taint returned identifiers (e.g. ABFSS URLs) with the
+    # regional prefix — those are name-plane, regional routing is data-plane.
+```
+
+### Additional rules for endpoint overrides
+
+8. **Backward-compat by construction.** New parameter defaults to `None` and resolves to the pre-existing hardcoded URL when unset. Callers on the old signature see zero behavior change.
+9. **Env var lives in `Settings` as a pure passthrough** (`os.getenv(...) or ""`). The *default* URL lives in the domain module, not in `Settings`. Keeps `Settings` a dumb env binding and puts the operational knowledge next to the SDK call.
+10. **Do NOT taint name-plane identifiers with regional prefixes.** ABFSS URLs (`abfss://{ws}@onelake.dfs.fabric.microsoft.com/...`), shortcut paths, Purview lineage records, and anything else parsed by downstream tools must stay on the canonical (non-regional) host. Regional routing is a data-plane concern applied transparently by OneLake based on the caller's location and the workspace's capacity region. Guard this invariant with a test.
+11. **Do NOT auto-fallback ("try global, retry regional").** Silent fallback (a) hides capacity misconfiguration, (b) adds a wasted round-trip on the common case, (c) makes the failure mode ambiguous. Explicit config beats magic.
+12. **Do NOT auto-detect from the Fabric metadata API.** Adds a synchronous REST hop per run, needs a different token scope (`api.fabric.microsoft.com`), and has an ambiguous failure mode if the metadata call itself fails. An env var is one line in `.env` and zero runtime cost.
+
+### Related origin
+
+Extracted from the 2026-07-21 fix in `src/regimpact/lakehouse.py` after the same operator hit `FriendlyNameSupportDisabled` a second time — this time with canonical GUIDs, because the workspace lives on a regional (North Central US) capacity and the hardcoded global endpoint's routing layer refused to forward. See `.squad/decisions/inbox/bishop-onelake-regional-endpoint.md`.
+
+## Canonical OneLake ADLS path is bare GUID (NOT `{id}.Lakehouse`)
+
+**Trap.** When you construct an ADLS Gen2 path to a Fabric lakehouse's `Files/` or `Tables/` area, the top-level directory under the workspace filesystem is the **bare lakehouse GUID**:
+
+```
+https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Files/{subpath}/…
+abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/{lakehouse_id}/Files/{subpath}/…
+```
+
+**NOT** `{lakehouse_id}.Lakehouse/Files/…`. The `.Lakehouse` suffix is a Fabric **UI / Spark-shortcut** convention — it is correct when mounting a lakehouse into a Spark notebook or creating a Fabric shortcut via the portal. It is **wrong** for direct ADLS Gen2 access via `azure.storage.filedatalake.DataLakeServiceClient`, which rejects the suffixed form with the opaque server-side error `FriendlyNameSupportDisabled` (Fabric's generic "identifier could not be resolved").
+
+Microsoft's own docs use the `.Lakehouse` suffix in Spark-mount examples, so it's easy to copy the wrong pattern into an SDK code path and think you're following the docs. You're not — you're following a doc for a different code path.
+
+### The definitive check
+
+Do not trust blogs, tutorials, or even Microsoft docs about the path prefix. Ask Fabric directly:
+
+```
+GET https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}/lakehouses/{lakehouse_id}
+```
+
+The response includes:
+
+```json
+"properties": {
+  "oneLakeFilesPath":  "https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Files",
+  "oneLakeTablesPath": "https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/Tables"
+}
+```
+
+**That response is the authoritative canonical form.** If the URL you are building in code does not match it byte-for-byte (after substituting your workspace_id and lakehouse_id), your URL is wrong regardless of what any documentation says. Note: no `.Lakehouse`.
+
+### Diagnostic funnel for `FriendlyNameSupportDisabled`
+
+The server-side error string `FriendlyNameSupportDisabled` covers at least three distinct root causes. Run these checks in order — cheapest first, and each check has to pass before the next failure mode becomes visible:
+
+1. **GUID validation at the boundary.** Strip whitespace + quotes, `uuid.UUID()`, canonical-form check. Covers env-var copy/paste artefacts. Fix: `_normalize_fabric_id` pattern above.
+2. **Regional endpoint routing.** `GET /v1/workspaces/{ws}` → `oneLakeEndpoints.dfsEndpoint`. If it's a regional URL (e.g. `https://northcentralus-onelake.dfs.fabric.microsoft.com`), the hardcoded global endpoint's routing layer may refuse to forward. Fix: env-var override + `_resolve_onelake_endpoint` pattern above.
+3. **Canonical path prefix.** `GET /v1/workspaces/{ws}/lakehouses/{lh}` → `properties.oneLakeFilesPath`. Confirms the bare-GUID form; catches stale `.Lakehouse` suffix copy-paste from Spark-mount docs.
+
+The generic error message will not tell you which layer is failing — the SDK short-circuits at the earliest failure. Fix each layer, then re-run to see the next.
+
+### Additional rules (Fabric ADLS path construction)
+
+13. **Do not use `.Lakehouse` in any string passed to an ADLS Gen2 SDK call or in any returned ABFSS URL.** It only belongs in Spark shortcut / UI mount paths, and those are constructed by Fabric, not by us.
+14. **Byte-for-byte cross-check.** Any hand-constructed OneLake URL should match `properties.oneLakeFilesPath` / `oneLakeTablesPath` from `GET /v1/workspaces/{ws}/lakehouses/{lh}` when you substitute in your GUIDs. If it doesn't match, the URL is wrong — no exceptions, no "but the docs say".
+15. **Guard against re-introduction with a regression test.** `assert ".Lakehouse" not in <constructed_path>` catches anyone (including future you) who pastes an example back in from a stale doc. Cheap, fast, worth it.
+16. **Notebook / Spark-mount code CAN use `.Lakehouse`** in mount paths (e.g. `/lakehouse/default/Files/...` or `<lh>.Lakehouse/Tables/...` inside a Spark session). Do not sweep those away when fixing an ADLS Gen2 code path — different code path, different convention, both correct in their own context.
+
+### Related origin (bare-GUID ADLS path)
+
+Extracted from the 2026-07-21 (afternoon) fix in `src/regimpact/lakehouse.py::export_to_lakehouse` after the same operator hit `FriendlyNameSupportDisabled` a **third** time this week — GUIDs and endpoint were both correct by then; the failing layer was the `.Lakehouse` suffix that had lived in the code (and its docstring) since day one, copied from a Spark-mount doc. See `.squad/decisions/inbox/bishop-onelake-drop-lakehouse-suffix.md` for the full rationale and the diagnostic funnel writeup in `.squad/agents/bishop/history.md` under the same date.
+

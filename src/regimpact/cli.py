@@ -161,12 +161,13 @@ def interpret(
             settings.gold_dir,
             workspace_id=settings.fabric_workspace_id,
             lakehouse_id=settings.fabric_lakehouse_id,
+            onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
         )
         console.print(
             f"[green]Uploaded to OneLake:[/] "
             f"[cyan]{len(uploaded['raw'])}[/] raw + "
             f"[cyan]{len(uploaded['gold'])}[/] gold Parquet file(s) into "
-            f"[cyan]{settings.fabric_lakehouse_id}.Lakehouse/Files/"
+            f"[cyan]{settings.fabric_lakehouse_id}/Files/"
             f"{{regimpact_raw,regimpact_gold}}[/]"
         )
     except LakehouseNotConfiguredError:

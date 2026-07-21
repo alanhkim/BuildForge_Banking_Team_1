@@ -7,9 +7,14 @@ installations without the ``fabric`` extra can still import ``regimpact``.
 
 OneLake exposes each Fabric lakehouse as an ADLS Gen2 filesystem under the
 account ``https://onelake.dfs.fabric.microsoft.com``. The filesystem is the
-workspace ID and the top-level directory is ``<lakehouse_id>.Lakehouse``.
-Parquet files land under ``Files/<subpath>/`` and can then be shortcut'd
-into a Delta table from the Fabric UI.
+workspace ID and the top-level directory is the bare lakehouse ID (Fabric's
+ADLS Gen2 canonical form — the ``.Lakehouse`` suffix is a shortcut/UI
+convention only and is rejected here with ``FriendlyNameSupportDisabled``).
+Confirmed against ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` →
+``properties.oneLakeFilesPath`` / ``oneLakeTablesPath``, which both return
+``https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/…``
+with no suffix. Parquet files land under ``Files/<subpath>/`` and can then
+be shortcut'd into a Delta table from the Fabric UI.
 """
 from __future__ import annotations
 
@@ -19,7 +24,20 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Default (global) OneLake ADLS Gen2 endpoint. Some Fabric capacity SKUs
+# advertise a *regional* endpoint (e.g. ``northcentralus-onelake.dfs.
+# fabric.microsoft.com``) via the workspace's ``oneLakeEndpoints`` metadata;
+# on those capacities the global endpoint's routing layer returns
+# ``FriendlyNameSupportDisabled`` instead of forwarding, so callers must
+# override this via ``FABRIC_ONELAKE_DFS_ENDPOINT``. Kept as the module
+# default so that pre-existing callers see no behavior change.
 _ONELAKE_ACCOUNT_URL = "https://onelake.dfs.fabric.microsoft.com"
+
+# Substring every valid OneLake DFS endpoint must contain, whether global
+# (``onelake.dfs.fabric.microsoft.com``) or regional
+# (``<region>-onelake.dfs.fabric.microsoft.com``). Guards against typos and
+# accidentally pointing at a non-OneLake ADLS Gen2 host.
+_ONELAKE_ENDPOINT_MARKER = "onelake.dfs.fabric.microsoft.com"
 
 # Folder layout expected by ``notebooks/08_fabric/01_load_lakehouse.ipynb``.
 # The PySpark loader reads Parquet from these two Files/ subfolders and
@@ -106,6 +124,44 @@ def _normalize_fabric_id(raw: str | None, env_var: str) -> str:
     return cleaned
 
 
+def _resolve_onelake_endpoint(raw: str | None) -> str:
+    """Return the DFS endpoint URL to hit, falling back to the global default.
+
+    Some Fabric capacities advertise a *regional* OneLake endpoint (e.g.
+    ``https://northcentralus-onelake.dfs.fabric.microsoft.com``) via
+    ``GET /v1/workspaces/{id}`` → ``oneLakeEndpoints.dfsEndpoint``. On those
+    capacities the global endpoint's routing layer returns
+    ``FriendlyNameSupportDisabled`` instead of forwarding, so callers must
+    point the SDK at the regional host directly. When ``raw`` is ``None`` or
+    empty we return :data:`_ONELAKE_ACCOUNT_URL` (backward-compatible global
+    default). When ``raw`` is provided we validate the shape at the boundary
+    for the same reason we validate GUIDs: a malformed value fails every run
+    with an opaque SDK error, so surface it as configuration up front and map
+    it to the soft-skip class per decision §0.
+
+    Raises
+    ------
+    LakehouseNotConfiguredError
+        If ``raw`` is provided but does not start with ``https://`` or does
+        not contain ``onelake.dfs.fabric.microsoft.com``.
+    """
+    if raw is None:
+        return _ONELAKE_ACCOUNT_URL
+    cleaned = raw.strip().strip("'").strip('"').strip()
+    if not cleaned:
+        return _ONELAKE_ACCOUNT_URL
+    lowered = cleaned.lower()
+    if not lowered.startswith("https://") or _ONELAKE_ENDPOINT_MARKER not in lowered:
+        raise LakehouseNotConfiguredError(
+            "FABRIC_ONELAKE_DFS_ENDPOINT must be an https:// URL containing "
+            f"'{_ONELAKE_ENDPOINT_MARKER}' (got '{cleaned}'). Copy it from "
+            "GET /v1/workspaces/{id} → oneLakeEndpoints.dfsEndpoint, or "
+            f"leave the env var unset to use the global default "
+            f"'{_ONELAKE_ACCOUNT_URL}'."
+        )
+    return cleaned
+
+
 def _default_credential():
     """Lazy-import ``DefaultAzureCredential`` so azure-identity stays optional."""
     from azure.identity import DefaultAzureCredential
@@ -119,6 +175,7 @@ def export_to_lakehouse(
     lakehouse_id: str,
     files_subpath: str = "tables",
     credential=None,
+    onelake_endpoint: str | None = None,
 ) -> list[str]:
     """Upload every ``*.parquet`` file in ``tables_dir`` to a Fabric lakehouse.
 
@@ -129,14 +186,25 @@ def export_to_lakehouse(
     workspace_id:
         Fabric workspace ID (GUID). Used as the ADLS filesystem name.
     lakehouse_id:
-        Fabric lakehouse ID (GUID). Used as the top-level directory
-        (``<lakehouse_id>.Lakehouse``).
+        Fabric lakehouse ID (GUID). Used verbatim as the top-level
+        directory under the workspace filesystem (no ``.Lakehouse``
+        suffix — that is a Fabric UI / Spark-shortcut convention that the
+        ADLS Gen2 name-plane rejects with ``FriendlyNameSupportDisabled``).
     files_subpath:
         Subfolder under ``Files/`` where Parquet files land. Defaults to
         ``"tables"``.
     credential:
         Optional Azure credential. Defaults to
         :class:`azure.identity.DefaultAzureCredential`.
+    onelake_endpoint:
+        Optional OneLake DFS endpoint URL. When ``None`` or empty, uses the
+        global default ``https://onelake.dfs.fabric.microsoft.com``. Pass a
+        regional URL (e.g. ``https://northcentralus-onelake.dfs.fabric.
+        microsoft.com``) when the target workspace lives on a capacity that
+        advertises a regional endpoint via ``oneLakeEndpoints.dfsEndpoint``.
+        The returned ABFSS URLs are unaffected — they always use the
+        canonical, non-regional host, because regional routing is a
+        data-plane detail applied by OneLake, not a name-plane one.
 
     Returns
     -------
@@ -147,19 +215,25 @@ def export_to_lakehouse(
     ------
     LakehouseNotConfiguredError
         If ``workspace_id`` or ``lakehouse_id`` is empty, or is not a valid
-        Fabric GUID (after stripping surrounding whitespace/quotes).
+        Fabric GUID (after stripping surrounding whitespace/quotes); or if
+        ``onelake_endpoint`` is provided but not a valid OneLake DFS URL.
     LakehouseWriteError
         If any Parquet upload fails.
     """
     workspace_id = _normalize_fabric_id(workspace_id, "FABRIC_WORKSPACE_ID")
     lakehouse_id = _normalize_fabric_id(lakehouse_id, "FABRIC_LAKEHOUSE_ID")
+    account_url = _resolve_onelake_endpoint(onelake_endpoint)
 
     from azure.storage.filedatalake import DataLakeServiceClient
 
     cred = credential if credential is not None else _default_credential()
-    service = DataLakeServiceClient(_ONELAKE_ACCOUNT_URL, credential=cred)
+    service = DataLakeServiceClient(account_url, credential=cred)
     file_system = service.get_file_system_client(workspace_id)
-    target_dir = f"{lakehouse_id}.Lakehouse/Files/{files_subpath}"
+    # Bare lakehouse GUID — Fabric's canonical ADLS Gen2 path. The
+    # ``.Lakehouse`` suffix seen in Spark shortcuts / UI mount paths is
+    # rejected here with ``FriendlyNameSupportDisabled``. Verified against
+    # ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` → ``oneLakeFilesPath``.
+    target_dir = f"{lakehouse_id}/Files/{files_subpath}"
     directory_client = file_system.get_directory_client(target_dir)
 
     uploaded: list[str] = []
@@ -176,7 +250,7 @@ def export_to_lakehouse(
 
         abfss_url = (
             f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
-            f"{lakehouse_id}.Lakehouse/Files/{files_subpath}/{local_path.name}"
+            f"{lakehouse_id}/Files/{files_subpath}/{local_path.name}"
         )
         uploaded.append(abfss_url)
         logger.info(
@@ -197,6 +271,7 @@ def export_regimpact_lakehouse(
     workspace_id: str,
     lakehouse_id: str,
     credential=None,
+    onelake_endpoint: str | None = None,
 ) -> dict[str, list[str]]:
     """Upload the raw entity + gold star-schema Parquet sets to a Fabric lakehouse.
 
@@ -233,6 +308,12 @@ def export_regimpact_lakehouse(
     credential:
         Optional Azure credential. Defaults to
         :class:`azure.identity.DefaultAzureCredential`.
+    onelake_endpoint:
+        Optional OneLake DFS endpoint URL. When ``None`` or empty, uses the
+        global default. Pass a regional URL when the target workspace lives
+        on a capacity that advertises a regional
+        ``oneLakeEndpoints.dfsEndpoint``. See
+        :func:`export_to_lakehouse` for the full contract.
 
     Returns
     -------
@@ -243,7 +324,8 @@ def export_regimpact_lakehouse(
     ------
     LakehouseNotConfiguredError
         If ``workspace_id`` or ``lakehouse_id`` is empty, or is not a valid
-        Fabric GUID (after stripping surrounding whitespace/quotes).
+        Fabric GUID (after stripping surrounding whitespace/quotes); or if
+        ``onelake_endpoint`` is provided but not a valid OneLake DFS URL.
     LakehouseWriteError
         If any Parquet upload fails.
     """
@@ -257,6 +339,7 @@ def export_regimpact_lakehouse(
             lakehouse_id=lakehouse_id,
             files_subpath=RAW_SUBPATH,
             credential=cred,
+            onelake_endpoint=onelake_endpoint,
         )
     else:
         logger.warning(
@@ -271,6 +354,7 @@ def export_regimpact_lakehouse(
             lakehouse_id=lakehouse_id,
             files_subpath=GOLD_SUBPATH,
             credential=cred,
+            onelake_endpoint=onelake_endpoint,
         )
     else:
         logger.warning(
