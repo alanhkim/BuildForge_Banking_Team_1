@@ -2,6 +2,47 @@
 
 ## Active Decisions
 
+### 2026-07-20: OneLake ID validation at the `lakehouse.py` boundary
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented on `hamza-dev`
+**Relates to:** §0 (OneLake Writeback Scope & Failure Semantics)
+
+**What:**
+`src/regimpact/lakehouse.py::export_to_lakehouse` now validates `workspace_id` and `lakehouse_id` at entry via a new `_normalize_fabric_id(raw, env_var)` helper:
+
+1. **Strip** whitespace → strip one layer of surrounding `'` / `"` → strip whitespace again. Local to the function; never mutates the caller's `Settings`.
+2. **Validate** via `uuid.UUID(cleaned)` in a `try/except`, then confirm `str(parsed) == cleaned.lower()` to reject braced (`{guid}`), urn (`urn:uuid:guid`), and no-dash (32-hex) variants.
+3. **Thread the cleaned value** into the ADLS SDK calls AND the returned ABFSS URLs, so downstream materialization sees clean IDs.
+4. On any validation failure — empty after stripping, non-GUID, or non-canonical form — raise `LakehouseNotConfiguredError` (soft yellow skip) with a message naming the env var and the offending value.
+
+Public function signatures unchanged. `Settings` unchanged. `fabric_livy_client.py` untouched.
+
+**Trigger:**
+`interpret` failed with `OneLake upload failed: (FriendlyNameSupportDisabled) Request Failed with WorkspaceId and ArtifactId should be either valid Guids or valid Names`. `FriendlyNameSupportDisabled` is a Fabric server-side error that fires when the ADLS filesystem name (workspace_id) or the top-level directory prefix (lakehouse_id) is neither a valid GUID nor a valid friendly name. Root causes are almost always copy/paste artefacts on the env var: trailing newline from `export FABRIC_WORKSPACE_ID="…"`, surrounding quote characters copied verbatim, whitespace, partial paste, or a workspace display name while friendly-name resolution is disabled on the tenant.
+
+**Why `LakehouseNotConfiguredError`, not `LakehouseWriteError`:**
+Per §0, `LakehouseNotConfiguredError` = soft skip (yellow, CLI continues, local Parquet remains source of truth); `LakehouseWriteError` = hard failure (red, non-fatal in `interpret` but marks upload as failed). A malformed env var is not a transient issue — it fails EVERY run until the operator fixes it. That is definitionally "not configured", the same category as an empty value. Treating it as `LakehouseWriteError` would (a) print red every run and drown the signal, and (b) blow past the semantic contract §0 established for that error class (transient / retryable / operational). The error message distinguishes the malformed case from the empty case, so operators still know exactly what to fix.
+
+**Consequences:**
+- `interpret` runs no longer crash with `FriendlyNameSupportDisabled` at upload time when the env var is malformed — they skip cleanly with a message like `FABRIC_WORKSPACE_ID must be a Fabric workspace/lakehouse GUID (got 'my-workspace-name'). Copy it from the Fabric portal → Workspace settings → About.`
+- Shell-quoted values (`FABRIC_LAKEHOUSE_ID="'guid'"`) and trailing-newline values now work transparently — common CLI ergonomic win.
+- No new dependencies (`uuid` is stdlib).
+- Not applied to `fabric_livy_client.py`. If Livy also consumes `FABRIC_WORKSPACE_ID` raw, that's a separate hardening pass owned by Lambert.
+
+**Reusable pattern:** captured as `.squad/skills/fabric-resource-id-validation/SKILL.md` — strip → `uuid.UUID()` → canonical-form check → map to the "not configured" error class. Applies to any Fabric/OneLake ID env var (workspace, lakehouse, item, capacity).
+
+**Tests:**
+`tests/test_lakehouse.py`: 10/10 green. New coverage: trailing-newline workspace_id (strips, SDK receives clean GUID, ABFSS URL uses clean GUID); `"my-workspace-name"` → `LakehouseNotConfiguredError` naming the env var and the offending value; `"   "` (whitespace only) → strips to empty → `LakehouseNotConfiguredError` on the "not set" branch; `"'11111111-1111-1111-1111-111111111111'"` (shell-quoted GUID) → strips quotes, succeeds. Existing tests updated to use canonical GUID fixture constants (`_WS_GUID`, `_LH_GUID`).
+
+**Reversal:**
+Delete `_normalize_fabric_id` and the two calls at the top of `export_to_lakehouse`. No callers depend on the validation.
+
+**Constitutional check:** Compliant. Pure I/O plumbing; no agent behavior touched. Per `copilot-instructions.md` rule 3, the constraint applies to agent behavior only, not to data-export paths.
+
+---
+
 ### 2026-07-17: Gap Analyst pipeline soft-fail (mirrors remediation_planner pattern)
 
 **Author:** Coordinator (direct edit, Standard Mode)

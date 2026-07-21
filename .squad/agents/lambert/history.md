@@ -7,6 +7,13 @@
 
 ## Learnings
 
+### 2026-07-20 — Team update: OneLake env-var GUIDs validated at the `lakehouse.py` boundary (Livy follow-up flagged to you)
+- Bishop hardened `src/regimpact/lakehouse.py::export_to_lakehouse` — both `workspace_id` and `lakehouse_id` are now stripped (whitespace → one layer of `'`/`"` quotes → whitespace) and validated via `uuid.UUID()` + canonical-form check at entry. Cleaned values thread into both the ADLS SDK calls AND the returned ABFSS URLs (matches the pattern you established in your OneLake writeback design). `Settings` is not mutated — validation is local to the function.
+- **Trigger:** user hit `(FriendlyNameSupportDisabled) Request Failed with WorkspaceId and ArtifactId should be either valid Guids or valid Names` from Fabric ADLS when `FABRIC_WORKSPACE_ID` carried a copy/paste artefact. Same class of opaque server error you'd have hit if the env var had a trailing `\n` or surrounding shell quotes.
+- **Failure-class mapping (aligned with your §0 semantics):** malformed / non-canonical / empty-after-strip now raise `LakehouseNotConfiguredError` (soft yellow skip), **not** `LakehouseWriteError`. Rationale: a malformed env var fails every run until fixed — that's config, not a transient upload issue. Keeps the `LakehouseWriteError` red channel for the transient / capacity / auth cases you designed it for.
+- **`fabric_livy_client.py` is out of scope in this pass — flagged as follow-up for you.** If Livy also consumes `FABRIC_WORKSPACE_ID` or any Fabric GUID env var raw, apply the same pattern before Livy ships to production. The pattern is captured in `.squad/skills/fabric-resource-id-validation/SKILL.md` — strip → `uuid.UUID()` → canonical-form check → map to the "not configured" error class of the surrounding module.
+- Signature-stable, no new dependencies (`uuid` is stdlib), no test scaffolding to unwind. Tests: `tests/test_lakehouse.py` 10/10 green.
+
 ### 2026-07-17 — Team update: GapAnalyst now accepts empty control_ids with reason
 - Bishop (this session) extended the empty-with-reason contract to `GapAnalysisRequest`. Contract mirrors the `ControlMappingResponse` pattern: optional `reason: str | None` field, validator accepts empty `control_ids` iff `reason.strip()` is non-empty. `obligation_ids` remains unconditionally required (obligations are pipeline input, not a downstream artefact).
 - Pipeline now forwards `cm_response.reason` into `GapAnalysisRequest(reason=...)` when mappings is empty, and emits a second WARNING (`Fabric stage propagating empty control_ids stage=gap_analyst`) so the propagation is visible in log tails.

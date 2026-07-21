@@ -7,6 +7,12 @@
 
 ## Learnings
 
+### 2026-07-20 — Team update: OneLake env-var GUID validation — 4 new tests in `test_lakehouse.py`
+- Bishop landed a boundary-hardening fix in `src/regimpact/lakehouse.py::export_to_lakehouse` — both `workspace_id` and `lakehouse_id` are stripped and `uuid.UUID()`-validated at entry, with canonical-form check to reject braced / urn / no-dash variants. Malformed values now raise `LakehouseNotConfiguredError` (soft yellow skip) instead of the opaque `LakehouseWriteError` that used to surface `FriendlyNameSupportDisabled` at upload time.
+- **Test coverage you should know:** `tests/test_lakehouse.py` 10/10 green. Added 4 tests: (1) trailing-newline workspace_id → strips and SDK/ABFSS URL see clean GUID; (2) `"my-workspace-name"` (display name) → `LakehouseNotConfiguredError` naming the env var and the offending value; (3) `"   "` (whitespace only) → strips to empty → `LakehouseNotConfiguredError` on the "not set" branch; (4) `"'11111111-1111-1111-1111-111111111111'"` (shell-quoted GUID) → strips quotes, succeeds. Existing tests refactored to use `_WS_GUID` / `_LH_GUID` canonical fixture constants — semantic coverage unchanged.
+- **If you add new coverage for Fabric ID handling:** follow the same fixture-constants + boundary-error-class pattern. `LakehouseNotConfiguredError` = config problems (assert message names env var); `LakehouseWriteError` = transient / SDK failures (assert on wrapped cause). Do not conflate the two error classes in a single test — the semantic contract in `decisions.md` §0 / 2026-07-20 is explicit about them.
+- **Reusable pattern captured** in `.squad/skills/fabric-resource-id-validation/SKILL.md` for future Fabric GUID env vars (workspace, lakehouse, item, capacity).
+
 ### 2026-07-17 — Team update: retry tests replaced with fail-fast tests
 - The 5 retry-behavior tests in `tests/test_fabric_workflow.py` (added when the semantic retry landed in `412d695`) were replaced with 3 fail-fast equivalents in commit `f3d6ab4` on hamza-dev.
 - The lenient-parsing tests (metadata defaults, inner-payload recovery, markdown fence, prose-embedded JSON) are unchanged — those still assert single-pass parsing behavior.
@@ -96,7 +102,8 @@ Verified Bishop's Fixes 1/2/3/6 in `tests/test_fabric_workflow.py`. 11 new test 
 
 ## 2026-07-17 — Gap Analyst empty-tolerance test rewrite + contract tests
 
-Requested by Hamza, following Bishop's `bishop-gap-analyst-empty-tolerance.md` decision (GapAnalysisRequest now accepts empty control_ids when paired with a non-empty eason, mirroring the ControlMappingResponse empty-with-reason contract; pipeline forwards cm_response.reason and emits a second WARNING log at `pipeline.py:474`).
+Requested by Hamza, following Bishop's `bishop-gap-analyst-empty-tolerance.md` decision (GapAnalysisRequest now accepts empty control_ids when paired with a non-empty 
+eason, mirroring the ControlMappingResponse empty-with-reason contract; pipeline forwards cm_response.reason and emits a second WARNING log at `pipeline.py:474`).
 
 ### Rewrote (1)
 - `test_control_mapper_pipeline_stage_logs_warning_on_empty_with_reason` (`tests/test_fabric_workflow.py`): removed the old `pytest.raises(ValidationError, match=""control_ids"")` expectation. Added `_StubGapAnalystEmpty` and `_StubScoreNarrator` (drop-ins for `FabricGapAnalystAgent` / `FabricScoreNarratorAgent`). Wrapped monkeypatched agent classes as `lambda: shared_stub` so captured calls survive pipeline default-construction. Added `_remediation_should_not_be_called` sentinel to lock in the `if gap_ids:` guard for `FabricRemediationPlannerAgent`. Now asserts:

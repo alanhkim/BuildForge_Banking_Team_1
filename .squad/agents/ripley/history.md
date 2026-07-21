@@ -7,6 +7,13 @@
 
 ## Learnings
 
+### 2026-07-20 — Team update: OneLake env-var GUIDs validated at the `lakehouse.py` boundary
+- Bishop landed a boundary-hardening fix in `src/regimpact/lakehouse.py::export_to_lakehouse`. Both `workspace_id` and `lakehouse_id` are now stripped (whitespace → one layer of `'`/`"` quotes → whitespace) and validated via `uuid.UUID()` + canonical-form check at the top of the function. Cleaned values thread into both the ADLS SDK calls and the returned ABFSS URLs; `Settings` is never mutated.
+- **Failure-class semantics you should internalise:** malformed / non-canonical / empty-after-strip now raise `LakehouseNotConfiguredError` (soft yellow skip per decisions.md §0), **not** `LakehouseWriteError`. Rationale: a malformed env var fails every run until fixed — that's configuration, not a transient upload failure. Any review that touches Fabric ID handling should preserve this mapping: config errors → soft skip; transient / capacity / auth failures → hard write error.
+- **Reusable pattern captured:** `.squad/skills/fabric-resource-id-validation/SKILL.md`. Applies to any Fabric/OneLake ID env var (workspace, lakehouse, item, capacity). If you audit code that consumes a Fabric GUID from outside the process, apply this pattern — the `FriendlyNameSupportDisabled` server error is a strong signal it's missing.
+- **`fabric_livy_client.py` is deliberately untouched** in this pass. Flagged as a separate hardening opportunity for Lambert. Worth a quick review on your next Fabric pass to confirm Livy either revalidates or is unaffected by malformed values.
+- Tests: `tests/test_lakehouse.py` 10/10 green (4 new: trailing-newline strip, display-name rejection, whitespace-only strip, shell-quoted GUID accept). Commit lands on `hamza-dev`.
+
 ### 2026-07-17 — Team update: empty-with-reason pattern generalised across pipeline contracts
 - Team hardened the Fabric pipeline against legitimately-empty agent responses **without adding offline fallbacks** — constitution-compliant throughout.
 - **Pattern established:** optional `reason: str | None` field on request/response contracts; validation accepts empty result iff non-empty `reason.strip()`; pipeline logs WARNING and continues; downstream stages must be tolerant (or explicitly guarded) of the empty payload.

@@ -8,6 +8,34 @@
 
 ## Learnings
 
+### 2026-07-20 — OneLake `FriendlyNameSupportDisabled`: strip + `uuid.UUID()` at the boundary
+
+**Bug:** `interpret` failed with `OneLake upload failed: Failed to upload output\tables\business_processes.parquet to OneLake: (FriendlyNameSupportDisabled) Request Failed with WorkspaceId and ArtifactId should be either valid Guids or valid Names`. Opaque server-side error surfaced at upload time as a red `LakehouseWriteError`.
+
+**Diagnosis:** `FriendlyNameSupportDisabled` is Fabric ADLS Gen2 rejecting the filesystem name (`workspace_id`) and/or the top-level directory prefix (`lakehouse_id`) because neither was a valid GUID nor a valid friendly name on a tenant where friendly-name resolution is disabled. The usual copy/paste artefacts do this every time: trailing `\n` from `export FOO="…"`, surrounding `'…'` / `"…"` from the shell, whitespace, partial paste, or accidentally using the workspace *display name*.
+
+**Fix (`src/regimpact/lakehouse.py`):**
+- New `_normalize_fabric_id(raw, env_var)` helper — strips whitespace, then strips a single layer of surrounding single/double quotes, then re-strips whitespace, then validates via `uuid.UUID(cleaned)`. Rejects braced/urn/no-dash forms by asserting `str(parsed) == cleaned.lower()` (canonical 8-4-4-4-12 hex).
+- `export_to_lakehouse()` now normalizes both `workspace_id` and `lakehouse_id` at entry BEFORE any SDK call, and passes the cleaned values into both the ADLS SDK and the returned ABFSS URLs. `Settings` is never mutated (values are cleaned locally). Signature unchanged.
+- Empty check is preserved by the strip-then-empty ordering: `"   "` → `""` → `LakehouseNotConfiguredError` with the "not set" message, matching prior behavior.
+
+**Why `LakehouseNotConfiguredError`, not `LakehouseWriteError`:** Per decision §0, `LakehouseNotConfiguredError` is the soft skip (yellow, CLI continues); `LakehouseWriteError` is the hard fail (red, best-effort). A malformed env var fails EVERY run until fixed — that is a configuration bug, not a transient network/capacity issue. Mapping it to the soft-skip branch keeps `interpret` finishing successfully (local Parquet is still the source of truth) while giving the operator a specific message naming the env var and the offending value.
+
+**Reusable pattern captured** in `.squad/skills/fabric-resource-id-validation/SKILL.md` — strip whitespace, strip surrounding quotes, `uuid.UUID()` validate, canonical-form check, map to the "not configured" error class. Applies to any Fabric/OneLake ID env var (workspace, lakehouse, item, capacity).
+
+**Tests (`tests/test_lakehouse.py`):** 10/10 green. Added coverage for trailing-newline strip, non-GUID display-name rejection, whitespace-only stripping to empty, and quoted-GUID acceptance. Existing tests updated to use canonical GUIDs (`_WS_GUID` = `11111111-…`, `_LH_GUID` = `22222222-…`) as fixture constants.
+
+**Deliberately NOT done:**
+- Did not touch `fabric_livy_client.py` (out of scope). If Livy also reads `FABRIC_WORKSPACE_ID` raw, that's a follow-up for Lambert.
+- Did not validate in `export_regimpact_lakehouse` directly — it delegates to `export_to_lakehouse`, which now validates. Skipping validation when both dirs are empty is fine: nothing gets uploaded so there's nothing to break.
+- Did not add a Settings-level validator. Keeping the boundary at `lakehouse.py` matches the pattern of "clean at the edge, not in the config layer" and avoids forcing every consumer of Settings through GUID validation.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — `_normalize_fabric_id` + normalized entry.
+- `tests/test_lakehouse.py` — GUID fixture constants + 4 new tests.
+- `.squad/decisions/inbox/bishop-onelake-guid-validation.md` — decision drop.
+- `.squad/skills/fabric-resource-id-validation/SKILL.md` — reusable pattern.
+
 ### 2026-07-17 — Gap Analyst empty-tolerance: close the cross-stage break I flagged
 
 **Followup to the Control Mapper hardening below.** That pass added a documented empty-with-reason exit for `ControlMappingResponse`, but `GapAnalysisRequest.validate()` still raised `"control_ids is required"` the moment control_mapper legitimately returned empty. `interpret` would fail one hop later. This pass closes that loop with the same shape.

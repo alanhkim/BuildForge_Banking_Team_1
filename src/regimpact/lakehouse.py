@@ -14,6 +14,7 @@ into a Delta table from the Fabric UI.
 from __future__ import annotations
 
 import logging
+import uuid
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,70 @@ class LakehouseNotConfiguredError(LakehouseError):
 
 class LakehouseWriteError(LakehouseError):
     """Raised when uploading a Parquet file to OneLake fails."""
+
+
+def _normalize_fabric_id(raw: str | None, env_var: str) -> str:
+    """Strip whitespace + surrounding quotes and validate as a Fabric GUID.
+
+    OneLake's ADLS Gen2 endpoint rejects malformed filesystem/directory names
+    with an opaque ``FriendlyNameSupportDisabled`` server error at upload time.
+    Common causes are copy/paste artefacts on the env var: trailing newlines
+    from ``export FOO="…"``, surrounding quote characters, whitespace, or
+    passing a workspace *display name* while friendly-name resolution is
+    disabled on the tenant.
+
+    We surface that as a clear configuration failure at the boundary instead
+    of letting it turn into a red ``LakehouseWriteError`` on every run.
+
+    Parameters
+    ----------
+    raw:
+        The value read from settings/env (may be ``None`` or empty).
+    env_var:
+        The env var name (e.g. ``"FABRIC_WORKSPACE_ID"``) — used only in the
+        error message so the operator knows what to fix.
+
+    Returns
+    -------
+    str
+        The cleaned, GUID-validated value.
+
+    Raises
+    ------
+    LakehouseNotConfiguredError
+        If the value is empty after stripping, or if it is not a valid GUID.
+        Malformed values fail every run until fixed, so per decision §0 they
+        are treated as "not configured" (yellow skip) rather than a transient
+        write error (red hard-failure).
+    """
+    if raw is None:
+        raise LakehouseNotConfiguredError(
+            f"{env_var} is not set; cannot write to OneLake."
+        )
+    # Strip whitespace, then strip a single layer of surrounding quotes.
+    cleaned = raw.strip().strip("'").strip('"').strip()
+    if not cleaned:
+        raise LakehouseNotConfiguredError(
+            f"{env_var} is not set; cannot write to OneLake."
+        )
+    try:
+        # ``uuid.UUID`` accepts canonical 8-4-4-4-12 hex (case-insensitive)
+        # and also braced/urn forms; reject the latter by re-checking the
+        # canonical string form matches the input casefolded.
+        parsed = uuid.UUID(cleaned)
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise LakehouseNotConfiguredError(
+            f"{env_var} must be a Fabric workspace/lakehouse GUID "
+            f"(got '{cleaned}'). Copy it from the Fabric portal → "
+            f"Workspace settings → About."
+        ) from exc
+    if str(parsed) != cleaned.lower():
+        raise LakehouseNotConfiguredError(
+            f"{env_var} must be a canonical GUID in 8-4-4-4-12 hex form "
+            f"(got '{cleaned}'). Copy it from the Fabric portal → "
+            f"Workspace settings → About."
+        )
+    return cleaned
 
 
 def _default_credential():
@@ -81,18 +146,13 @@ def export_to_lakehouse(
     Raises
     ------
     LakehouseNotConfiguredError
-        If ``workspace_id`` or ``lakehouse_id`` is empty.
+        If ``workspace_id`` or ``lakehouse_id`` is empty, or is not a valid
+        Fabric GUID (after stripping surrounding whitespace/quotes).
     LakehouseWriteError
         If any Parquet upload fails.
     """
-    if not workspace_id:
-        raise LakehouseNotConfiguredError(
-            "FABRIC_WORKSPACE_ID is not set; cannot write to OneLake."
-        )
-    if not lakehouse_id:
-        raise LakehouseNotConfiguredError(
-            "FABRIC_LAKEHOUSE_ID is not set; cannot write to OneLake."
-        )
+    workspace_id = _normalize_fabric_id(workspace_id, "FABRIC_WORKSPACE_ID")
+    lakehouse_id = _normalize_fabric_id(lakehouse_id, "FABRIC_LAKEHOUSE_ID")
 
     from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -182,7 +242,8 @@ def export_regimpact_lakehouse(
     Raises
     ------
     LakehouseNotConfiguredError
-        If ``workspace_id`` or ``lakehouse_id`` is empty.
+        If ``workspace_id`` or ``lakehouse_id`` is empty, or is not a valid
+        Fabric GUID (after stripping surrounding whitespace/quotes).
     LakehouseWriteError
         If any Parquet upload fails.
     """
