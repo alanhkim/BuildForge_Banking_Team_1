@@ -20,10 +20,6 @@ from rich.console import Console
 from rich.table import Table
 
 from .agents import AgentPipeline
-from .agents.fabric_materializer import (
-    FabricMaterializerAgent,
-    FabricMaterializerError,
-)
 from .agents.foundry_client import (
     FabricDataAgentClient,
     FabricDataAgentConfig,
@@ -156,8 +152,9 @@ def interpret(
     # Push Parquet tables to the configured Fabric lakehouse (best-effort).
     # Uploads raw entity tables to Files/regimpact_raw/ and the gold star
     # schema to Files/regimpact_gold/, matching the layout the PySpark
-    # loader notebook (notebooks/08_fabric/01_load_lakehouse.ipynb) reads.
-    upload_succeeded = False
+    # loader notebook (src/regimpact/01_load_lakehouse.ipynb) reads.
+    # Delta table + view materialization is owned by that notebook inside
+    # Fabric; Python's responsibility ends at Parquet-in-Files/.
     try:
         uploaded = export_regimpact_lakehouse(
             settings.tables_dir,
@@ -172,7 +169,6 @@ def interpret(
             f"[cyan]{settings.fabric_lakehouse_id}.Lakehouse/Files/"
             f"{{regimpact_raw,regimpact_gold}}[/]"
         )
-        upload_succeeded = True
     except LakehouseNotConfiguredError:
         console.print(
             "[yellow]OneLake upload skipped:[/] "
@@ -182,25 +178,6 @@ def interpret(
         console.print(f"[red]OneLake upload failed:[/] {exc}")
         # Do NOT raise — local export succeeded, this is best-effort writeback.
 
-    # Materialize the uploaded parquet into managed Delta tables + views.
-    # Only fires when the OneLake upload actually landed — no point running
-    # the Livy batch if there's nothing new in Files/. This is best-effort
-    # from the CLI's perspective (a Livy failure prints red and continues),
-    # but the FabricMaterializerAgent itself raises rather than silently
-    # succeeding — that's the constitutional guardrail.
-    if upload_succeeded:
-        try:
-            console.print(
-                "[cyan]Materializing lakehouse (Delta + views)...[/]"
-            )
-            summary = FabricMaterializerAgent().materialize()
-            console.print(
-                f"[green]Materialized:[/] batch [cyan]{summary['batch_id']}[/] "
-                f"state=[cyan]{summary['state']}[/] "
-                f"duration=[cyan]{summary['duration_seconds']:.1f}s[/]"
-            )
-        except FabricMaterializerError as exc:
-            console.print(f"[red]Materialize failed:[/] {exc}")
     export_purview(est, settings.purview_dir)
     # Report is built from Fabric-persisted gaps/remediations in the estate.
     # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that

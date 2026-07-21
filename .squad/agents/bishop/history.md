@@ -8,6 +8,13 @@
 
 ## Learnings
 
+### 2026-07-21 — Team update: your GUID validation is now the ENTIRE OneLake boundary — Livy client is gone
+- Lambert removed the FabricMaterializer + Livy layer today (reverses the 2026-07-17 Option-A decision). Files deleted: `fabric_materializer.py`, `fabric_materializer_spec.py`, `fabric_livy_client.py`, plus both test modules. See top of `.squad/decisions.md` for the governing reversal.
+- **Direct impact on your work:** the `fabric_livy_client.py` GUID revalidation follow-up you flagged in your 2026-07-20 "Deliberately NOT done" list is now MOOT — the file is gone. Your `_normalize_fabric_id` in `lakehouse.py::export_to_lakehouse` is the ENTIRE OneLake ID validation surface for the Python pipeline. There is no longer a second consumer of `FABRIC_WORKSPACE_ID` / `FABRIC_LAKEHOUSE_ID` that needs the pattern re-applied. Cross that off your follow-up list.
+- **Reusable pattern in `.squad/skills/fabric-resource-id-validation/SKILL.md` stays useful** — anything future that consumes a Fabric/OneLake GUID env var (workspace, lakehouse, item, capacity) should still follow strip → `uuid.UUID()` → canonical-form check → soft-skip error class. Just no immediate second application to make in this codebase right now.
+- **Tests:** `tests/test_lakehouse.py` 10/10 green (your GUID coverage untouched). Full suite: 103 passed / 23 pre-existing baseline failures (env-drift + asyncio config + one interpreter contract drift — none touch your code). The 2 test files removed with the drop (`test_fabric_livy_client.py`, `test_fabric_materializer.py`) never asserted anything about your validation path; nothing lost from your coverage story.
+- **Failure-class semantics you established survive intact:** `LakehouseNotConfiguredError` = soft yellow skip for config issues (empty / malformed / non-canonical GUID); `LakehouseWriteError` = hard red for transient / capacity / auth failures. Nothing in the drop touched decisions.md §0. If you own future Fabric writeback hardening, that mapping is still authoritative.
+
 ### 2026-07-20 — OneLake `FriendlyNameSupportDisabled`: strip + `uuid.UUID()` at the boundary
 
 **Bug:** `interpret` failed with `OneLake upload failed: Failed to upload output\tables\business_processes.parquet to OneLake: (FriendlyNameSupportDisabled) Request Failed with WorkspaceId and ArtifactId should be either valid Guids or valid Names`. Opaque server-side error surfaced at upload time as a red `LakehouseWriteError`.

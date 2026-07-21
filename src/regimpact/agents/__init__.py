@@ -4,7 +4,6 @@ from .fabric_control_mapper import FabricControlMapperAgent
 from .fabric_executive_qa import FabricExecutiveQAAgent
 from .fabric_gap_analyst import FabricGapAnalystAgent
 from .fabric_lineage import FabricLineageAgent
-from .fabric_materializer import FabricMaterializerAgent, FabricMaterializerError
 from .fabric_remediation_planner import FabricRemediationPlannerAgent
 from .fabric_score_narrator import FabricScoreNarratorAgent
 from .fabric_workflow import FabricAgentHarness
@@ -19,8 +18,6 @@ __all__ = [
     "FabricExecutiveQAAgent",
     "FabricGapAnalystAgent",
     "FabricLineageAgent",
-    "FabricMaterializerAgent",
-    "FabricMaterializerError",
     "FabricRemediationPlannerAgent",
     "FabricScoreNarratorAgent",
     "FabricAgentHarness",

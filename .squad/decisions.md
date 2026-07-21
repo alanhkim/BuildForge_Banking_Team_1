@@ -2,6 +2,27 @@
 
 ## Active Decisions
 
+### 2026-07-21: Drop the FabricMaterializer + Livy layer — Python only uploads Parquet
+**By:** briandenicola (via Copilot)
+**What:** Remove `FabricMaterializerAgent`, `fabric_materializer_spec`, and `fabric_livy_client` from the pipeline. The `interpret` CLI keeps `export_regimpact_lakehouse` (Parquet → OneLake `Files/regimpact_raw/`, `Files/regimpact_gold/`) and stops there. Delta table materialization + `v_impact` / `v_compliance` / `v_capability_health` view creation stay inside Fabric, driven by `01_load_lakehouse.ipynb` (Fabric-provided `spark` session). Reverses the earlier decision that put a Livy-based materializer in the Python pipeline.
+**Why:** The Livy + Foundry-supervisor stack was too much surface area for the value delivered. The notebook already does the Delta conversion natively inside Fabric — Python re-implementing the same steps through Livy added moving parts (async batch polling, PySpark statement templating, Foundry evidence wrapping) without changing the final Fabric state. Simpler contract: Python owns Parquet-on-disk + Parquet-in-Files/, Fabric owns Delta + views. Copilot Instructions rule #3 (no deterministic/offline fallback for agent behavior) is unaffected — the notebook is the agent's data-prep step, not a fallback.
+
+**Files removed:** `src/regimpact/agents/fabric_materializer.py`, `src/regimpact/agents/fabric_materializer_spec.py`, `src/regimpact/agents/fabric_livy_client.py`, `tests/test_fabric_materializer.py`, `tests/test_fabric_livy_client.py`.
+**Files edited:** `src/regimpact/agents/__init__.py` (removed `FabricMaterializerAgent` / `FabricMaterializerError` exports); `src/regimpact/cli.py` (removed materializer import + `if upload_succeeded:` materialize block + `upload_succeeded` flag; corrected notebook path comment).
+**Files untouched (per spec):** `src/regimpact/lakehouse.py`, `src/regimpact/01_load_lakehouse.ipynb`, `src/regimpact/agents/pipeline.py`, remaining Foundry/Fabric agent stack.
+
+**Tests:** `tests/test_lakehouse.py` 10/10 green. Full suite: 103 passed / 23 pre-existing baseline failures (v3/v4 env-drift + asyncio config gap + one interpreter contract-error drift — zero failures touch removed code). Grep-verified zero remaining `FabricMaterializer` / `FabricLivyClient` references in `src/`, `tests/`, `docs/`, `scripts/`, `infra/`.
+
+**New pipeline shape:** `interpret → control_mapper → gap_analyst → remediation_planner → OneLake upload → done`. Fabric-side Delta + views happen inside the notebook, not inside the Python process.
+
+**Supersedes:** 2026-07-17 "FabricMaterializerAgent — Option A (deterministic Livy) chosen" (marked SUPERSEDED below; historical record preserved).
+
+**Reversal:** Restore the deleted files from git history (`6cc6ffd` and follow-ups), re-add exports in `agents/__init__.py`, and re-wire the `if upload_succeeded:` block in `cli.py`. Reversal is straightforward — no schema or contract changes shipped with the removal.
+
+**Constitutional check:** Compliant. No agent behavior added, removed, or synthesized. The notebook is Fabric-native data prep, not a client-side fallback for a Foundry agent. Rule #3 unaffected.
+
+---
+
 ### 2026-07-20: OneLake ID validation at the `lakehouse.py` boundary
 
 **Author:** Bishop (Python Core Dev)
@@ -317,6 +338,8 @@ Retry loop code was **deleted, not disabled**. To restore:
 ---
 
 ### 2026-07-17: FabricMaterializerAgent — Option A (deterministic Livy) chosen
+
+**SUPERSEDED 2026-07-21 by "Drop the FabricMaterializer + Livy layer" — see above.**
 
 **Status:** Implemented (`6cc6ffd` on `hamza-dev`)
 **Author:** Coordinator (option selected + committed with user approval)
