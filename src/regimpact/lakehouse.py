@@ -1192,9 +1192,30 @@ def write_delta_table(
     ]
     # ``IS DISTINCT FROM`` is null-safe under the DataFusion SQL dialect
     # delta-rs uses. Verified against delta-rs 1.6.2.
+    #
+    # 2026-07-21 hardening #3: EACH ``IS DISTINCT FROM`` clause is wrapped
+    # in explicit parentheses. Standard SQL says ``IS DISTINCT FROM`` has
+    # higher precedence than ``OR``, so an un-parenthesised
+    #     target."A" IS DISTINCT FROM source."A" OR target."B" IS DISTINCT FROM source."B"
+    # *should* parse as three atomic booleans joined by OR. In practice
+    # DataFusion's SQL parser (delta-rs 1.6.2) mis-groups the ``OR`` into
+    # the right-hand side of an IDF when 2+ clauses are chained,
+    # yielding errors like ``Cannot infer common argument type for logical
+    # boolean operation Utf8 OR Boolean`` — a raw column reference sitting
+    # next to the boolean result of an IDF. Explicit parentheses force
+    # each IDF to be treated as an atomic boolean regardless of the
+    # embedded engine's precedence rules. Single-column tables are
+    # parenthesised too for consistency (harmless, and defends the
+    # invariant if a future column addition promotes the table to 2+).
+    #
+    # Backup plan if DataFusion is later found to have a genuine
+    # ``IS DISTINCT FROM`` bug on strings: rewrite each clause as
+    #     (target."c" <> source."c" OR (target."c" IS NULL) <> (source."c" IS NULL))
+    # to hand-roll null-safe inequality. Separate task — do NOT apply
+    # unless parenthesisation demonstrably fails in tests.
     update_predicate = (
         " OR ".join(
-            f'target."{c}" IS DISTINCT FROM source."{c}"' for c in compare_columns
+            f'(target."{c}" IS DISTINCT FROM source."{c}")' for c in compare_columns
         )
         if compare_columns
         else None

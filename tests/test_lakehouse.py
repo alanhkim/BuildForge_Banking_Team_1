@@ -1241,10 +1241,11 @@ def test_write_delta_table_update_predicate_excludes_as_of_and_pk(
     update_predicate = update_kwargs["predicate"]
 
     # Both non-PK, non-as_of columns must appear on both sides, with
-    # double-quoted identifiers (schema-tolerance invariant).
-    assert 'target."name" IS DISTINCT FROM source."name"' in update_predicate
+    # double-quoted identifiers (schema-tolerance invariant) and each
+    # IDF clause wrapped in parentheses (DataFusion precedence fix).
+    assert '(target."name" IS DISTINCT FROM source."name")' in update_predicate
     assert (
-        'target."description" IS DISTINCT FROM source."description"'
+        '(target."description" IS DISTINCT FROM source."description")'
         in update_predicate
     )
     # ORed together, not ANDed — any single column differing triggers update.
@@ -1350,9 +1351,10 @@ def test_write_delta_table_composite_pk_relationships(tmp_path, monkeypatch):
     assert predicate.count(" AND ") == 2
 
     # weight is a non-PK, non-as_of column → update branch IS wired.
+    # Single-clause predicate is still parenthesised for consistency.
     update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
     assert (
-        'target."weight" IS DISTINCT FROM source."weight"'
+        '(target."weight" IS DISTINCT FROM source."weight")'
         in update_kwargs["predicate"]
     )
 
@@ -1410,9 +1412,10 @@ def test_write_delta_table_merges_when_target_has_pascalcase_columns(
     assert capture["predicate"] == 'target."ID" = source."ID"'
     # Update predicate compares Name (not name / NAME) — ``As_Of`` is
     # excluded (case-insensitive ``as_of`` match) and ``ID`` is the PK.
+    # Each IDF clause is parenthesised (DataFusion precedence fix).
     update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
     update_predicate = update_kwargs["predicate"]
-    assert 'target."Name" IS DISTINCT FROM source."Name"' in update_predicate
+    assert '(target."Name" IS DISTINCT FROM source."Name")' in update_predicate
     assert "As_Of" not in update_predicate
     assert "as_of" not in update_predicate
     assert '"ID"' not in update_predicate
@@ -1463,7 +1466,7 @@ def test_write_delta_table_merges_when_target_has_mixed_case_columns(
 
     update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
     update_predicate = update_kwargs["predicate"]
-    assert 'target."Name" IS DISTINCT FROM source."Name"' in update_predicate
+    assert '(target."Name" IS DISTINCT FROM source."Name")' in update_predicate
     assert "AS_OF" not in update_predicate
 
 
@@ -1650,7 +1653,9 @@ def test_write_delta_table_first_write_path_unchanged(tmp_path, monkeypatch):
     assert list(data.column_names) == ["id", "name", "as_of"]
 
 
-
+def test_write_delta_table_raises_when_table_name_not_in_primary_keys_map(
+    tmp_path, monkeypatch
+):
     """A Parquet file whose stem is not in _TABLE_PRIMARY_KEYS must
     raise LakehouseWriteError with the table name in the message — NEVER
     silently default to ("id",)."""
@@ -2117,3 +2122,145 @@ def test_write_delta_table_composes_case_and_type_alignment(
     # And large_string is definitively gone from both columns.
     assert merged.schema.field("ID").type != pa.large_string()
     assert merged.schema.field("As_Of").type != pa.large_string()
+
+
+# ---------------------------------------------------------------------------
+# Update-predicate parenthesisation tests (2026-07-21 follow-up #3).
+#
+# DataFusion (delta-rs 1.6.2) mis-groups ``OR`` into the right-hand side
+# of an un-parenthesised ``IS DISTINCT FROM`` clause, producing errors
+# like ``Cannot infer common argument type for logical boolean operation
+# Utf8 OR Boolean`` on tables with 2+ compare columns (e.g.
+# ``business_processes`` with Name, Value_Chain, Owner_Unit_ID).
+# ``write_delta_table`` wraps EACH IDF clause in explicit parens so the
+# engine treats them as atomic booleans regardless of parser precedence.
+# ---------------------------------------------------------------------------
+
+
+def test_write_delta_table_update_predicate_parenthesizes_each_clause(
+    tmp_path, monkeypatch
+):
+    """Regression: the exact ``business_processes`` shape (2+ non-PK
+    compare columns) must produce a predicate where each IDF clause is
+    wrapped in parens. This is the guard that would have caught the
+    ``Utf8 OR Boolean`` DataFusion mis-grouping."""
+    parquet = tmp_path / "business_processes.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {
+            "id": ["p1", "p2"],
+            "name": ["Onboarding", "Payments"],
+            "value_chain": ["Front Office", "Back Office"],
+            "owner_unit_id": ["u1", "u2"],
+        },
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema(
+            {
+                "ID": pa.string(),
+                "Name": pa.string(),
+                "Value_Chain": pa.string(),
+                "Owner_Unit_ID": pa.string(),
+            }
+        ),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="business_processes",
+        credential=_mock_credential(),
+    )
+
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    update_predicate = update_kwargs["predicate"]
+
+    # Each of the three compare columns has its OWN parenthesised IDF.
+    assert (
+        '(target."Name" IS DISTINCT FROM source."Name")' in update_predicate
+    )
+    assert (
+        '(target."Value_Chain" IS DISTINCT FROM source."Value_Chain")'
+        in update_predicate
+    )
+    assert (
+        '(target."Owner_Unit_ID" IS DISTINCT FROM source."Owner_Unit_ID")'
+        in update_predicate
+    )
+    # ORed together, three clauses → exactly two ``OR`` joiners.
+    assert update_predicate.count(" OR ") == 2
+    # And the joiner is ``) OR (`` — not ``FROM source."x" OR target."y"``
+    # (the un-parenthesised shape DataFusion mis-groups).
+    assert ") OR (" in update_predicate
+    # Clause count via paren count: exactly 3 opening ``(target."`` and
+    # exactly 3 closing ``)`` at the outer scope. Cheap structural guard.
+    assert update_predicate.count('(target."') == 3
+    # Full expected shape (order preserved from the aligned column list).
+    expected = (
+        '(target."Name" IS DISTINCT FROM source."Name")'
+        ' OR '
+        '(target."Value_Chain" IS DISTINCT FROM source."Value_Chain")'
+        ' OR '
+        '(target."Owner_Unit_ID" IS DISTINCT FROM source."Owner_Unit_ID")'
+    )
+    assert update_predicate == expected
+
+
+def test_write_delta_table_update_predicate_parenthesizes_single_clause(
+    tmp_path, monkeypatch
+):
+    """Consistency: a single non-PK compare column is ALSO parenthesised
+    (no OR joiner, one ``()`` clause). Guards against a future column
+    addition promoting the table to 2+ and re-introducing the bug."""
+    parquet = tmp_path / "dim_control.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {
+            "id": [1, 2],
+            "name": ["a", "b"],
+            "as_of": ["2026-07-21", "2026-07-21"],
+        },
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema(
+            {
+                "id": pa.int64(),
+                "name": pa.string(),
+                "as_of": pa.string(),
+            }
+        ),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="dim_control",
+        credential=_mock_credential(),
+    )
+
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    update_predicate = update_kwargs["predicate"]
+
+    # Exactly one clause (``name`` — PK ``id`` and ``as_of`` are excluded),
+    # wrapped in parentheses. No OR joiner.
+    assert update_predicate == '(target."name" IS DISTINCT FROM source."name")'
+    assert " OR " not in update_predicate
+

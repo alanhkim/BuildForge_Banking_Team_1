@@ -2,6 +2,107 @@
 
 ## Active Decisions
 
+### 2026-07-21 (late evening, hardening #3): OneLake Delta MERGE — parenthesise each `IS DISTINCT FROM` clause (DataFusion precedence workaround)
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; **58/58 tests green** in `tests/test_lakehouse.py` (55 pre-existing after `891eb2b` + 2 new regression tests + 1 resurrected orphan-block test). Test count trajectory: 34 (pre-MERGE) → 41 (`57daf7a`) → 46 (`775c857`) → 55 (`891eb2b`) → **58** (this drop). **The trilogy is now a quartet.**
+**Relates to:**
+- 2026-07-21 (late evening, hardening #2) type-coercion entry (immediately below — third seam-hardening at the same MERGE boundary; column names bridged in #1, column types bridged in #2, boolean-operator precedence bridged in #3)
+- `891eb2b` (type-coercion landing commit — 2026-07-21T21:30:00Z)
+- `775c857` (case-alignment landing commit — 2026-07-21T20:00:37Z)
+- `57daf7a` (MERGE landing commit — 2026-07-21T17:05:16Z; user-approved rules 1–8 preserved verbatim through all three hardenings)
+- §0 (OneLake Writeback Scope & Failure Semantics — soft/hard-skip classes preserved)
+
+**Triggering event:**
+User re-ran `interpret` immediately after `891eb2b` (type-coercion) landed. The `LargeUtf8` type mismatch is confirmed dead — that error string is gone. A **third**, distinct DataFusion error surfaced on the same `business_processes` target:
+
+```
+OneLake Delta writeback failed: Failed to MERGE-upsert Parquet 'business_processes.parquet'
+into Delta table 'business_processes': Generic DeltaTable error: type_coercion
+caused by Error during planning: Cannot infer common argument type for logical boolean
+operation Utf8 OR Boolean
+```
+
+Concrete failure: `business_processes` has 3 non-PK compare columns (`Name`, `Value_Chain`, `Owner_Unit_ID` on the PascalCase Fabric-created target). The predicate builder produced the un-parenthesised chain
+
+```sql
+target."Name" IS DISTINCT FROM source."Name" OR target."Value_Chain" IS DISTINCT FROM source."Value_Chain" OR target."Owner_Unit_ID" IS DISTINCT FROM source."Owner_Unit_ID"
+```
+
+which — despite standard SQL saying `IS DISTINCT FROM` has higher precedence than `OR` — is mis-grouped by DataFusion's SQL parser (delta-rs 1.6.2) as if the `OR` were inside an IDF's right-hand side. The `Utf8 OR Boolean` in the error is a raw column reference (Utf8, e.g. `source."Value_Chain"`) sitting next to the boolean result of an adjacent IDF. Third boundary-layer mismatch on the same seam, next layer up: **syntax** rather than **name** (hardening #1) or **type** (hardening #2).
+
+**Why the bug lay dormant until now.** Of 34 tables in the MERGE path, 28 are single-`id` PK with a small compare-column set — most produce 1-clause update predicates (no `OR` at all). Bridge tables like `bridge_gap_entity` are all-PK → no update branch. `business_processes` is the first table hit by the MERGE codepath with 2+ non-PK compare columns AND non-empty rows AND matching Fabric-notebook target. Hardenings #1 and #2 unblocked it column-name-wise and type-wise; this drop unblocks it syntax-wise.
+
+**What changed:**
+One-line f-string change in `src/regimpact/lakehouse.py` (~L1195) — each `IS DISTINCT FROM` clause now wrapped in explicit parentheses:
+
+```python
+# Before (produced un-parenthesised OR chain):
+f'target."{c}" IS DISTINCT FROM source."{c}"'
+# After (each clause atomic under any parser precedence):
+f'(target."{c}" IS DISTINCT FROM source."{c}")'
+```
+
+Predicate now emits `(target."A" IS DISTINCT FROM source."A") OR (target."B" IS DISTINCT FROM source."B") OR ...`. Explicit parens force each IDF to be treated as an atomic boolean regardless of the embedded engine's precedence rules. Single-column tables get parenthesised too (harmless no-op, defends the invariant if a future column addition promotes the table to 2+). Added a ~20-line comment above the predicate construction naming the DataFusion mis-grouping, citing delta-rs 1.6.2, and documenting the backup plan.
+
+**Options considered:**
+
+1. **`<>` with an explicit null-guard `(target."c" <> source."c" OR (target."c" IS NULL) <> (source."c" IS NULL))`.** Rejected as the primary fix. This is a bigger surface change, sacrifices the null-safety idiom that hardening #1 explicitly chose (and documented as "the whole reason `IS DISTINCT FROM` exists"), and is unnecessary if the DataFusion issue is purely about parser precedence rather than a genuine IDF-on-strings bug. Filed as **backup plan** in a code comment above the predicate construction — apply only if parenthesisation demonstrably fails in a future test or `interpret` run.
+2. **Only parenthesise when `len(compare_columns) >= 2`.** Rejected as too clever. The extra parens on a single-clause predicate are semantic no-ops but they defend the invariant if the table's schema ever grows a non-PK column (which promotes it to the multi-column path). Consistency beats micro-optimisation on a one-time string-build cost.
+3. **Rewrite the update predicate as a compound `WHEN MATCHED AND ...` clause using DataFusion functions rather than SQL operators.** Rejected as scope creep. Would require using `.when_matched_update(predicate=<callable-or-Expr>, updates={...})` and building `Expr` objects programmatically; delta-rs Python API surface for this is stable enough but the code becomes materially harder to read for zero behavioural gain over parenthesised SQL. Save it as an option if we ever hit a DataFusion bug that parens can't work around.
+4. **Parenthesise every clause (chosen).** Minimum viable diff, zero API surface change, defended by two dedicated regression tests, backup plan documented in place. Same one-seam pattern as hardenings #1 and #2 — cheap, targeted, reversible.
+
+**Semantics:**
+
+| Scenario                                    | Predicate shape                                                                                                                                                                          | Behaviour |
+|---------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| 3+ compare columns (`business_processes`)   | `(target."A" IS DISTINCT FROM source."A") OR (target."B" IS DISTINCT FROM source."B") OR (target."C" IS DISTINCT FROM source."C")`                                                       | Each clause atomic; DataFusion cannot mis-group `OR` into an IDF's right-hand side. |
+| 2 compare columns                           | `(target."A" IS DISTINCT FROM source."A") OR (target."B" IS DISTINCT FROM source."B")`                                                                                                    | Same guarantee, same shape. |
+| 1 compare column (`dim_control` etc.)       | `(target."A" IS DISTINCT FROM source."A")`                                                                                                                                                | No `OR` joiner; the outer parens are a semantic no-op but keep the shape consistent so a future non-PK column doesn't silently drop back into the broken form. |
+| 0 compare columns (`bridge_gap_entity`)     | `None`                                                                                                                                                                                    | Unchanged from hardening #1: `.when_matched_update_all(...)` is skipped entirely. |
+
+**Behavioural consequences (deliberate, none):**
+
+- **No change to matched-row semantics.** Update still fires iff any non-PK non-`as_of` column differs (null-safe). The predicate is logically equivalent to the pre-drop version; only the syntactic grouping changes.
+- **No change to `.when_matched_update_all(...)` skip behaviour** for all-PK tables (`bridge_gap_entity`).
+- **No change to first-write path** (`write_deltalake` on `TableNotFoundError`) — that codepath never constructs an update predicate.
+- **No change to case-alignment or type-coercion helpers** — both compose above the predicate construction unchanged. Compose order still: `align case → cast types → construct parenthesised MERGE predicate → merge`.
+- **No change to `_TABLE_PRIMARY_KEYS`** (still lowercase, still one source of truth for identity).
+
+**Delivered:**
+
+- `src/regimpact/lakehouse.py` — one-line f-string change (each IDF clause wrapped in parens); ~20-line comment block above the `update_predicate` construction documenting: the DataFusion mis-grouping observed on `business_processes`, the "wrap even single-column for consistency" invariant, the `<>`-with-null-guard backup plan (do NOT implement unless parens demonstrably fails), and the general lesson about embedded-engine SQL parser precedence.
+- `tests/test_lakehouse.py` — 55 → 58 tests.
+  - Updated 5 pre-existing IDF assertions to expect parenthesised form. No assertion weakened — the shape/intent stays the same, only the exact expected string changed. Affected tests: `test_write_delta_table_update_predicate_excludes_as_of_and_pk`, `test_write_delta_table_composite_pk_relationships`, `test_write_delta_table_merges_when_target_has_pascalcase_columns`, `test_write_delta_table_merges_when_target_has_mixed_case_columns`.
+  - **NEW** `test_write_delta_table_update_predicate_parenthesizes_each_clause` — the exact `business_processes` failure shape. Reproduces 3 non-PK PascalCase compare columns and asserts: each clause parenthesised, `) OR (` joiner present, exactly 3 `(target."` openings, and the full expected string in order. This is the guard that would have caught the bug on the first run of the MERGE path against `business_processes`.
+  - **NEW** `test_write_delta_table_update_predicate_parenthesizes_single_clause` — consistency guard for the 1-clause case (`dim_control`, 1 non-PK non-`as_of` column). Asserts `(target."name" IS DISTINCT FROM source."name")` exactly, and that `" OR "` is absent.
+  - Resurrected the orphan test block at the end of the "schema-tolerance / first-write" region — the `def test_write_delta_table_raises_when_table_name_not_in_primary_keys_map(tmp_path, monkeypatch):` line had been stripped by an earlier edit; the docstring and body were intact and running silently inside the preceding test's `def`. Restored the `def` line; the resurrected test now runs and passes on its own.
+- `.squad/decisions/inbox/bishop-onelake-idf-parenthesization.md` — this drop, merged into this file and removed by Scribe this turn.
+
+**Explicit non-goals (deliberately NOT done):**
+
+- **No live `interpret` run from this session.** User validates end-to-end.
+- **No commit — coordinator handles.**
+- **No `<>`-with-null-guard rewrite.** Parenthesisation is sufficient; the rewrite is documented as a backup plan in code and only applies if the primary fix fails.
+- **No change to `_align_arrow_to_target_schema` or `_cast_arrow_to_target_types`** — both compose above the predicate construction unchanged.
+- **No commit of `.squad/decisions.md` reordering.** Coordinator's job.
+
+**Meta-lesson (general):**
+
+SQL operator precedence in an embedded query engine's hand-rolled parser is not the same as SQL operator precedence in a spec-conformant engine. When you find yourself constructing SQL programmatically for `delta-rs`, `duckdb`, `sqlite`, `polars`, or any engine that isn't Postgres or SQL Server, **parenthesise every atomic boolean explicitly** — especially when combining unusual operators (`IS DISTINCT FROM`, `IS NOT DISTINCT FROM`, `ANY`, `ALL`, `EXISTS`). The cost is a few extra bytes in the query string; the alternative is chasing precedence bugs one production table at a time. The MERGE-hardening arc across `57daf7a`/`775c857`/`891eb2b`/this drop is the concrete illustration: each hardening un-blocked the next layer of the same seam because we didn't parenthesise proactively.
+
+**Pattern for future MERGE seams:**
+
+1. **Rename source columns to target case** (`_align_arrow_to_target_schema`, `775c857`).
+2. **Cast source types to target types** (`_cast_arrow_to_target_types`, `891eb2b`).
+3. **Wrap every atomic boolean in `()`** when constructing the update predicate string (this drop).
+4. **Only then** hand the Arrow table + predicate to `DeltaTable.merge()`.
+
+Compose order fixed: **rename → cast → parenthesise → merge**. Any future MERGE-seam bug will hit one of these four layers; the framework is now positioned to add a fifth (probably around collation, timezone, or nested-struct alignment) as a peer helper rather than a rewrite.
+
+---
+
 ### 2026-07-21 (late evening, hardening #2): OneLake Delta MERGE — type-coerce Arrow to target Delta schema
 
 **Author:** Bishop (Python Core Dev)
