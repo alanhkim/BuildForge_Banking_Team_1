@@ -13,8 +13,8 @@ convention only and is rejected here with ``FriendlyNameSupportDisabled``).
 Confirmed against ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` →
 ``properties.oneLakeFilesPath`` / ``oneLakeTablesPath``, which both return
 ``https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/…``
-with no suffix. Parquet files land under ``Files/<subpath>/`` and can then
-be shortcut'd into a Delta table from the Fabric UI.
+with no suffix. Parquet and CSV files land under ``Files/<subpath>/`` and
+can then be shortcut'd into a Delta table from the Fabric UI.
 """
 from __future__ import annotations
 
@@ -177,12 +177,12 @@ def export_to_lakehouse(
     credential=None,
     onelake_endpoint: str | None = None,
 ) -> list[str]:
-    """Upload every ``*.parquet`` file in ``tables_dir`` to a Fabric lakehouse.
+    """Upload every ``*.parquet`` and ``*.csv`` file in ``tables_dir`` to a Fabric lakehouse.
 
     Parameters
     ----------
     tables_dir:
-        Local directory containing Parquet files to upload.
+        Local directory containing Parquet and/or CSV files to upload.
     workspace_id:
         Fabric workspace ID (GUID). Used as the ADLS filesystem name.
     lakehouse_id:
@@ -191,7 +191,7 @@ def export_to_lakehouse(
         suffix — that is a Fabric UI / Spark-shortcut convention that the
         ADLS Gen2 name-plane rejects with ``FriendlyNameSupportDisabled``).
     files_subpath:
-        Subfolder under ``Files/`` where Parquet files land. Defaults to
+        Subfolder under ``Files/`` where the files land. Defaults to
         ``"tables"``.
     credential:
         Optional Azure credential. Defaults to
@@ -218,7 +218,7 @@ def export_to_lakehouse(
         Fabric GUID (after stripping surrounding whitespace/quotes); or if
         ``onelake_endpoint`` is provided but not a valid OneLake DFS URL.
     LakehouseWriteError
-        If any Parquet upload fails.
+        If any upload fails.
     """
     workspace_id = _normalize_fabric_id(workspace_id, "FABRIC_WORKSPACE_ID")
     lakehouse_id = _normalize_fabric_id(lakehouse_id, "FABRIC_LAKEHOUSE_ID")
@@ -237,8 +237,14 @@ def export_to_lakehouse(
     directory_client = file_system.get_directory_client(target_dir)
 
     uploaded: list[str] = []
-    parquet_files = sorted(tables_dir.glob("*.parquet"))
-    for local_path in parquet_files:
+    # Restricted to Parquet + CSV on purpose — those are the two formats
+    # ``export_tables`` / ``export_gold`` produce. Anything else in
+    # ``tables_dir`` is almost certainly accidental (stray logs, editor
+    # backups, README) and shouldn't be pushed to Fabric.
+    upload_files = sorted(
+        list(tables_dir.glob("*.parquet")) + list(tables_dir.glob("*.csv"))
+    )
+    for local_path in upload_files:
         try:
             file_client = directory_client.get_file_client(local_path.name)
             data = local_path.read_bytes()
@@ -258,7 +264,7 @@ def export_to_lakehouse(
         )
 
     logger.info(
-        "OneLake upload complete: %d Parquet file(s) written to %s",
+        "OneLake upload complete: %d file(s) written to %s",
         len(uploaded),
         target_dir,
     )
@@ -286,7 +292,12 @@ def export_regimpact_lakehouse(
     ``v_impact``, ``v_compliance`` and ``v_capability_health`` views inside
     Fabric. Delta conversion and view creation require the Fabric-provided
     Spark session, so they stay in the notebook — this function only lands
-    the Parquet in the right place.
+    the files in the right place.
+
+    Parquet is the primary format consumed by the PySpark notebook; CSVs
+    land alongside for direct download and non-Spark consumers (Excel,
+    quick eyeballing, external ingestion). Both formats are uploaded
+    whenever they exist locally.
 
     Both directories are optional at runtime: if either is empty or missing,
     that half of the upload is skipped and reported as an empty list. This
@@ -331,8 +342,11 @@ def export_regimpact_lakehouse(
     """
     cred = credential if credential is not None else _default_credential()
 
+    def _has_uploadable(d: Path) -> bool:
+        return d.exists() and (any(d.glob("*.parquet")) or any(d.glob("*.csv")))
+
     raw_uploaded: list[str] = []
-    if tables_dir.exists() and any(tables_dir.glob("*.parquet")):
+    if _has_uploadable(tables_dir):
         raw_uploaded = export_to_lakehouse(
             tables_dir,
             workspace_id=workspace_id,
@@ -343,11 +357,12 @@ def export_regimpact_lakehouse(
         )
     else:
         logger.warning(
-            "OneLake raw upload skipped: %s has no Parquet files.", tables_dir
+            "OneLake raw upload skipped: %s has no Parquet or CSV files.",
+            tables_dir,
         )
 
     gold_uploaded: list[str] = []
-    if gold_dir.exists() and any(gold_dir.glob("*.parquet")):
+    if _has_uploadable(gold_dir):
         gold_uploaded = export_to_lakehouse(
             gold_dir,
             workspace_id=workspace_id,
@@ -358,7 +373,8 @@ def export_regimpact_lakehouse(
         )
     else:
         logger.warning(
-            "OneLake gold upload skipped: %s has no Parquet files.", gold_dir
+            "OneLake gold upload skipped: %s has no Parquet or CSV files.",
+            gold_dir,
         )
 
     return {"raw": raw_uploaded, "gold": gold_uploaded}

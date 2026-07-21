@@ -2,6 +2,59 @@
 
 ## Active Decisions
 
+### 2026-07-21 (evening): OneLake writeback uploads CSV alongside Parquet
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; 23/23 tests green in `tests/test_lakehouse.py`
+**Relates to:** §0 (OneLake Writeback Scope & Failure Semantics); 2026-07-21 (afternoon) `.Lakehouse` suffix entry (immediately below — closes the FriendlyNameSupportDisabled trilogy this decision sits on top of)
+**Nature:** additive extension of a working boundary — NOT another root-cause fix in the trilogy.
+
+**What:**
+Extended `export_to_lakehouse()` and `export_regimpact_lakehouse()` in `src/regimpact/lakehouse.py` to upload both `*.parquet` **and** `*.csv` files from `tables_dir` into the target Fabric lakehouse `Files/<subpath>/` location.
+
+- Glob widened from `*.parquet` to sorted `*.parquet + *.csv`.
+- `export_regimpact_lakehouse` presence check widened to `.parquet OR .csv` so a CSV-only directory triggers the upload path instead of being silently skipped as empty.
+- CLI (`cli.py`) console message wording: "N gold Parquet file(s)" → "N gold file(s)".
+- Same target subpaths (`regimpact_raw`, `regimpact_gold`), same auth, same failure semantics, same ABFSS URL shape — just now `.ext` may be `.parquet` or `.csv`.
+
+**Why (parity):**
+`export_tables()` and `export_gold()` already write both formats to disk. Users expect parity between local `output/tables/` and what shows up in the Fabric lakehouse:
+- Parquet for the PySpark notebook (`01_load_lakehouse.ipynb`), which reads by exact `{name}.parquet` filename.
+- CSV for direct download, Excel eyeballing, non-Spark ingestion, and audit review.
+
+Before this change, users saw a CSV on their laptop, uploaded to Fabric, and could not find that CSV in the lakehouse. That's a broken mental model. This fix removes the surprise.
+
+**Why (restriction — glob stays narrow, NOT `*`):**
+`output/tables/` is a working directory. Over time it may accumulate editor swap files (`.swp`, `~$foo.csv`), stray log/debug dumps, manifests, JSON/Markdown scratch, or half-written files if a run was killed mid-export. Pushing all of those to a shared Fabric lakehouse would pollute the workspace, risk name collisions with legitimate assets, and give downstream Spark shortcuts unexpected content to reason about. The two-extension allowlist is a **safety property** — it matches exactly what the local exporters produce, so anything else in the directory is by definition not part of the intended dataset.
+
+Regression guard test `test_export_to_lakehouse_ignores_other_extensions` stages `.parquet + .csv + .json + .txt + .md` and asserts exactly 2 uploads. Anyone widening this in the future will trip that test and land here.
+
+**Position vs FriendlyNameSupportDisabled trilogy:**
+This is an EXTENSION on top of the trilogy, not a fourth root-cause fix. The trilogy closed ~10 minutes earlier with the user's "YES THAT WORKED!" confirmation on the `.Lakehouse` suffix drop. No diagnostic funnel work here — the boundary is working end-to-end; this widens what it uploads.
+
+**Backward compatibility:**
+Public API signatures unchanged — `export_to_lakehouse()` and `export_regimpact_lakehouse()` still return `list[str]` of ABFSS URLs (the list is just longer now). Existing callers (only in-repo caller is `cli.py::interpret`, updated in the same change) work unchanged.
+
+**Tests:**
+- `tests/test_lakehouse.py` — **23/23 green** (17 pre-existing + 4 new CSV-specific + 2 pre-existing parametrized cases).
+- Renamed `test_export_ignores_non_parquet_files` → `test_export_ignores_non_parquet_non_csv_files`; CSV reclassified from "expected-ignored" to "expected-uploaded" in its fixture.
+- New: `test_export_to_lakehouse_uploads_csv_alongside_parquet` — both formats uploaded in the same call.
+- New: `test_export_to_lakehouse_uploads_csv_when_no_parquet_present` — CSV upload not gated on Parquet.
+- New: `test_export_to_lakehouse_ignores_other_extensions` — regression guard against future "just glob everything" refactors.
+- New: `test_export_to_lakehouse_returns_urls_for_both_formats` — ABFSS URL list contains both file types.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — glob widened, loop variable renamed `parquet_files` → `upload_files`, docstrings + module-level comment updated to say "Parquet and CSV", presence check in `export_regimpact_lakehouse` widened.
+- `src/regimpact/cli.py` — 1-line console message wording.
+- `tests/test_lakehouse.py` — 4 new tests + 1 renamed test.
+
+**Downstream impact:**
+- Next `interpret` run uploads ~34 files per subpath (17 Parquet + 17 CSV) instead of 17. Object count doubles; storage cost negligible; wall-clock stays sub-second at test scales.
+- Notebook unaffected — reads by exact `{name}.parquet` filename; CSVs sitting alongside are inert to the Spark loader.
+
+---
+
 ### 2026-07-21 (afternoon): Drop `.Lakehouse` suffix from OneLake ADLS paths
 
 **Author:** Bishop (Python Core Dev)

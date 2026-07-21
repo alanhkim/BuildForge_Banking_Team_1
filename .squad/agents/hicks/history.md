@@ -7,6 +7,18 @@
 
 ## Learnings
 
+### 2026-07-21 (evening) — Team update: 4 new CSV tests + 1 rename in `test_lakehouse.py` — total OneLake test count now 23
+- Bishop shipped an additive extension to the OneLake writeback boundary — `export_to_lakehouse()` now uploads both `*.parquet` and `*.csv` from `tables_dir`. This is an **extension** on top of the closed FriendlyNameSupportDisabled trilogy, not a fourth root-cause fix. Governing decision at the top of `.squad/decisions.md`.
+- **Test surface update:** `tests/test_lakehouse.py` is now **23/23 green** (was 19). Four new CSV-focused tests plus one rename:
+  - Renamed `test_export_ignores_non_parquet_files` → `test_export_ignores_non_parquet_non_csv_files`. CSV reclassified in the fixture from "expected-ignored" to "expected-uploaded". Rename is deliberate — the old name would lie about behavior now that CSV is uploaded.
+  - `test_export_to_lakehouse_uploads_csv_alongside_parquet` — both formats uploaded in the same call.
+  - `test_export_to_lakehouse_uploads_csv_when_no_parquet_present` — CSV upload not gated on Parquet (proves CSV isn't parasitic on Parquet presence).
+  - `test_export_to_lakehouse_ignores_other_extensions` — **explicit regression guard against future glob widening**: stages `.parquet + .csv + .json + .txt + .md` and asserts exactly 2 uploads. Named clearly on purpose so any future "just glob everything" refactor trips this test and lands on the decision entry. Preserve this pattern.
+  - `test_export_to_lakehouse_returns_urls_for_both_formats` — ABFSS URL list contains both file types.
+- **Pattern to keep: "add regression guard per behavior contract, not just per bug fix."** Previous batches (GUID validation, regional endpoint, `.Lakehouse` suffix) added guards per root-cause fix. This batch adds a guard for a **design constraint** (glob stays narrow). Same discipline, applied to an intentional restriction rather than a defect — the guard names the restriction so it survives future refactors.
+- **Fixture conventions unchanged:** `_WS_GUID` / `_LH_GUID` canonical constants continue as the shared setup. All new tests follow the pattern. Boundary-error-class discipline preserved.
+- **Baseline unchanged:** 23-failure pre-existing baseline still stands (env-drift + asyncio config + one interpreter contract drift — none touch OneLake).
+
 ### 2026-07-21 (afternoon) — Team update: 2 new regression guards in `test_lakehouse.py` — third batch of OneLake tests in ~24h
 - Bishop landed the third and final fix in the FriendlyNameSupportDisabled trilogy this afternoon — dropped the `.Lakehouse` suffix from ADLS Gen2 paths in `src/regimpact/lakehouse.py::export_to_lakehouse`. Canonical form per Fabric REST is the bare lakehouse GUID. User confirmed end-to-end upload success. Governing decision at the top of `.squad/decisions.md`.
 - **Test surface update:** `tests/test_lakehouse.py` is now **19/19 green** (was 17). Two new regression guards protect against `.Lakehouse` suffix re-introduction:

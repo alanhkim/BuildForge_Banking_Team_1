@@ -8,6 +8,45 @@
 
 ## Learnings
 
+### 2026-07-21 (evening) — OneLake writeback extended to CSV alongside Parquet (glob stays restricted)
+
+**Ask.** User: "nice it worked — wrote to the lakehouse. however, i only see parquet written — can we also write the equivalent csv files please..." Additive extension to the boundary hardened earlier today.
+
+**Root cause of the gap.** `export_tables()` (in `export.py`) and `export_gold()` (in `gold.py`) write BOTH `.parquet` and `.csv` for each entity/star-schema table on disk. `export_to_lakehouse()` globbed only `*.parquet`. Net effect: user had CSVs on disk that never made it to OneLake.
+
+**Fix (`src/regimpact/lakehouse.py`).** Extended the glob to pick up both extensions in one sorted list:
+
+```python
+upload_files = sorted(
+    list(tables_dir.glob("*.parquet")) + list(tables_dir.glob("*.csv"))
+)
+```
+
+Loop variable renamed `parquet_files` → `upload_files`, log line dropped the format qualifier ("Parquet file(s)" → "file(s)"). Docstrings + module-level comment updated to say "Parquet and CSV". The ADLS SDK doesn't care about extension — it's all bytes over `upload_data`.
+
+Also updated `export_regimpact_lakehouse`'s presence check to gate on `.parquet OR .csv` (was `.parquet` only), so a CSV-only directory still triggers the upload path instead of being silently skipped as "empty". Belt-and-braces: proves CSV isn't parasitic on Parquet.
+
+CLI (`cli.py`): 1-line console message change — "N gold Parquet file(s)" → "N gold file(s)" — to reflect the new reality (~34 files per subpath now, not 17).
+
+**Deliberate constraint — the glob stays restricted to `.parquet + .csv`, NOT `*`.** Anything else that lands in `output/tables/` (stray `.txt` logs, editor backups, `.json` scratch, `README.md`) is almost certainly accidental. Widening the glob to "everything" would push unrelated files into a Fabric lakehouse where they don't belong and where naming collisions could clobber legitimate assets. Restricting to the two formats the local exporters actually produce is a safety property, not a limitation.
+
+**Notebook is unaffected.** `notebooks/08_fabric/01_load_lakehouse.ipynb` reads by exact filename `{name}.parquet`, so CSVs sitting alongside are inert to it. Parquet remains the primary format for Spark ingestion; CSVs are for direct download / Excel / non-Spark consumers. Verified — did not touch the notebook.
+
+**Tests (`tests/test_lakehouse.py`):** 23/23 green (17 existing + 4 new CSV-specific + 2 pre-existing parametrized cases that expanded).
+- Renamed `test_export_ignores_non_parquet_files` → `test_export_ignores_non_parquet_non_csv_files` and dropped the CSV from its "should be ignored" fixture (CSVs are now uploaded).
+- Added `test_export_to_lakehouse_uploads_csv_alongside_parquet` — both formats uploaded in same call.
+- Added `test_export_to_lakehouse_uploads_csv_when_no_parquet_present` — CSV upload not gated on Parquet.
+- Added `test_export_to_lakehouse_ignores_other_extensions` — regression guard: `.parquet + .csv + .json + .txt + .md` → exactly 2 uploads. This is the guard against future well-meaning "just glob everything" refactors.
+- Added `test_export_to_lakehouse_returns_urls_for_both_formats` — ABFSS URL list contains both file types.
+
+**Windows CRLF gotcha (test-only, one-time).** `Path.write_text(payload)` on Windows silently translates `\n` → `\r\n`, which then broke byte-level `assert_called_once_with(b"id,name\n1,foo\n", ...)` assertions on the mock. Fix: `_write_csv_stub` writes bytes directly via `path.write_bytes(payload.encode("utf-8"))`. Production code is unaffected because `export_tables` writes CSV via `pandas.DataFrame.to_csv(path)`, which the SDK reads back verbatim — the CRLF wrinkle only bit the test fixture. Worth remembering: any test that mocks byte-level upload and stages fixtures via `write_text` needs `write_bytes` on Windows.
+
+**Deliberately NOT done:**
+- Did not touch `_normalize_fabric_id`, `_resolve_onelake_endpoint`, or any of the FriendlyNameSupportDisabled trilogy boundary hardening — orthogonal.
+- Did not change any public function signature.
+- Did not widen the glob beyond Parquet + CSV. See above.
+- Did not touch the Fabric loader notebook.
+
 ### 2026-07-21 (afternoon) — OneLake canonical ADLS path is the bare lakehouse GUID (no `.Lakehouse` suffix)
 
 **Bug (third `FriendlyNameSupportDisabled` incident this week, same operator, same workspace).** GUIDs are canonical (yesterday's `_normalize_fabric_id` fix). Endpoint is regional and correctly overridden (this morning's `_resolve_onelake_endpoint` fix). Uploads *still* fail with `FriendlyNameSupportDisabled`. Same generic error string — third root cause.

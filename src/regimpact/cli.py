@@ -166,7 +166,7 @@ def interpret(
         console.print(
             f"[green]Uploaded to OneLake:[/] "
             f"[cyan]{len(uploaded['raw'])}[/] raw + "
-            f"[cyan]{len(uploaded['gold'])}[/] gold Parquet file(s) into "
+            f"[cyan]{len(uploaded['gold'])}[/] gold file(s) into "
             f"[cyan]{settings.fabric_lakehouse_id}/Files/"
             f"{{regimpact_raw,regimpact_gold}}[/]"
         )

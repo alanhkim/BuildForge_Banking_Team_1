@@ -157,10 +157,11 @@ def test_export_wraps_azure_errors(tmp_path, monkeypatch):
     assert isinstance(excinfo.value.__cause__, RuntimeError)
 
 
-def test_export_ignores_non_parquet_files(tmp_path, monkeypatch):
+def test_export_ignores_non_parquet_non_csv_files(tmp_path, monkeypatch):
     _write_parquet_stub(tmp_path / "regulations.parquet", b"real-parquet")
-    (tmp_path / "regulations.csv").write_text("id,name\n1,foo\n", encoding="utf-8")
     (tmp_path / "notes.txt").write_text("ignore me", encoding="utf-8")
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# hi", encoding="utf-8")
 
     file_clients: dict[str, MagicMock] = {}
 
@@ -470,3 +471,110 @@ def test_export_returned_abfss_urls_never_contain_lakehouse_suffix(
         assert ".Lakehouse" not in url, (
             f"stale `.Lakehouse` suffix leaked into ABFSS URL: {url}"
         )
+
+
+# --- CSV alongside Parquet (parity with local export_tables / export_gold) ---
+#
+# ``export_tables`` and ``export_gold`` write both ``*.parquet`` and ``*.csv``
+# for every entity/star-schema table. The OneLake writeback must upload both
+# so users see the same set of files in Fabric that they have on disk.
+# The glob stays restricted to those two extensions on purpose — see the
+# comment in ``export_to_lakehouse`` for why.
+
+
+def _write_csv_stub(path: Path, payload: str = "id,name\n1,foo\n") -> None:
+    # Write bytes to preserve LF exactly (``write_text`` will translate to
+    # CRLF on Windows, which breaks byte-level upload assertions below).
+    path.write_bytes(payload.encode("utf-8"))
+
+
+def test_export_to_lakehouse_uploads_csv_alongside_parquet(tmp_path, monkeypatch):
+    """Both ``foo.parquet`` and ``foo.csv`` must be uploaded in the same call."""
+    _write_parquet_stub(tmp_path / "foo.parquet", b"parquet-bytes")
+    _write_csv_stub(tmp_path / "foo.csv", "id,name\n1,foo\n")
+
+    _, _, file_clients = _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    assert set(file_clients) == {"foo.parquet", "foo.csv"}
+    file_clients["foo.parquet"].upload_data.assert_called_once_with(
+        b"parquet-bytes", overwrite=True
+    )
+    file_clients["foo.csv"].upload_data.assert_called_once_with(
+        b"id,name\n1,foo\n", overwrite=True
+    )
+    assert len(urls) == 2
+
+
+def test_export_to_lakehouse_uploads_csv_when_no_parquet_present(
+    tmp_path, monkeypatch
+):
+    """CSV upload is not gated on Parquet presence — CSV-only dirs still upload."""
+    _write_csv_stub(tmp_path / "foo.csv", "id,name\n1,foo\n")
+
+    _, _, file_clients = _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    assert list(file_clients) == ["foo.csv"]
+    file_clients["foo.csv"].upload_data.assert_called_once_with(
+        b"id,name\n1,foo\n", overwrite=True
+    )
+    assert len(urls) == 1
+    assert urls[0].endswith("/foo.csv")
+
+
+def test_export_to_lakehouse_ignores_other_extensions(tmp_path, monkeypatch):
+    """Regression guard — glob must NOT widen to arbitrary files."""
+    _write_parquet_stub(tmp_path / "foo.parquet", b"parquet-bytes")
+    _write_csv_stub(tmp_path / "foo.csv", "id,name\n1,foo\n")
+    (tmp_path / "foo.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "foo.txt").write_text("noise", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# hi", encoding="utf-8")
+
+    _, _, file_clients = _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    assert set(file_clients) == {"foo.parquet", "foo.csv"}
+    assert len(urls) == 2
+
+
+def test_export_to_lakehouse_returns_urls_for_both_formats(tmp_path, monkeypatch):
+    """Returned ABFSS URL list must contain both the .parquet and .csv URLs."""
+    _write_parquet_stub(tmp_path / "regulations.parquet", b"parquet-bytes")
+    _write_csv_stub(tmp_path / "regulations.csv", "id,name\n1,foo\n")
+
+    _wire_mock_datalake(monkeypatch)
+
+    urls = export_to_lakehouse(
+        tmp_path,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        credential=object(),
+    )
+
+    assert sorted(urls) == sorted(
+        [
+            f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
+            f"{_LH_GUID}/Files/tables/regulations.parquet",
+            f"abfss://{_WS_GUID}@onelake.dfs.fabric.microsoft.com/"
+            f"{_LH_GUID}/Files/tables/regulations.csv",
+        ]
+    )
