@@ -12,4 +12,4 @@ CHG-SEC,REG-SEC,SEC regulatory update,SEC 2026 amendment,Incoming update to SEC 
 CHG-OCC,REG-OCC,OCC regulatory update,OCC 2026 amendment,Incoming update to OCC Heightened Standards affecting risk governance obligations.,Amendment,2026-03-27,2026-12-16,High,2026-06-25
 CHG-MASTRM,REG-MAS,MASTRM regulatory update,MASTRM 2026 amendment,Incoming update to MAS Technology Risk Management affecting technology risk obligations.,Clarification,2026-03-30,2027-12-13,High,2026-06-25
 CHG-AMLD,REG-AMLD,AMLD regulatory update,AMLD 2026 amendment,Incoming update to Anti-Money Laundering Directive affecting financial crime obligations.,Clarification,2026-04-12,2027-01-09,Critical,2026-06-25
-CHG-EUAIACT-UPLOAD,REG-EUAIACT,High-Risk AI Systems - EU AI Act Requirements,EU AI Act (uploaded),Interpreted from uploaded text: 15 obligations.,New,2026-06-25,2026-12-31,High,2026-06-25
+CHG-EUAIACT-UPLOAD,REG-EUAIACT,High-Risk AI Systems - EU AI Act Requirements,EU AI Act (uploaded),Interpreted from uploaded text: 5 obligations.,New,2026-06-25,2026-12-31,High,2026-06-25

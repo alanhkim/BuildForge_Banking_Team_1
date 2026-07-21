@@ -1,105 +1,22 @@
 EU AI Act high-risk banking model update.
 
-TRAINING_DATA. Providers and deployers of high-risk AI systems used for
-creditworthiness, pricing, fraud detection, or customer eligibility decisions
-must establish training data governance controls over training datasets,
-validation datasets, and testing datasets so that the training data used to
-build high-risk AI models is relevant, representative, accurate, and complete,
-with documented dataset curation, labelling, and sampling practices.
+Providers and deployers of high-risk AI systems used for creditworthiness,
+pricing, fraud detection, or customer eligibility decisions must establish data
+governance controls over training data, validation data, and testing data so
+datasets are relevant, representative, accurate, and complete.
 
-DATA_LINEAGE. The bank must maintain documented data lineage and provenance
-for every dataset used to train high-risk AI systems, capturing source systems,
-upstream ingestion points, transformation history, data flow across pipelines,
-quality checks, approvals, and end-to-end lineage evidence retained for
-regulatory review.
+The bank must maintain documented lineage and provenance for data used to train
+high-risk AI systems, including source systems, transformation history, quality
+checks, approvals, and retained evidence for regulatory review.
 
-LOGGING_MONITORING. High-risk AI systems shall automatically produce event
-logs and continuous monitoring records throughout the model lifecycle so that
-inference decisions, model outputs, human interventions, configuration changes,
-and system errors are captured in centrally aggregated logs available for audit
-and supervisory investigation.
+High-risk AI systems shall automatically record events and logs throughout the
+model lifecycle so decisions, model outputs, human interventions, and system
+changes remain traceable for audit and supervisory investigation.
 
-AI_GOVERNANCE. The bank must operate an AI governance framework that provides
-effective human oversight of high-risk AI decisions, including a designated AI
-governance committee, documented escalation paths, defined authority to
-override automated outcomes, and evidence that reviewers understand model
-limitations and approved use cases.
+The bank must provide effective human oversight for high-risk AI decisions,
+including clear escalation paths, authority to override automated outcomes, and
+evidence that reviewers understand model limitations.
 
-MODEL_RISK. The bank must manage model risk for high-risk AI systems through
-independent model validation, backtesting, benchmark comparisons, drift
-detection, and ongoing performance monitoring, and must document model risk
-remediation whenever model performance, stability, or accuracy falls below
-approved model risk tolerance thresholds.
-
-AUDITABILITY. Providers must establish and maintain a risk management system
-as a continuous, iterative process across the entire lifecycle of the
-high-risk AI system, and must produce auditable records covering risk
-identification, estimation of foreseeable misuse, evaluation of post-market
-monitoring data, and residual-risk sign-off so that internal audit and
-competent authorities can trace each decision through a complete audit trail.
-
-METADATA. The bank must draw up and keep up to date technical documentation
-and system metadata for each high-risk AI system before it is placed on the
-market, cataloguing in a central metadata repository the general description
-of the system, its elements and development process, monitoring and control
-metadata, risk management measures, and any lifecycle changes, so competent
-authorities can discover and assess the catalogued system.
-
-CYBER. Providers must design and develop high-risk AI systems with an
-appropriate level of cybersecurity and declare the relevant performance
-metrics in the accompanying instructions of use. Systems must be resilient
-against cyber attacks by unauthorised third parties attempting to alter their
-use, outputs, or performance by exploiting vulnerabilities such as data
-poisoning, model poisoning, adversarial examples, prompt injection, or
-confidentiality attacks.
-
-CONDUCT. Deployers of high-risk AI systems used for creditworthiness or
-insurance pricing of natural persons must uphold fair customer conduct by
-carrying out a fundamental rights impact assessment prior to first use,
-describing categories of natural persons likely to be affected, specific
-risks of harm to consumers, human oversight measures, and remediation should
-those conduct risks materialise, and must notify the market surveillance
-authority of the results.
-
-REG_REPORTING. High-risk AI systems must be registered in the EU database for
-high-risk AI systems before being placed on the market or put into service,
-and the registration must be kept up to date as part of the provider's and
-deployer's regulatory reporting obligations to competent authorities and
-market surveillance authorities.
-
-INCIDENT_MGMT. Where a high-risk AI system presents a risk to health, safety,
-or fundamental rights, or where a serious incident occurs, the provider must
-trigger its incident management process, investigate immediately, inform the
-affected deployers and, where applicable, the notified body, and report the
-serious incident to the market surveillance authorities of the Member States
-concerned no later than 15 days after becoming aware of it, or immediately
-and not later than 2 days in case of widespread infringement or death of a
-person.
-
-THIRD_PARTY_RISK. Providers established outside the Union whose high-risk AI
-systems are placed on the Union market must, by written mandate, appoint an
-authorised representative established in the Union before making their
-systems available, and the bank must apply third-party risk management
-controls, due diligence, and contractual oversight to that representative and
-to any subcontractors or downstream providers acting on the provider's behalf.
-
-RETENTION. The provider and the authorised representative must apply a
-records retention period of at least 10 years after the high-risk AI system
-has been placed on the market, retaining the EU declaration of conformity,
-the technical documentation, logs required by law, and post-market monitoring
-records at the disposal of competent authorities in accordance with the
-retention schedule.
-
-ACCESS_CONTROL. The bank must ensure that natural persons assigned to human
-oversight of high-risk AI systems are granted the access rights, privileged
-permissions, and role-based authority required to correctly interpret the
-system's output, to decide not to use the system, to disregard, override, or
-reverse the output, and to intervene in the operation of the system or
-interrupt it through a stop button or equivalent access control mechanism.
-
-AI_GOVERNANCE. Providers and deployers must take measures to ensure, as part
-of ongoing AI governance and workforce competence, a sufficient level of AI
-literacy for their staff and other persons dealing with the operation and use
-of high-risk AI systems on their behalf, taking into account their technical
-knowledge, experience, education, training, and the context in which the AI
-systems are to be used.
+The bank must ensure model robustness, accuracy, cybersecurity, and ongoing
+performance monitoring through validation, backtesting, drift detection, and
+documented remediation when model performance falls below approved thresholds.

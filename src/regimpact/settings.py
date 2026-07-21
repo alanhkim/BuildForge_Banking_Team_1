@@ -29,6 +29,19 @@ _MAX_OUTPUT_TOKENS_DEFAULT = 8000
 _MAX_OUTPUT_TOKENS_MIN = 512
 _MAX_OUTPUT_TOKENS_MAX = 32000
 
+# Control Mapper request batching. The deployed Fabric agent's model has an
+# output-token ceiling we cannot lift from the client side (Foundry rejects
+# ``max_output_tokens`` when combined with ``agent_reference``). Sending too
+# many obligations in a single call produces truncated JSON that the strict
+# parser must (correctly) refuse rather than fabricate. Splitting the
+# request into small batches keeps each response well under the ceiling and
+# is deterministic — no invented mappings. Default 6 obligations per batch
+# is safe for ``gpt-4o``/``gpt-4.1``-class deployments; reduce via
+# ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE`` for older / smaller models.
+_CONTROL_MAPPER_BATCH_SIZE_DEFAULT = 6
+_CONTROL_MAPPER_BATCH_SIZE_MIN = 1
+_CONTROL_MAPPER_BATCH_SIZE_MAX = 50
+
 
 def _parse_timeout_seconds(raw: str | None) -> float:
     """Parse ``FOUNDRY_AGENT_TIMEOUT_SECONDS`` with clamping and safe fallback."""
@@ -62,6 +75,21 @@ def _parse_max_output_tokens(raw: str | None) -> int:
     return value
 
 
+def _parse_control_mapper_batch_size(raw: str | None) -> int:
+    """Parse ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE`` with clamping and safe fallback."""
+    if not raw:
+        return _CONTROL_MAPPER_BATCH_SIZE_DEFAULT
+    try:
+        value = int(float(raw))
+    except ValueError:
+        return _CONTROL_MAPPER_BATCH_SIZE_DEFAULT
+    if value < _CONTROL_MAPPER_BATCH_SIZE_MIN:
+        return _CONTROL_MAPPER_BATCH_SIZE_MIN
+    if value > _CONTROL_MAPPER_BATCH_SIZE_MAX:
+        return _CONTROL_MAPPER_BATCH_SIZE_MAX
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     """Environment-driven settings — all values must be supplied via .env or the shell."""
@@ -77,6 +105,7 @@ class Settings:
     azure_openai_token_scope: str = os.getenv("AZURE_OPENAI_TOKEN_SCOPE") or ""
     fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID") or ""
     fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID") or ""
+    fabric_onelake_dfs_endpoint: str = os.getenv("FABRIC_ONELAKE_DFS_ENDPOINT") or ""
     fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID") or ""
     purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME") or ""
     regimpact_foundry_enabled: bool = (
@@ -108,6 +137,21 @@ class Settings:
         default_factory=lambda: _parse_max_output_tokens(
             os.getenv("FOUNDRY_AGENT_MAX_OUTPUT_TOKENS")
         )
+    )
+    foundry_control_mapper_batch_size: int = field(
+        default_factory=lambda: _parse_control_mapper_batch_size(
+            os.getenv("FOUNDRY_CONTROL_MAPPER_BATCH_SIZE")
+        )
+    )
+    # Opt-in: pass ``max_output_tokens`` to the Foundry Responses API even
+    # when using ``agent_reference``. Historically the gateway rejected this
+    # combination with a 400 BadRequestError, so we default OFF. When ON, the
+    # client tries once with the token cap and, on 400, logs a WARNING,
+    # remembers the rejection for the rest of the process, and retries
+    # without the cap. Set FOUNDRY_PASS_MAX_OUTPUT_TOKENS=1 to enable.
+    foundry_pass_max_output_tokens: bool = field(
+        default_factory=lambda: (os.getenv("FOUNDRY_PASS_MAX_OUTPUT_TOKENS") or "").strip().lower()
+        in ("1", "true", "yes", "on")
     )
     fabric_materialize_timeout_seconds: int = int(
         os.getenv("FABRIC_MATERIALIZE_TIMEOUT_SECONDS") or "600"

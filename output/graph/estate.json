@@ -358,7 +358,7 @@
       "Regulation_ID": "REG-EUAIACT",
       "Title": "High-Risk AI Systems - EU AI Act Requirements",
       "Reference": "EU AI Act (uploaded)",
-      "Summary": "Interpreted from uploaded text: 15 obligations.",
+      "Summary": "Interpreted from uploaded text: 5 obligations.",
       "Change_Type": "New",
       "Published_Date": "2026-06-25",
       "Effective_Date": "2026-12-31",
@@ -913,12 +913,12 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-01",
       "node_type": "Obligation",
-      "label": "Establish training data governance controls for training, validation, and testin",
+      "label": "Establish data governance controls over training, validation, and testing data f",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-01",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Establish training data governance controls for training, validation, and testing datasets used in high-risk AI systems for creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete, with documented curation, labelling, and sampling practices.",
-      "Article": "TRAINING_DATA",
+      "Statement": "Establish data governance controls over training, validation, and testing data for high-risk AI systems used in creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete.",
+      "Article": "Source text paragraph 1",
       "Theme": "DATA_QUALITY",
       "Criticality": "High",
       "Target_Maturity": 4
@@ -926,12 +926,12 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-02",
       "node_type": "Obligation",
-      "label": "Maintain documented data lineage and provenance for every dataset used to train ",
+      "label": "Maintain documented lineage and provenance for data used to train high-risk AI s",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-02",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Maintain documented data lineage and provenance for every dataset used to train high-risk AI systems, including source systems, upstream ingestion points, transformation history, data flow across pipelines, quality checks, approvals, and retained end-to-end lineage evidence for regulatory review.",
-      "Article": "DATA_LINEAGE",
+      "Statement": "Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",
+      "Article": "Source text paragraph 2",
       "Theme": "DATA_LINEAGE",
       "Criticality": "High",
       "Target_Maturity": 4
@@ -939,171 +939,41 @@
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-03",
       "node_type": "Obligation",
-      "label": "Automatically produce event logs and continuous monitoring records throughout th",
+      "label": "Automatically record events and logs throughout the model lifecycle so decisions",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-03",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Automatically produce event logs and continuous monitoring records throughout the lifecycle of high-risk AI systems, capturing inference decisions, model outputs, human interventions, configuration changes, and system errors in centrally aggregated logs available for audit and supervisory investigation.",
-      "Article": "LOGGING_MONITORING",
+      "Statement": "Automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",
+      "Article": "Source text paragraph 3",
       "Theme": "LOGGING_MONITORING",
       "Criticality": "High",
-      "Target_Maturity": 5
+      "Target_Maturity": 4
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-04",
       "node_type": "Obligation",
-      "label": "Operate an AI governance framework that provides effective human oversight of hi",
+      "label": "Provide effective human oversight for high-risk AI decisions, including clear es",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-04",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Operate an AI governance framework that provides effective human oversight of high-risk AI decisions, including a designated governance committee, documented escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations and approved use cases.",
-      "Article": "AI_GOVERNANCE",
+      "Statement": "Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",
+      "Article": "Source text paragraph 4",
       "Theme": "AI_GOVERNANCE",
       "Criticality": "High",
-      "Target_Maturity": 3
+      "Target_Maturity": 4
     },
     {
       "id": "OBL-CHG-EUAIACT-UPLOAD-05",
       "node_type": "Obligation",
-      "label": "Manage model risk for high-risk AI systems through independent model validation,",
+      "label": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monito",
       "ID": "OBL-CHG-EUAIACT-UPLOAD-05",
       "Change_ID": "CHG-EUAIACT-UPLOAD",
       "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Manage model risk for high-risk AI systems through independent model validation, backtesting, benchmark comparisons, drift detection, and ongoing performance monitoring, and document remediation whenever model performance, stability, or accuracy falls below approved tolerance thresholds.",
-      "Article": "MODEL_RISK",
+      "Statement": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.",
+      "Article": "Source text paragraph 5",
       "Theme": "MODEL_RISK",
       "Criticality": "High",
       "Target_Maturity": 4
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-06",
-      "node_type": "Obligation",
-      "label": "Establish and maintain a continuous, iterative risk management system across the",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-06",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Establish and maintain a continuous, iterative risk management system across the full lifecycle of high-risk AI systems, with auditable records covering risk identification, foreseeable misuse, post-market monitoring data evaluation, and residual-risk sign-off to support traceability through a complete audit trail.",
-      "Article": "AUDITABILITY",
-      "Theme": "AUDITABILITY",
-      "Criticality": "High",
-      "Target_Maturity": 4
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-07",
-      "node_type": "Obligation",
-      "label": "Draw up and keep up to date technical documentation and system metadata for each",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-07",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Draw up and keep up to date technical documentation and system metadata for each high-risk AI system before market placement, including a central metadata repository with the system description, elements and development process, monitoring and control metadata, risk management measures, and lifecycle changes.",
-      "Article": "METADATA",
-      "Theme": "DATA_QUALITY",
-      "Criticality": "High",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-08",
-      "node_type": "Obligation",
-      "label": "Design and develop high-risk AI systems with an appropriate level of cybersecuri",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-08",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Design and develop high-risk AI systems with an appropriate level of cybersecurity, declare relevant performance metrics in the instructions of use, and ensure resilience against cyber attacks by unauthorised third parties exploiting vulnerabilities such as data poisoning, model poisoning, adversarial examples, prompt injection, or confidentiality attacks.",
-      "Article": "CYBER",
-      "Theme": "CYBER",
-      "Criticality": "High",
-      "Target_Maturity": 4
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-09",
-      "node_type": "Obligation",
-      "label": "For deployers of high-risk AI systems used for creditworthiness or insurance pri",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-09",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "For deployers of high-risk AI systems used for creditworthiness or insurance pricing of natural persons, carry out a fundamental rights impact assessment before first use, describe affected categories of natural persons, risks of harm, human oversight measures, and remediation, and notify the market surveillance authority of the results.",
-      "Article": "CONDUCT",
-      "Theme": "CONDUCT",
-      "Criticality": "High",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-10",
-      "node_type": "Obligation",
-      "label": "Register high-risk AI systems in the EU database before market placement or putt",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-10",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Register high-risk AI systems in the EU database before market placement or putting into service, and keep the registration up to date as part of regulatory reporting to competent authorities and market surveillance authorities.",
-      "Article": "REG_REPORTING",
-      "Theme": "REG_REPORTING",
-      "Criticality": "High",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-11",
-      "node_type": "Obligation",
-      "label": "Trigger incident management when a high-risk AI system presents a risk to health",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-11",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Trigger incident management when a high-risk AI system presents a risk to health, safety, or fundamental rights, or when a serious incident occurs; investigate immediately; inform affected deployers and, where applicable, the notified body; and report serious incidents to the relevant market surveillance authorities within the stated deadlines.",
-      "Article": "INCIDENT_MGMT",
-      "Theme": "INCIDENT_MGMT",
-      "Criticality": "High",
-      "Target_Maturity": 4
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-12",
-      "node_type": "Obligation",
-      "label": "For providers established outside the Union whose high-risk AI systems are place",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-12",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "For providers established outside the Union whose high-risk AI systems are placed on the Union market, appoint an authorised representative in the Union by written mandate before making systems available, and apply third-party risk management controls, due diligence, and contractual oversight to the representative and any subcontractors or downstream providers acting on the provider's behalf.",
-      "Article": "THIRD_PARTY_RISK",
-      "Theme": "THIRD_PARTY_RISK",
-      "Criticality": "High",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-13",
-      "node_type": "Obligation",
-      "label": "Retain the EU declaration of conformity, technical documentation, required logs,",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-13",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Retain the EU declaration of conformity, technical documentation, required logs, and post-market monitoring records for at least 10 years after the high-risk AI system is placed on the market, making them available to competent authorities in accordance with the retention schedule.",
-      "Article": "RETENTION",
-      "Theme": "RETENTION",
-      "Criticality": "Medium",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-14",
-      "node_type": "Obligation",
-      "label": "Ensure that personnel assigned to human oversight of high-risk AI systems have t",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-14",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Ensure that personnel assigned to human oversight of high-risk AI systems have the access rights, privileged permissions, and role-based authority needed to interpret outputs, decide not to use the system, disregard, override, reverse outputs, and interrupt operation through a stop button or equivalent access control mechanism.",
-      "Article": "ACCESS_CONTROL",
-      "Theme": "ACCESS_CONTROL",
-      "Criticality": "High",
-      "Target_Maturity": 3
-    },
-    {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-15",
-      "node_type": "Obligation",
-      "label": "Take measures to ensure sufficient AI literacy for staff and other persons deali",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-15",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Take measures to ensure sufficient AI literacy for staff and other persons dealing with the operation and use of high-risk AI systems, taking into account technical knowledge, experience, education, training, and the use context.",
-      "Article": "AI_GOVERNANCE",
-      "Theme": "AI_GOVERNANCE",
-      "Criticality": "Medium",
-      "Target_Maturity": 3
     },
     {
       "id": "CTL-CDD-1",
@@ -3893,56 +3763,6 @@
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-06",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-07",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-08",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-09",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-10",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-11",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-12",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-13",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-14",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-15",
-      "rel_type": "INTRODUCES_OBLIGATION"
-    },
-    {
       "source": "OBL-EUAIACT-01",
       "target": "CTL-TD-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
@@ -4818,18 +4638,13 @@
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "target": "CTL-DQ-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
       "source": "OBL-CHG-EUAIACT-UPLOAD-02",
       "target": "CTL-LIN-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
       "source": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "target": "CTL-AU-1",
+      "target": "CTL-TR-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
@@ -4840,81 +4655,6 @@
     {
       "source": "OBL-CHG-EUAIACT-UPLOAD-05",
       "target": "CTL-MR-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "target": "CTL-MR-3",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-06",
-      "target": "CTL-AU-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-07",
-      "target": "CTL-MD-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-08",
-      "target": "CTL-CY-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-08",
-      "target": "CTL-CY-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-09",
-      "target": "CTL-CO-3",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-10",
-      "target": "CTL-RP-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-11",
-      "target": "CTL-IC-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-11",
-      "target": "CTL-IC-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-12",
-      "target": "CTL-TP-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-12",
-      "target": "CTL-TP-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-13",
-      "target": "CTL-RT-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-14",
-      "target": "CTL-AC-1",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-14",
-      "target": "CTL-AC-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-15",
-      "target": "CTL-AI-2",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {

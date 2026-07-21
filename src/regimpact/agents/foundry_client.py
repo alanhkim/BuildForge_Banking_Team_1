@@ -380,6 +380,31 @@ class FoundryAgentClient:
         )
 
 
+# Module-level cache: once the Foundry gateway rejects ``max_output_tokens``
+# for the current process, remember it and stop trying for the rest of the
+# session. Avoids re-doing the ~1-2s BadRequest round-trip on every call.
+_MAX_OUTPUT_TOKENS_REJECTED_BY_GATEWAY = False
+
+
+def _is_max_output_tokens_rejection(exc: BaseException) -> bool:
+    """Heuristic: did Foundry reject a request because of ``max_output_tokens``?
+
+    Foundry surfaces this as a 400 ``BadRequestError`` whose body mentions
+    ``max_output_tokens`` (or the older ``max_tokens`` alias). We match on
+    the exception type NAME to avoid importing openai at module import time,
+    and on substring in ``str(exc)`` so we catch it whether the message
+    comes from ``exc.body``, ``exc.message``, or a plain string dump.
+    """
+    if type(exc).__name__ != "BadRequestError":
+        return False
+    text = str(exc).lower()
+    return (
+        "max_output_tokens" in text
+        or "max_tokens" in text
+        or "max output tokens" in text
+    )
+
+
 @dataclass(frozen=True)
 class _OpenAIResponsesAgent:
     """Adapter exposing run() over Foundry OpenAI responses agent references."""
@@ -390,25 +415,62 @@ class _OpenAIResponsesAgent:
     def run(self, input_text: str) -> Any:
         """Invoke a Foundry prompt/hosted agent through Responses API.
 
-        NOTE: ``max_output_tokens`` is intentionally NOT passed at the top
-        level. When paired with ``agent_reference`` the Foundry gateway
-        rejects it with a 400 BadRequestError — the deployed agent's own
-        model settings govern the token ceiling. We steer response length
-        via the agent's prompt instructions instead (see
-        ``fabric_workflow.py`` OUTPUT DISCIPLINE clauses).
+        ``max_output_tokens`` is passed only when the caller opts in via
+        ``FOUNDRY_PASS_MAX_OUTPUT_TOKENS=1``. If the Foundry gateway rejects
+        the parameter with a 400 (older behavior — the deployed agent's own
+        model settings governed the ceiling), we log a WARNING, cache the
+        rejection at module scope, and retry once without the cap. Subsequent
+        calls skip the parameter entirely.
         """
-        return self.openai_client.responses.create(
-            model=self.config.model_deployment_name,
-            input=[{"role": "user", "content": input_text}],
-            extra_body={
+        global _MAX_OUTPUT_TOKENS_REJECTED_BY_GATEWAY
+
+        want_token_cap = (
+            settings.foundry_pass_max_output_tokens
+            and not _MAX_OUTPUT_TOKENS_REJECTED_BY_GATEWAY
+        )
+
+        if want_token_cap:
+            try:
+                return self._responses_create(
+                    input_text, max_output_tokens=self.config.max_output_tokens
+                )
+            except Exception as exc:  # noqa: BLE001 — re-raised below unless rejection
+                if _is_max_output_tokens_rejection(exc):
+                    _MAX_OUTPUT_TOKENS_REJECTED_BY_GATEWAY = True
+                    logger.warning(
+                        "[FOUNDRY DEBUG] gateway rejected max_output_tokens "
+                        "for agent %s v%s — falling back to agent's own "
+                        "model ceiling for the rest of this session. "
+                        "Rejection: %s",
+                        self.config.agent_name,
+                        self.config.agent_version,
+                        exc,
+                    )
+                    return self._responses_create(input_text, max_output_tokens=None)
+                raise
+
+        return self._responses_create(input_text, max_output_tokens=None)
+
+    def _responses_create(
+        self, input_text: str, *, max_output_tokens: int | None
+    ) -> Any:
+        """Actual Responses API call. Encapsulated so both paths share it."""
+        kwargs: dict[str, Any] = {
+            "model": self.config.model_deployment_name,
+            "input": [{"role": "user", "content": input_text}],
+            "extra_body": {
                 "agent_reference": {
                     "name": self.config.agent_name,
                     "version": self.config.agent_version,
                     "type": "agent_reference",
                 }
             },
-            timeout=_build_httpx_timeout(self.config.timeout_seconds),
-        )
+            "timeout": _build_httpx_timeout(self.config.timeout_seconds),
+        }
+        if max_output_tokens is not None:
+            kwargs["max_output_tokens"] = max_output_tokens
+        return self.openai_client.responses.create(**kwargs)
+
 
 
 def _build_httpx_timeout(total_seconds: float) -> Any:
@@ -718,23 +780,80 @@ def _parse_json_payload(text: str) -> dict[str, Any]:
     surrounding prose, then decodes the extracted block. Raises the existing
     ``FabricDataAgentError("Fabric Data Agent returned malformed JSON")`` if
     both attempts fail.
+
+    Diagnostic: on malformed JSON, logs the raw text head/tail and byte
+    length at ERROR so operators can see whether the agent returned prose,
+    an error string, HTML, an unclosed brace, etc. — without violating the
+    constitutional rule that forbids salvaging / synthesizing agent output.
     """
     stripped = text.strip()
     try:
         payload = json.loads(stripped)
     except json.JSONDecodeError:
-        extracted = _extract_json_block(stripped)
+        try:
+            extracted = _extract_json_block(stripped)
+        except FabricDataAgentError:
+            _log_malformed_response(stripped, stage="no-json-block-found")
+            raise
         try:
             payload = json.loads(extracted)
         except json.JSONDecodeError as exc:
+            _log_malformed_response(
+                stripped,
+                stage="extracted-block-invalid",
+                decode_error=str(exc),
+                extracted_head=extracted[:400],
+                extracted_bytes=len(extracted),
+            )
             raise FabricDataAgentError(
-                "Fabric Data Agent returned malformed JSON"
+                f"Fabric Data Agent returned malformed JSON "
+                f"(response_bytes={len(stripped)}, "
+                f"extracted_bytes={len(extracted)}, "
+                f"decode_error={exc.msg} at pos {exc.pos})"
             ) from exc
     if not isinstance(payload, dict):
+        _log_malformed_response(
+            stripped,
+            stage="not-a-json-object",
+            parsed_type=type(payload).__name__,
+        )
         raise FabricDataAgentError(
             "Fabric Data Agent response JSON must be an object"
         )
     return payload
+
+
+def _log_malformed_response(
+    raw_text: str,
+    *,
+    stage: str,
+    decode_error: str | None = None,
+    extracted_head: str | None = None,
+    extracted_bytes: int | None = None,
+    parsed_type: str | None = None,
+) -> None:
+    """Log diagnostic detail for a malformed Fabric response.
+
+    Captures response length + head/tail previews so operators can identify
+    whether the agent returned prose, an HTML error page, a truncated JSON
+    document, an error envelope, etc. Preview lengths are capped to keep
+    log lines readable.
+    """
+    head = raw_text[:400]
+    tail = raw_text[-200:] if len(raw_text) > 400 else ""
+    logger.error(
+        "Fabric response malformed stage=%s response_bytes=%d "
+        "decode_error=%s extracted_bytes=%s extracted_head=%r "
+        "parsed_type=%s head=%r tail=%r",
+        stage,
+        len(raw_text),
+        decode_error,
+        extracted_bytes,
+        extracted_head,
+        parsed_type,
+        head,
+        tail,
+    )
 
 
 def _fabric_response_from_payload(
@@ -773,8 +892,27 @@ def _fabric_response_from_payload(
                 },
             }
         else:
+            # Envelope has no ``answer`` AND no recoverable inner key —
+            # dump the raw payload at ERROR so operators can see whether
+            # the agent returned an error envelope, empty shell, or filtered
+            # content. Preview capped at 800 bytes to keep logs readable
+            # while still surfacing the diagnostic shape.
+            try:
+                payload_preview = json.dumps(payload, sort_keys=True)[:800]
+            except (TypeError, ValueError):
+                payload_preview = str(payload)[:800]
+            logger.error(
+                "Fabric response envelope missing 'answer' and no "
+                "recoverable inner key agent=%s v%s top_keys=%s "
+                "payload_preview=%s",
+                request.agent_name,
+                request.agent_version,
+                top_keys,
+                payload_preview,
+            )
             raise FabricDataAgentError(
-                "Fabric Data Agent response missing required field(s): answer"
+                f"Fabric Data Agent response missing required field(s): "
+                f"answer (top_keys={top_keys})"
             )
 
     defaulted: list[str] = []

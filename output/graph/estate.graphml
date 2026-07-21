@@ -372,7 +372,7 @@
       <data key="d9">REG-EUAIACT</data>
       <data key="d10">High-Risk AI Systems - EU AI Act Requirements</data>
       <data key="d11">EU AI Act (uploaded)</data>
-      <data key="d12">Interpreted from uploaded text: 15 obligations.</data>
+      <data key="d12">Interpreted from uploaded text: 5 obligations.</data>
       <data key="d13">New</data>
       <data key="d14">2026-06-25</data>
       <data key="d15">2026-12-31</data>
@@ -884,183 +884,63 @@
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-01">
       <data key="d0">Obligation</data>
-      <data key="d1">Establish training data governance controls for training, validation, and testin</data>
+      <data key="d1">Establish data governance controls over training, validation, and testing data f</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-01</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Establish training data governance controls for training, validation, and testing datasets used in high-risk AI systems for creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete, with documented curation, labelling, and sampling practices.</data>
-      <data key="d19">TRAINING_DATA</data>
+      <data key="d18">Establish data governance controls over training, validation, and testing data for high-risk AI systems used in creditworthiness, pricing, fraud detection, or customer eligibility decisions, ensuring datasets are relevant, representative, accurate, and complete.</data>
+      <data key="d19">Source text paragraph 1</data>
       <data key="d20">DATA_QUALITY</data>
       <data key="d16">High</data>
       <data key="d21">4</data>
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-02">
       <data key="d0">Obligation</data>
-      <data key="d1">Maintain documented data lineage and provenance for every dataset used to train </data>
+      <data key="d1">Maintain documented lineage and provenance for data used to train high-risk AI s</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-02</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Maintain documented data lineage and provenance for every dataset used to train high-risk AI systems, including source systems, upstream ingestion points, transformation history, data flow across pipelines, quality checks, approvals, and retained end-to-end lineage evidence for regulatory review.</data>
-      <data key="d19">DATA_LINEAGE</data>
+      <data key="d18">Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.</data>
+      <data key="d19">Source text paragraph 2</data>
       <data key="d20">DATA_LINEAGE</data>
       <data key="d16">High</data>
       <data key="d21">4</data>
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-03">
       <data key="d0">Obligation</data>
-      <data key="d1">Automatically produce event logs and continuous monitoring records throughout th</data>
+      <data key="d1">Automatically record events and logs throughout the model lifecycle so decisions</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-03</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Automatically produce event logs and continuous monitoring records throughout the lifecycle of high-risk AI systems, capturing inference decisions, model outputs, human interventions, configuration changes, and system errors in centrally aggregated logs available for audit and supervisory investigation.</data>
-      <data key="d19">LOGGING_MONITORING</data>
+      <data key="d18">Automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.</data>
+      <data key="d19">Source text paragraph 3</data>
       <data key="d20">LOGGING_MONITORING</data>
       <data key="d16">High</data>
-      <data key="d21">5</data>
+      <data key="d21">4</data>
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-04">
       <data key="d0">Obligation</data>
-      <data key="d1">Operate an AI governance framework that provides effective human oversight of hi</data>
+      <data key="d1">Provide effective human oversight for high-risk AI decisions, including clear es</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-04</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Operate an AI governance framework that provides effective human oversight of high-risk AI decisions, including a designated governance committee, documented escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations and approved use cases.</data>
-      <data key="d19">AI_GOVERNANCE</data>
+      <data key="d18">Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.</data>
+      <data key="d19">Source text paragraph 4</data>
       <data key="d20">AI_GOVERNANCE</data>
       <data key="d16">High</data>
-      <data key="d21">3</data>
+      <data key="d21">4</data>
     </node>
     <node id="OBL-CHG-EUAIACT-UPLOAD-05">
       <data key="d0">Obligation</data>
-      <data key="d1">Manage model risk for high-risk AI systems through independent model validation,</data>
+      <data key="d1">Ensure model robustness, accuracy, cybersecurity, and ongoing performance monito</data>
       <data key="d2">OBL-CHG-EUAIACT-UPLOAD-05</data>
       <data key="d17">CHG-EUAIACT-UPLOAD</data>
       <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Manage model risk for high-risk AI systems through independent model validation, backtesting, benchmark comparisons, drift detection, and ongoing performance monitoring, and document remediation whenever model performance, stability, or accuracy falls below approved tolerance thresholds.</data>
-      <data key="d19">MODEL_RISK</data>
+      <data key="d18">Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.</data>
+      <data key="d19">Source text paragraph 5</data>
       <data key="d20">MODEL_RISK</data>
       <data key="d16">High</data>
       <data key="d21">4</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-06">
-      <data key="d0">Obligation</data>
-      <data key="d1">Establish and maintain a continuous, iterative risk management system across the</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-06</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Establish and maintain a continuous, iterative risk management system across the full lifecycle of high-risk AI systems, with auditable records covering risk identification, foreseeable misuse, post-market monitoring data evaluation, and residual-risk sign-off to support traceability through a complete audit trail.</data>
-      <data key="d19">AUDITABILITY</data>
-      <data key="d20">AUDITABILITY</data>
-      <data key="d16">High</data>
-      <data key="d21">4</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-07">
-      <data key="d0">Obligation</data>
-      <data key="d1">Draw up and keep up to date technical documentation and system metadata for each</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-07</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Draw up and keep up to date technical documentation and system metadata for each high-risk AI system before market placement, including a central metadata repository with the system description, elements and development process, monitoring and control metadata, risk management measures, and lifecycle changes.</data>
-      <data key="d19">METADATA</data>
-      <data key="d20">DATA_QUALITY</data>
-      <data key="d16">High</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-08">
-      <data key="d0">Obligation</data>
-      <data key="d1">Design and develop high-risk AI systems with an appropriate level of cybersecuri</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-08</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Design and develop high-risk AI systems with an appropriate level of cybersecurity, declare relevant performance metrics in the instructions of use, and ensure resilience against cyber attacks by unauthorised third parties exploiting vulnerabilities such as data poisoning, model poisoning, adversarial examples, prompt injection, or confidentiality attacks.</data>
-      <data key="d19">CYBER</data>
-      <data key="d20">CYBER</data>
-      <data key="d16">High</data>
-      <data key="d21">4</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-09">
-      <data key="d0">Obligation</data>
-      <data key="d1">For deployers of high-risk AI systems used for creditworthiness or insurance pri</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-09</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">For deployers of high-risk AI systems used for creditworthiness or insurance pricing of natural persons, carry out a fundamental rights impact assessment before first use, describe affected categories of natural persons, risks of harm, human oversight measures, and remediation, and notify the market surveillance authority of the results.</data>
-      <data key="d19">CONDUCT</data>
-      <data key="d20">CONDUCT</data>
-      <data key="d16">High</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-10">
-      <data key="d0">Obligation</data>
-      <data key="d1">Register high-risk AI systems in the EU database before market placement or putt</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-10</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Register high-risk AI systems in the EU database before market placement or putting into service, and keep the registration up to date as part of regulatory reporting to competent authorities and market surveillance authorities.</data>
-      <data key="d19">REG_REPORTING</data>
-      <data key="d20">REG_REPORTING</data>
-      <data key="d16">High</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-11">
-      <data key="d0">Obligation</data>
-      <data key="d1">Trigger incident management when a high-risk AI system presents a risk to health</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-11</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Trigger incident management when a high-risk AI system presents a risk to health, safety, or fundamental rights, or when a serious incident occurs; investigate immediately; inform affected deployers and, where applicable, the notified body; and report serious incidents to the relevant market surveillance authorities within the stated deadlines.</data>
-      <data key="d19">INCIDENT_MGMT</data>
-      <data key="d20">INCIDENT_MGMT</data>
-      <data key="d16">High</data>
-      <data key="d21">4</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-12">
-      <data key="d0">Obligation</data>
-      <data key="d1">For providers established outside the Union whose high-risk AI systems are place</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-12</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">For providers established outside the Union whose high-risk AI systems are placed on the Union market, appoint an authorised representative in the Union by written mandate before making systems available, and apply third-party risk management controls, due diligence, and contractual oversight to the representative and any subcontractors or downstream providers acting on the provider's behalf.</data>
-      <data key="d19">THIRD_PARTY_RISK</data>
-      <data key="d20">THIRD_PARTY_RISK</data>
-      <data key="d16">High</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-13">
-      <data key="d0">Obligation</data>
-      <data key="d1">Retain the EU declaration of conformity, technical documentation, required logs,</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-13</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Retain the EU declaration of conformity, technical documentation, required logs, and post-market monitoring records for at least 10 years after the high-risk AI system is placed on the market, making them available to competent authorities in accordance with the retention schedule.</data>
-      <data key="d19">RETENTION</data>
-      <data key="d20">RETENTION</data>
-      <data key="d16">Medium</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-14">
-      <data key="d0">Obligation</data>
-      <data key="d1">Ensure that personnel assigned to human oversight of high-risk AI systems have t</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-14</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Ensure that personnel assigned to human oversight of high-risk AI systems have the access rights, privileged permissions, and role-based authority needed to interpret outputs, decide not to use the system, disregard, override, reverse outputs, and interrupt operation through a stop button or equivalent access control mechanism.</data>
-      <data key="d19">ACCESS_CONTROL</data>
-      <data key="d20">ACCESS_CONTROL</data>
-      <data key="d16">High</data>
-      <data key="d21">3</data>
-    </node>
-    <node id="OBL-CHG-EUAIACT-UPLOAD-15">
-      <data key="d0">Obligation</data>
-      <data key="d1">Take measures to ensure sufficient AI literacy for staff and other persons deali</data>
-      <data key="d2">OBL-CHG-EUAIACT-UPLOAD-15</data>
-      <data key="d17">CHG-EUAIACT-UPLOAD</data>
-      <data key="d9">REG-EUAIACT</data>
-      <data key="d18">Take measures to ensure sufficient AI literacy for staff and other persons dealing with the operation and use of high-risk AI systems, taking into account technical knowledge, experience, education, training, and the use context.</data>
-      <data key="d19">AI_GOVERNANCE</data>
-      <data key="d20">AI_GOVERNANCE</data>
-      <data key="d16">Medium</data>
-      <data key="d21">3</data>
     </node>
     <node id="CTL-CDD-1">
       <data key="d0">Control</data>
@@ -3552,46 +3432,6 @@
       <data key="d39">INTRODUCES_OBLIGATION</data>
       <data key="d40">1.0</data>
     </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-06" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-07" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-08" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-09" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-10" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-11" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-12" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-13" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-14" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="CHG-EUAIACT-UPLOAD" target="OBL-CHG-EUAIACT-UPLOAD-15" id="INTRODUCES_OBLIGATION">
-      <data key="d39">INTRODUCES_OBLIGATION</data>
-      <data key="d40">1.0</data>
-    </edge>
     <edge source="OBL-EUAIACT-01" target="CTL-TD-1" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
@@ -4292,15 +4132,11 @@
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-01" target="CTL-DQ-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
     <edge source="OBL-CHG-EUAIACT-UPLOAD-02" target="CTL-LIN-1" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-03" target="CTL-AU-1" id="OBLIGATION_REQUIRES_CONTROL">
+    <edge source="OBL-CHG-EUAIACT-UPLOAD-03" target="CTL-TR-1" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>
@@ -4309,66 +4145,6 @@
       <data key="d40">1.0</data>
     </edge>
     <edge source="OBL-CHG-EUAIACT-UPLOAD-05" target="CTL-MR-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-05" target="CTL-MR-3" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-06" target="CTL-AU-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-07" target="CTL-MD-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-08" target="CTL-CY-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-08" target="CTL-CY-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-09" target="CTL-CO-3" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-10" target="CTL-RP-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-11" target="CTL-IC-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-11" target="CTL-IC-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-12" target="CTL-TP-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-12" target="CTL-TP-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-13" target="CTL-RT-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-14" target="CTL-AC-1" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-14" target="CTL-AC-2" id="OBLIGATION_REQUIRES_CONTROL">
-      <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
-      <data key="d40">1.0</data>
-    </edge>
-    <edge source="OBL-CHG-EUAIACT-UPLOAD-15" target="CTL-AI-2" id="OBLIGATION_REQUIRES_CONTROL">
       <data key="d39">OBLIGATION_REQUIRES_CONTROL</data>
       <data key="d40">1.0</data>
     </edge>

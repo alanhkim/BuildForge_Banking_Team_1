@@ -1,0 +1,31 @@
+UK Consumer Data Rights & Open Finance Act (CDROF) — 2026 (synthetic, for Flow 2 testing)
+ 
+Scope: This Act applies to retail banks and payment service providers that share
+customer account data with authorised third parties under open finance. It is a
+NEW regulation that is not present in the existing catalog, so it is intended to
+test the uploaded-regulation (agent) flow.
+ 
+Obligations introduced by this change:
+ 
+1. Firms must obtain explicit, informed consent from the data subject before
+   sharing any personal data with a third-party provider, and shall allow the
+   consent to be withdrawn at any time.
+ 
+2. Firms shall retain shared customer data for no longer than is necessary for
+   the agreed purpose; a documented retention schedule must define when data is
+   deleted.
+ 
+3. Firms must apply strong customer authentication before granting a third party
+   access to a customer's account information or initiating a payment, using
+   multi-factor authentication.
+ 
+4. Firms shall ensure fair value and good customer outcomes when offering open
+   finance products, so that data sharing does not lead to poor outcomes for
+   vulnerable customers.
+ 
+5. Firms must maintain a data catalog and business glossary describing every
+   shared data element and its metadata, so consumers and regulators can
+   understand what is shared.
+ 
+6. Firms shall notify affected data subjects and the regulator without undue
+   delay following any personal data breach involving shared account data.

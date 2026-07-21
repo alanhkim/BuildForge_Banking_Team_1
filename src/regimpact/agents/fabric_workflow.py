@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from ..contracts import (
@@ -23,8 +23,10 @@ from ..contracts import (
     ScoreNarrationRequest,
     ScoreNarrationResponse,
     SourceReference,
+    ToolEvidence,
     ValidationError,
 )
+from ..settings import settings
 from .foundry_client import (
     FabricDataAgentClient,
     FabricDataAgentError,
@@ -80,13 +82,23 @@ CONTROL_MAPPER_SPEC = FabricAgentSpec(
         '{"mappings":[{"obligation_id":string,"control_id":string,'
         '"capability_id":string,"rationale":string,"confidence":"low|medium|high",'
         '"source_refs":[{"source":string,"reference_type":"table|view|field|measure|relationship|entity",'
-        '"name":string,"value":string}]}]}'
+        '"name":string,"value":string}]}],"reason":string?}'
     ),
     instructions=(
         "The request payload contains inline 'obligations' facts (id, theme, "
         "summary, criticality, target_maturity) and a 'candidate_controls' "
         "shortlist (id, name, capability_id, status, current_maturity, "
         "description). Treat both as authoritative. "
+        "INLINE MODE (default) — when the request payload's 'obligations' array "
+        "is non-empty, operate in INLINE MODE. The inline obligation facts are "
+        "the source of truth for this call. DO NOT attempt to look up the "
+        "obligation IDs in the lakehouse obligations, relationships, or "
+        "ontology tables — freshly-interpreted regulations have not yet been "
+        "materialised to the lakehouse and their IDs will not be present. The "
+        "absence of these IDs in the lakehouse is expected and MUST NOT trigger "
+        "the empty-with-reason path. Instead, map each inline obligation to one "
+        "or more controls from the 'candidate_controls' shortlist using the "
+        "obligation's inline theme/summary/target_maturity. "
         "Map each obligation to one or more controls from the 'candidate_controls' "
         "shortlist ONLY — do NOT search the full controls or v_obligation_control_map "
         "tables in the lakehouse. The shortlist has already been pre-filtered by "
@@ -96,8 +108,20 @@ CONTROL_MAPPER_SPEC = FabricAgentSpec(
         "Every returned control_id MUST come from the 'candidate_controls' list; "
         "capability_id MUST be copied from the chosen candidate. Never invent "
         "controls. Return at least one mapping per obligation. "
+        "Cite the 'candidate_controls' shortlist as source_refs "
+        "(reference_type='entity', name='candidate_controls', "
+        "value=<control_id>) — the inline shortlist is a valid Fabric-derived "
+        "grounding source. "
         "When 'candidate_controls' is empty, fall back to the lakehouse controls "
         "table filtered by capability domain. "
+        "EMPTY-WITH-REASON EDGE CASE — only permitted when BOTH the inline "
+        "'obligations' array is empty AND the lakehouse cannot resolve the "
+        "supplied obligation_ids in the ontology, relationships, or obligations "
+        "tables. In that narrow case return exactly this compact JSON: "
+        '{"mappings":[],"reason":"<one short sentence naming which obligation '
+        "IDs Fabric could not resolve>\"}. If inline 'obligations' facts were "
+        "supplied, this path is FORBIDDEN — you must emit real mappings from "
+        "the inline data. "
         "OUTPUT DISCIPLINE — keep 'rationale' under 240 characters (one sentence, "
         "no citations, no restatement of the obligation). Emit compact JSON on a "
         "single line — no markdown, no code fences, no trailing commentary. The "
@@ -275,48 +299,192 @@ class FabricAgentHarness:
     def map_controls(self, request: ControlMappingRequest) -> ControlMappingResponse:
         """Run the Fabric-backed Control Mapper framing.
 
-        Single-attempt: any Fabric-side failure (invalid JSON, empty
-        mappings without a documented ``reason``) propagates immediately.
-        Retry was removed for latency parity with the other Fabric agents
-        after the 2026-07-17 semantic-retry removal — see
-        ``.squad/decisions.md``. Empty-with-reason remains a documented
-        success path per :class:`ControlMappingResponse.validate`.
+        Batches large obligation sets into smaller sub-requests to keep each
+        agent response well under the deployed model's output-token
+        ceiling. The Foundry Responses API rejects ``max_output_tokens``
+        when combined with ``agent_reference`` (see
+        :class:`_OpenAIResponsesAgent`), so we cannot lift the ceiling from
+        the client. Batching is the deterministic, non-fabricating
+        alternative — splitting one 15-obligation call that overflows into
+        three 5-obligation calls that each fit comfortably.
+
+        Batch size is configurable via ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE``
+        (default 6). When the request has ``<= batch_size`` obligations the
+        call is issued as a single request with zero overhead — behaviour
+        for small changes is unchanged.
+
+        Merge semantics:
+          * ``mappings`` — concatenated across batches (deterministic order:
+            batch order, then per-batch model order).
+          * ``tool_evidence`` — deduplicated by ``(tool_name, data_source,
+            query)`` because every batch cites the same Fabric tables.
+          * ``reason`` — only surfaced when EVERY batch returned empty
+            mappings AND supplied a reason. Otherwise the successful
+            batches' mappings are authoritative and per-batch reasons
+            become debug-only.
+
+        Single-attempt per batch: any batch-level failure (invalid JSON,
+        empty mappings without a documented ``reason``) propagates
+        immediately with a batch-identifying error message. Callers can
+        retry the whole request with a smaller
+        ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE`` if a specific batch
+        truncated. Empty-with-reason remains a documented success path
+        per :class:`ControlMappingResponse.validate`.
         """
         request.validate()
-        fabric_response = self._ask(CONTROL_MAPPER_SPEC, request.__dict__)
-        payload = _json_answer(fabric_response)
-        raw_mappings = _required_list(payload, "mappings")
-        _warn_if_empty(fabric_response, "mappings", raw_mappings)
-        mappings = [
-            ControlMapping(
-                obligation_id=_required_str(item, "obligation_id"),
-                control_id=_required_str(item, "control_id"),
-                capability_id=_required_str(item, "capability_id"),
-                rationale=_required_str(item, "rationale"),
-                confidence=_required_confidence(item),
-                source_refs=_source_refs(item.get("source_refs", [])),
+        batch_size = settings.foundry_control_mapper_batch_size
+        batches = _split_control_mapping_request(request, batch_size)
+        if len(batches) == 1:
+            # Fast path: request fits in a single call. No merging overhead,
+            # identical wire behaviour to the pre-batching implementation.
+            return self._map_controls_single(batches[0], batch_index=None)
+
+        logger.info(
+            "Fabric control_mapper batching obligations=%d batches=%d batch_size=%d",
+            len(request.obligation_ids),
+            len(batches),
+            batch_size,
+        )
+        collected_mappings: list[ControlMapping] = []
+        collected_evidence: list[ToolEvidence] = []
+        seen_evidence_keys: set[tuple[str, str, str]] = set()
+        collected_reasons: list[str] = []
+        last_fabric_response: FabricQuestionResponse | None = None
+        for idx, batch_request in enumerate(batches, start=1):
+            batch_response, fabric_response = self._map_controls_single_raw(
+                batch_request, batch_index=(idx, len(batches))
             )
-            for item in raw_mappings
-        ]
+            collected_mappings.extend(batch_response.mappings)
+            for evidence in batch_response.tool_evidence:
+                key = (evidence.tool_name, evidence.data_source, evidence.query)
+                if key in seen_evidence_keys:
+                    continue
+                seen_evidence_keys.add(key)
+                collected_evidence.append(evidence)
+            if batch_response.reason:
+                collected_reasons.append(
+                    f"batch {idx}/{len(batches)}: {batch_response.reason}"
+                )
+            last_fabric_response = fabric_response
+
+        # Reason is only surfaced when EVERY batch returned empty mappings
+        # AND supplied a reason. If any batch succeeded, its mappings are
+        # authoritative and per-batch empty-with-reason entries are absorbed
+        # as debug information — otherwise callers would see spurious
+        # ``reason`` text on partially-successful runs.
+        merged_reason: str | None = None
+        if not collected_mappings and collected_reasons:
+            merged_reason = " | ".join(collected_reasons)
+        elif collected_reasons:
+            logger.debug(
+                "Fabric control_mapper absorbed per-batch reasons "
+                "(mappings=%d succeeded elsewhere): %s",
+                len(collected_mappings),
+                "; ".join(collected_reasons),
+            )
+
+        logger.info(
+            "Fabric control_mapper batched-merge mappings=%d evidence=%d "
+            "empty_with_reason=%s",
+            len(collected_mappings),
+            len(collected_evidence),
+            merged_reason is not None,
+        )
+        merged = ControlMappingResponse(
+            mappings=collected_mappings,
+            tool_evidence=collected_evidence,
+            reason=merged_reason,
+        )
+        # last_fabric_response is only used for the empty-answer warning
+        # heuristic in _validated. It reflects the final batch, which is
+        # acceptable — the check runs against the merged mappings list.
+        return _validated(merged, fabric_response=last_fabric_response)
+
+    def _map_controls_single(
+        self,
+        request: ControlMappingRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> ControlMappingResponse:
+        """Run one Control Mapper call and return the validated response.
+
+        Used both for the fast path (small requests, no batching) and by
+        the batched path (invoked once per batch). ``batch_index`` is
+        ``(current, total)`` when batching or ``None`` when this is a
+        single-call request. It is threaded into the error message so
+        operators can identify the failing batch.
+        """
+        response, _ = self._map_controls_single_raw(request, batch_index)
+        return _validated(response, fabric_response=None)
+
+    def _map_controls_single_raw(
+        self,
+        request: ControlMappingRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> tuple[ControlMappingResponse, FabricQuestionResponse]:
+        """Run one Control Mapper call and return the parsed response plus raw
+        Fabric response (without top-level validation).
+
+        The batched path merges responses BEFORE final validation so
+        empty-mappings-in-one-batch doesn't trip the empty-without-reason
+        guard when other batches succeeded. Callers that want validation
+        (the single-call fast path) can wrap the return in ``_validated``.
+        """
+        try:
+            fabric_response = self._ask(CONTROL_MAPPER_SPEC, request.__dict__)
+            payload = _json_answer(fabric_response)
+            raw_mappings = _required_list(payload, "mappings")
+            _warn_if_empty(fabric_response, "mappings", raw_mappings)
+            mappings = [
+                ControlMapping(
+                    obligation_id=_required_str(item, "obligation_id"),
+                    control_id=_required_str(item, "control_id"),
+                    capability_id=_required_str(item, "capability_id"),
+                    rationale=_required_str(item, "rationale"),
+                    confidence=_required_confidence(item),
+                    source_refs=_source_refs(item.get("source_refs", [])),
+                )
+                for item in raw_mappings
+            ]
+        except FabricDataAgentError as exc:
+            if batch_index is not None:
+                current, total = batch_index
+                raise FabricDataAgentError(
+                    f"control_mapper batch {current}/{total} failed "
+                    f"(obligations={len(request.obligation_ids)}): {exc}"
+                ) from exc
+            raise
         reason_raw = payload.get("reason")
         reason = (
             reason_raw.strip()
             if isinstance(reason_raw, str) and reason_raw.strip()
             else None
         )
-        logger.info(
-            "Fabric control_mapper mappings=%d reason_present=%s",
-            len(mappings),
-            reason is not None,
-        )
-        return _validated(
+        if batch_index is not None:
+            current, total = batch_index
+            logger.info(
+                "Fabric control_mapper batch %d/%d mappings=%d "
+                "obligations=%d reason_present=%s",
+                current,
+                total,
+                len(mappings),
+                len(request.obligation_ids),
+                reason is not None,
+            )
+        else:
+            logger.info(
+                "Fabric control_mapper mappings=%d reason_present=%s",
+                len(mappings),
+                reason is not None,
+            )
+        return (
             ControlMappingResponse(
                 mappings=mappings,
                 tool_evidence=fabric_response.tool_evidence,
                 reason=reason,
             ),
-            fabric_response=fabric_response,
+            fabric_response,
         )
+
 
     def analyze_gaps(self, request: GapAnalysisRequest) -> GapAnalysisResponse:
         """Run the Fabric-backed Gap Analyst framing."""
@@ -488,6 +656,63 @@ def _payload_cardinalities(
         if isinstance(value, list):
             counts.append((key, len(value)))
     return counts
+
+
+def _split_control_mapping_request(
+    request: ControlMappingRequest,
+    batch_size: int,
+) -> list[ControlMappingRequest]:
+    """Split a :class:`ControlMappingRequest` into ``batch_size``-sized sub-requests.
+
+    Only ``obligation_ids`` and ``obligations`` are chunked — every batch
+    receives the FULL ``candidate_controls`` shortlist and the same
+    ``fabric_context_question``. This keeps each batch's prompt complete
+    (the model still sees every plausible candidate) while capping the
+    output-token cost at ``batch_size`` obligations × per-mapping payload.
+
+    Batch boundaries preserve list order. When
+    ``len(obligation_ids) <= batch_size`` the input request is returned as
+    a single-element list — no allocation, no copy required beyond the
+    outer list.
+
+    ``batch_size`` values below 1 are clamped to 1; the caller is expected
+    to have already run the clamp in :func:`_parse_control_mapper_batch_size`
+    but we defend here so a caller passing a raw int cannot cause
+    infinite / zero-sized batches.
+    """
+    effective_size = max(1, int(batch_size))
+    obligation_ids = list(request.obligation_ids)
+    total = len(obligation_ids)
+    if total <= effective_size:
+        return [request]
+    # Index inline obligation facts by id so per-batch obligations only
+    # carry the facts for the ids in that batch. Falls back to an empty
+    # list when the caller supplied obligation_ids without matching
+    # facts (backward compatible with materialised-change requests).
+    obligation_facts_by_id: dict[str, dict[str, Any]] = {}
+    for fact in request.obligations:
+        fact_id = fact.get("id") if isinstance(fact, dict) else None
+        if isinstance(fact_id, str) and fact_id:
+            obligation_facts_by_id[fact_id] = fact
+    batches: list[ControlMappingRequest] = []
+    for start in range(0, total, effective_size):
+        chunk_ids = obligation_ids[start : start + effective_size]
+        chunk_facts = [
+            obligation_facts_by_id[oid]
+            for oid in chunk_ids
+            if oid in obligation_facts_by_id
+        ]
+        batches.append(
+            replace(
+                request,
+                obligation_ids=chunk_ids,
+                obligations=chunk_facts,
+                # candidate_controls stays the same across batches — the
+                # per-obligation ``candidate_control_ids`` inside each
+                # obligation fact already localises the shortlist per row.
+            )
+        )
+    return batches
 
 
 def _json_answer(fabric_response: FabricQuestionResponse) -> dict[str, Any]:
