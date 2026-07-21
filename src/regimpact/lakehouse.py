@@ -30,6 +30,30 @@ Delta writeback semantics (deliberate behavioural change — 2026-07-21):
     is a separate design. See :data:`_TABLE_PRIMARY_KEYS` for the
     per-table PK map and ``.squad/decisions/inbox/bishop-onelake-delta-
     merge.md`` for the full rationale.
+
+Schema-tolerance on the MERGE path (2026-07-21 follow-up):
+    Tables can be created outside our writer — most commonly by the
+    Fabric ``01_load_lakehouse`` notebook, which follows Spark PascalCase
+    conventions (``ID``, ``Name``, ``As_Of``, ``Value_Chain``, ...) while
+    our local Parquet writer emits lowercase (``id``, ``name``,
+    ``as_of``, ``value_chain``, ...). DataFusion's SQL parser rejects a
+    predicate of ``target.id = source.id`` when the target column is
+    literally named ``ID``, which used to break MERGE. The MERGE branch
+    of :func:`write_delta_table` now introspects the target's schema
+    (``DeltaTable.schema().fields``), builds a case-insensitive map, and
+    renames a copy of the source Arrow table to match the target's case
+    before building the predicates. All identifiers in the predicates
+    are double-quoted so PascalCase (or future names with spaces /
+    reserved words) survive the SQL parse. The internal contract
+    (:data:`_TABLE_PRIMARY_KEYS` stays lowercase) is preserved — case
+    translation happens only at this single boundary seam. Structural
+    drift (a source column with no case-insensitive match in the target,
+    or a PK column absent from the target) still raises
+    :class:`LakehouseWriteError` — we accommodate case, never silently
+    drop or invent columns. First-write path is unchanged: fresh tables
+    are still created with our lowercase names via ``write_deltalake``.
+    See ``.squad/decisions/inbox/bishop-onelake-schema-alignment.md`` for
+    the full rationale.
 """
 from __future__ import annotations
 
@@ -659,6 +683,112 @@ def _bearer_token(credential) -> str:
     return token.token
 
 
+def _align_arrow_to_target_schema(
+    arrow_table,
+    target_columns: list[str],
+    pk_columns: tuple[str, ...],
+    table_name: str,
+):
+    """Return ``(renamed_arrow_table, target_case_pk_columns)`` after
+    case-insensitive column alignment against an existing Delta table.
+
+    Boundary-layer accommodation: tables created outside our writer
+    (specifically the Fabric ``01_load_lakehouse`` notebook, which uses
+    Spark PascalCase — ``ID``, ``Name``, ``As_Of``, ``Value_Chain``) hold
+    columns whose case does not match what our local Parquet writer
+    emits (``id``, ``name``, ``as_of``, ``value_chain``). DataFusion's
+    SQL parser (used by delta-rs for MERGE predicates) rejects
+    ``target.id = source.id`` when the target column is literally named
+    ``ID``, so we translate at this single seam instead of forcing every
+    upstream / downstream writer to agree on a casing convention.
+
+    The internal contract (:data:`_TABLE_PRIMARY_KEYS` stays lowercase)
+    is deliberately preserved — this helper is the ONLY place case
+    translation happens. Callers keep passing lowercase PKs; the
+    returned ``target_case_pk_columns`` are the target's actual names
+    for those PKs and are what the MERGE predicate should reference.
+
+    ``pyarrow.Table.rename_columns`` returns a new Table (it does not
+    mutate in place), so the caller's Arrow table is safe to reuse.
+    When the source and target already agree on case, this is a no-op
+    rename — still a copy, but semantically identical.
+
+    Parameters
+    ----------
+    arrow_table:
+        The source ``pyarrow.Table`` about to be MERGEd. Not mutated.
+    target_columns:
+        Column names read from the existing Delta table's schema
+        (``[f.name for f in DeltaTable.schema().fields]``). Case-sensitive
+        — these are the names the MERGE predicate must reference.
+    pk_columns:
+        The lowercase primary-key columns from
+        :data:`_TABLE_PRIMARY_KEYS` for this table.
+    table_name:
+        Used only in error messages so operators can pinpoint which of
+        the ~34 tables drifted.
+
+    Returns
+    -------
+    tuple[pyarrow.Table, tuple[str, ...]]
+        A renamed copy of ``arrow_table`` whose column names match the
+        target's case, plus the PK columns rewritten to the target's
+        case (ready to plug straight into a MERGE predicate).
+
+    Raises
+    ------
+    LakehouseWriteError
+        If any source column has no case-insensitive match in the target
+        (structural drift — a column we emit does not exist in the
+        target). NEVER silently drop it — that would corrupt the Delta
+        table's shape.
+
+        If any PK column from :data:`_TABLE_PRIMARY_KEYS` has no
+        case-insensitive match in the target (the target table is
+        fundamentally incompatible with our PK contract — likely built
+        against an older schema or a different entity entirely).
+    """
+    target_by_lower: dict[str, str] = {c.lower(): c for c in target_columns}
+    source_columns = list(arrow_table.column_names)
+
+    # Every source column must exist in the target under some casing.
+    # Missing = structural drift; we refuse rather than silently drop.
+    new_names: list[str] = []
+    for src in source_columns:
+        target_name = target_by_lower.get(src.lower())
+        if target_name is None:
+            raise LakehouseWriteError(
+                f"Table '{table_name}' schema drift: source column "
+                f"'{src}' not present in target (target has: "
+                f"{sorted(target_columns)}). The Fabric table was "
+                f"likely created with a different schema. Recreate "
+                f"the table or align schemas."
+            )
+        new_names.append(target_name)
+
+    # Every PK from our lowercase contract must resolve to a target
+    # column too — otherwise the MERGE predicate would reference a
+    # nonexistent column. This is a stricter check than the source-
+    # column check above: it catches the case where the target table
+    # exists but was created from a completely different entity.
+    target_case_pk: list[str] = []
+    for pk in pk_columns:
+        target_pk_name = target_by_lower.get(pk.lower())
+        if target_pk_name is None:
+            raise LakehouseWriteError(
+                f"Table '{table_name}' schema drift: primary-key "
+                f"column '{pk}' not present in target (target has: "
+                f"{sorted(target_columns)}). The target table is "
+                f"fundamentally incompatible with the expected schema "
+                f"— cannot MERGE. Recreate the table."
+            )
+        target_case_pk.append(target_pk_name)
+
+    # ``rename_columns`` returns a new pyarrow.Table — the caller's
+    # arrow_table is left untouched even when the rename is a no-op.
+    return arrow_table.rename_columns(new_names), tuple(target_case_pk)
+
+
 def write_delta_table(
     parquet_path: Path,
     *,
@@ -823,25 +953,51 @@ def write_delta_table(
 
     # ---- MERGE upsert path (existing table). ----
     #
-    # Build predicates from the actual source columns so we skip any
-    # column that isn't present (defensive against schema drift where
-    # ``as_of`` might not yet exist upstream).
-    source_columns = list(arrow_table.column_names)
+    # Boundary-layer accommodation: tables created by the Fabric
+    # ``01_load_lakehouse`` notebook spell columns in PascalCase
+    # (``ID``, ``Name``, ``As_Of``, ``Value_Chain``) while our local
+    # writer emits lowercase. Read the target's schema first, then
+    # translate our source's column case to match — see
+    # :func:`_align_arrow_to_target_schema` for the full rationale.
+    # Structural drift (missing columns / missing PKs) raises HERE,
+    # before we build any SQL predicate.
+    try:
+        target_columns = [f.name for f in delta_table.schema().fields]
+    except Exception as exc:  # noqa: BLE001 — wrap schema-read failures
+        raise LakehouseWriteError(
+            f"Failed to read schema of Delta table '{table_name}' for "
+            f"MERGE upsert alignment: {exc}"
+        ) from exc
+
+    aligned_arrow, target_pk_columns = _align_arrow_to_target_schema(
+        arrow_table, target_columns, pk_columns, table_name
+    )
+
+    # After alignment, aligned_arrow.column_names ARE the target's case.
+    # Build predicates from that. All identifiers are double-quoted so
+    # PascalCase (and future names with spaces / reserved words) survive
+    # the DataFusion SQL parse — ``target."ID" = source."ID"`` works
+    # where the unquoted ``target.ID`` may be case-folded to ``id``.
+    aligned_columns = list(aligned_arrow.column_names)
+    aligned_pk_set = set(target_pk_columns)
+
     pk_predicate = " AND ".join(
-        f"target.{col} = source.{col}" for col in pk_columns
+        f'target."{col}" = source."{col}"' for col in target_pk_columns
     )
     # Non-PK, non-``as_of`` columns are the "did anything actually change?"
-    # comparison set. If the source doesn't carry a column, we can't
-    # compare it — silently exclude rather than raise. If the target has
-    # extra columns, the MERGE leaves them alone.
+    # comparison set. ``as_of`` is compared case-insensitively (a target
+    # spelled ``As_Of`` still means "the timestamp column") — a column
+    # literally named ``asof`` with no underscore is NOT the same column
+    # and would be treated as a normal comparison column.
     compare_columns = [
-        c for c in source_columns if c not in pk_columns and c != "as_of"
+        c for c in aligned_columns
+        if c not in aligned_pk_set and c.lower() != "as_of"
     ]
     # ``IS DISTINCT FROM`` is null-safe under the DataFusion SQL dialect
     # delta-rs uses. Verified against delta-rs 1.6.2.
     update_predicate = (
         " OR ".join(
-            f"target.{c} IS DISTINCT FROM source.{c}" for c in compare_columns
+            f'target."{c}" IS DISTINCT FROM source."{c}"' for c in compare_columns
         )
         if compare_columns
         else None
@@ -849,7 +1005,7 @@ def write_delta_table(
 
     try:
         merge_builder = delta_table.merge(
-            source=arrow_table,
+            source=aligned_arrow,
             predicate=pk_predicate,
             source_alias="source",
             target_alias="target",

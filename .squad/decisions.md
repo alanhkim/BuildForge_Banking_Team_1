@@ -2,6 +2,109 @@
 
 ## Active Decisions
 
+### 2026-07-21 (late evening, hardening): OneLake Delta MERGE — schema-tolerant column-case alignment (Fabric-notebook PascalCase compat)
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; **46/46 tests green** in `tests/test_lakehouse.py` (39 pre-existing + 6 new + 1 helper-driven update to 5 existing MERGE tests).
+**Relates to:**
+- 2026-07-21 (late evening, follow-up) MERGE upsert entry (immediately below — this is a hardening of that MERGE branch, NOT a redesign; the append→MERGE semantic flip stays put and the user-approved rules 1–6 are preserved verbatim)
+- `57daf7a` (MERGE landing commit — 17:05:16Z)
+- §0 (OneLake Writeback Scope & Failure Semantics — soft/hard-skip classes preserved)
+- FriendlyNameSupportDisabled trilogy + CSV extension + Delta-append landing (all invariants preserved: GUID validation, regional endpoint, bare-GUID path, `use_fabric_endpoint`/`bearer_token` storage options, extension allowlist)
+
+**Triggering event:**
+First real Fabric run against a table created by `01_load_lakehouse.ipynb` after the 17:05:16Z MERGE landing failed on `business_processes` with:
+
+```
+Schema error: No field named target.id.
+Valid fields are source."ID", source."Name", source."Value_Chain",
+source."Owner_Unit_ID", source."As_Of".
+```
+
+Root cause: Fabric notebooks emit **PascalCase** columns (`ID`, `Name`, `As_Of`, `Value_Chain`, `Owner_Unit_ID`) per Spark's `saveAsTable` convention; our local Parquet writer emits lowercase (which is what `_TABLE_PRIMARY_KEYS` records internally). DataFusion's SQL parser (used by delta-rs for MERGE predicates) refuses `target.id = source.id` when the target column is literally named `ID`. This is a boundary-layer mismatch between two legitimate conventions, not a bug in either producer.
+
+**What changed:**
+Added `_align_arrow_to_target_schema(arrow_table, target_columns, pk_columns, table_name)` helper in `src/regimpact/lakehouse.py`. Rewrote the MERGE branch of `write_delta_table` to (a) read the target's actual column names via `delta_table.schema().fields`, (b) call the alignment helper to rename the source Arrow columns to the target's case and rewrite the PK column names to the target's case, (c) build MERGE predicates from the aligned/target-case columns with double-quoted identifiers (`target."ID" = source."ID"` and `target."Name" IS DISTINCT FROM source."Name"`). First-write / `TableNotFoundError` path unchanged — lowercase Arrow lands as-is; subsequent MERGEs align to whatever case the first writer locked in.
+
+**Why the seam-translation approach (options considered):**
+
+1. **Force the Fabric notebook to emit lowercase.** Rejected — fights Spark idiom (every downstream Spark reader ends up quoting or `withColumnRenamed`-ing back), spreads coupling upstream, and doesn't help if a human ever creates the table by hand from the Fabric UI.
+2. **Normalise target columns to lowercase in delta-rs on open.** Rejected — would require rewriting the Delta log or shipping a custom `object_store` adapter; both dangerous, neither supported; other consumers (Power BI, SQL endpoint) may already depend on the PascalCase names.
+3. **Translate at the MERGE seam (chosen).** Keep every non-MERGE codepath lowercase; the internal contract (`_TABLE_PRIMARY_KEYS`, table names, Parquet exports) stays unchanged; add ONE helper that runs on the MERGE branch only.
+
+**Semantics — what we accommodate (case-only drift):**
+
+| Target has | Source has | Behaviour                                                            |
+|------------|------------|----------------------------------------------------------------------|
+| `ID`       | `id`       | Rename source → `ID`; predicate: `target."ID" = source."ID"`         |
+| `Name`     | `name`     | Rename source → `Name`                                               |
+| `As_Of`    | `as_of`    | Rename to `As_Of`; still excluded from update predicate (case-insensitive `as_of` match: `c.lower() != "as_of"`) |
+| `AS_OF`    | `as_of`    | Rename to `AS_OF`; still excluded                                    |
+| `id`       | `id`       | No-op rename; identical to pre-alignment behaviour                   |
+
+**Semantics — what we still refuse (structural drift → `LakehouseWriteError`, raised BEFORE any SQL is constructed):**
+
+| Situation                                                       | Error message contains                                                          |
+|-----------------------------------------------------------------|---------------------------------------------------------------------------------|
+| Source has `ghost` col; target has `[ID, Name]`                 | `"schema drift: source column 'ghost' not present in target"`; table name; sorted target cols |
+| Table `controls` PK is `id`; target has `[Name, As_Of]` (no id) | `"schema drift: primary-key column 'id' not present in target"`; table name; sorted target cols |
+
+**Invariants preserved (no regression from `57daf7a`):**
+
+1. `_TABLE_PRIMARY_KEYS` stays lowercase — single source of truth for entity identity, no case duplication anywhere else in the module.
+2. `pyarrow.Table.rename_columns` returns a NEW Table — the caller's Arrow table is never mutated in place (verified against pyarrow 15+, locked with `test_write_delta_table_does_not_mutate_input_arrow_table`).
+3. First-write path unchanged. When the target doesn't exist yet, there IS no target schema to align against; the lowercase Arrow table lands as-is via `write_deltalake(mode="append", schema_mode="merge")`. Subsequent MERGEs then align to whatever case the first writer locked in.
+4. `as_of` exclusion from the update predicate remains active, now case-insensitive: works whether the target spells it `as_of`, `As_Of`, or `AS_OF`.
+5. All six MERGE rules from `57daf7a` (match on PK only, `IS DISTINCT FROM`, `as_of` excluded, `.when_matched_update_all()` when changed, `.when_not_matched_insert_all()`, first-write fallback) preserved verbatim.
+
+**SQL identifier quoting:**
+All MERGE predicate identifiers are now double-quoted: `target."ID" = source."ID"`, `target."Name" IS DISTINCT FROM source."Name"`. Forward-compat: any future column name with a space, hyphen, or SQL reserved word will survive the DataFusion parse. Behaviour is identical for lowercase (`target."id" = source."id"`) — no regression on the common path.
+
+**delta-rs 1.6 schema API — verified in the loop, not assumed:**
+`DeltaTable(url, storage_options=...).schema()` returns a `DeltaSchema`. `.fields` is a list of `Field` objects, each with a `.name: str` attribute. Confirmed via `pylanceRunCodeSnippet` against `deltalake 1.6.2` before writing the code. Production reads target columns as one line: `target_columns = [f.name for f in delta_table.schema().fields]`.
+
+**Behavioural consequences:**
+- `interpret` runs whose target tables were created by the Fabric notebook now MERGE successfully instead of hard-failing on `Schema error: No field named target.id`.
+- Predicate string in logs changes slightly — quoted identifiers instead of unquoted. Only test assertions matched the unquoted form; those are updated in the same drop.
+- Two new failure modes (structural drift) are strictly ADDITIONS. Previously they failed with a delta-rs `Schema error` deep in the stack; now they fail cleanly with our own `LakehouseWriteError` carrying the table name and the target column list.
+
+**Explicit non-goals:**
+- No collation tolerance. Only case. `ID` vs `Id` = same column; `foo` vs `fôo` = different (raises).
+- No SCD Type 2 history table (same as `57daf7a`).
+- No autofix of `01_load_lakehouse.ipynb` — the notebook's PascalCase output is idiomatic Spark; changing it would spread the coupling and defeat the reason for the seam-translation approach.
+- No live Fabric verification from the session — user runs `interpret` post-merge to confirm.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — Module docstring extended with "Schema-tolerance on the MERGE path" section. Added `_align_arrow_to_target_schema` helper (~110 LOC with docstring). Rewrote MERGE branch of `write_delta_table`. First-write path unchanged.
+- `tests/test_lakehouse.py` — Extended `_build_merge_recording_dt` with `target_schema=` kwarg. Updated 5 existing MERGE tests to pass explicit target schema + expect double-quoted predicates. Added 6 new tests.
+
+Not touched: `cli.py` (public API of `export_regimpact_tables` unchanged), `pyproject.toml` (no new dependency), `src/regimpact/01_load_lakehouse.ipynb` (explicit non-goal).
+
+**Test coverage — 46/46 lakehouse tests green:**
+
+New tests:
+1. `test_write_delta_table_merges_when_target_has_pascalcase_columns`
+2. `test_write_delta_table_merges_when_target_has_mixed_case_columns`
+3. `test_write_delta_table_raises_when_source_column_missing_from_target`
+4. `test_write_delta_table_raises_when_target_pk_missing_from_source`
+5. `test_write_delta_table_does_not_mutate_input_arrow_table`
+6. `test_write_delta_table_first_write_path_unchanged`
+
+Updated (predicate spelling changed from unquoted to double-quoted, `target_schema` kwarg added):
+1. `test_write_delta_table_merges_when_table_exists`
+2. `test_write_delta_table_merge_predicate_uses_only_primary_keys`
+3. `test_write_delta_table_update_predicate_excludes_as_of_and_pk`
+4. `test_write_delta_table_composite_pk_bridge_gap_entity`
+5. `test_write_delta_table_composite_pk_relationships`
+
+**Test count trajectory:** 34 (pre-MERGE) → 41 (MERGE landing, `57daf7a`) → 46 (this hardening).
+
+**Notable landmine documented for test-shim engineering:**
+`MagicMock(name="ID")` sets the mock's **repr name**, NOT the `.name` attribute — the `name=` constructor kwarg is reserved by `unittest.mock`. To make a fake field expose `.name == "ID"` you MUST use `f = MagicMock(); f.name = "ID"`. Silently wrong otherwise. Recorded in Bishop's history and Hicks's history.
+
+---
+
 ### 2026-07-21 (late evening, follow-up): OneLake Delta writeback flipped from append to MERGE upsert (dedup on change)
 
 **Author:** Bishop (Python Core Dev)

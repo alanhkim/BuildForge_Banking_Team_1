@@ -7,6 +7,28 @@
 
 ## Learnings
 
+### 2026-07-21 (late evening, hardening) — Team update: 6 new schema-alignment tests in `test_lakehouse.py` — total 41 → 46; fake `DeltaTable` extended with `target_schema` param; MagicMock `.name` landmine documented
+- Bishop shipped a same-session hardening on top of `57daf7a` (the 17:05:16Z MERGE landing) — MERGE branch is now schema-tolerant on column CASE so it survives Fabric-notebook-created targets with PascalCase columns (`ID`, `Name`, `As_Of`, ...). Triggering failure was a real Fabric run against `business_processes`. Governing decision at the top of `.squad/decisions.md`. Test count 41 → 46.
+- **Test surface update:** `tests/test_lakehouse.py` is now **46/46 green** in ~1s. Six new schema-alignment tests plus 5 existing MERGE tests updated for the new predicate spelling and the extended helper. All 34 pre-MERGE tests still pass unchanged.
+- **Helper extension pattern worth preserving: `_build_merge_recording_dt` now takes an optional `target_schema: list[str] | None = None` kwarg.** When passed, it wires `dt.schema.return_value.fields = [<MagicMock with .name explicitly set>, ...]` — the production code reads target columns via `[f.name for f in delta_table.schema().fields]` and the fake now satisfies that contract. Same backward-compat discipline as when `_install_fake_deltalake_module` was extended for the MERGE landing: default is `None` → old tests still work; new tests opt in by passing the arg. Preserve this pattern for future delta-rs API additions — extend the fake, don't fork it.
+- **⚠️ Landmine documented: `MagicMock(name="X")` sets the mock's REPR name, NOT the `.name` attribute.** The `name=` constructor kwarg is reserved by `unittest.mock`. To make a fake field expose `.name == "ID"` you MUST use `f = MagicMock(); f.name = "ID"`. Silently wrong otherwise — the mock returns another MagicMock instead of the string, `f'target."{f.name}"'` becomes `target."<MagicMock id=…>"`, matches no target column, MERGE fails with an unrelated symptom. Recorded in Bishop's history too. Anyone extending fake schema-field builders (or any mocked object with a `.name` attribute) should trip the doc, not the landmine.
+- **The 6 new tests, in categorical order:**
+  1. `test_write_delta_table_merges_when_target_has_pascalcase_columns` — happy path against `[ID, Name, Value_Chain, Owner_Unit_ID, As_Of]` target from lowercase source; predicate is `target."ID" = source."ID"`.
+  2. `test_write_delta_table_merges_when_target_has_mixed_case_columns` — mixed casing across columns in one table, all bridged.
+  3. `test_write_delta_table_raises_when_source_column_missing_from_target` — structural drift on the source side → clean `LakehouseWriteError` with table name + sorted target cols.
+  4. `test_write_delta_table_raises_when_target_pk_missing_from_source` — structural drift on the PK side → clean `LakehouseWriteError` with table name + sorted target cols.
+  5. `test_write_delta_table_does_not_mutate_input_arrow_table` — pyarrow immutability invariant locked: `original.column_names` unchanged after the write.
+  6. `test_write_delta_table_first_write_path_unchanged` — `TableNotFoundError` still bootstraps via `write_deltalake(mode="append", schema_mode="merge")` with lowercase Arrow as-is; alignment does NOT run on the first-write branch.
+- **The 5 updated existing tests (predicate spelling changed from unquoted to double-quoted; `target_schema=[...]` kwarg added):**
+  1. `test_write_delta_table_merges_when_table_exists`
+  2. `test_write_delta_table_merge_predicate_uses_only_primary_keys`
+  3. `test_write_delta_table_update_predicate_excludes_as_of_and_pk`
+  4. `test_write_delta_table_composite_pk_bridge_gap_entity`
+  5. `test_write_delta_table_composite_pk_relationships`
+- **Pattern to keep: "add a test per invariant, not per code path."** Tests 3, 4, 5, 6 above encode design invariants (structural drift refused, pyarrow immutability, first-write bypasses alignment) — if a future refactor breaks any of them, the failing test name says exactly which invariant broke. Same discipline as the MERGE landing's invariant-per-test pattern.
+- **Fixture conventions unchanged:** `_WS_GUID` / `_LH_GUID` canonical constants still shared setup. Boundary-error-class discipline preserved: `LakehouseNotConfiguredError` = config (missing package, malformed env); `LakehouseWriteError` = transient / SDK / auth / unknown-table-name AND now schema-drift. Do not conflate.
+- **Baseline unchanged:** the 23-failure pre-existing baseline still stands (env-drift + asyncio config + one interpreter contract drift — none touch OneLake).
+
 ### 2026-07-21 (late evening, follow-up) — Team update: 7 new MERGE-path tests in `test_lakehouse.py` — total 34 → 41; fake-deltalake helper extended to mock `DeltaTable` alongside `write_deltalake`
 - Bishop shipped a same-session follow-up to the 16:17:12Z Delta-append drop — `write_delta_table` now MERGE-upserts instead of blind-appending. Governing decision at the top of `.squad/decisions.md`. Test count 34 → 41.
 - **Test surface update:** `tests/test_lakehouse.py` is now **41/41 green** in 0.92s. Seven new MERGE-path tests, all boundary-mocked at the extended fake `deltalake` module. All 34 pre-existing tests still pass unchanged.

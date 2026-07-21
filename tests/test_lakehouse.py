@@ -984,10 +984,13 @@ def test_export_regimpact_tables_shares_single_credential_across_writes(
 # ---------------------------------------------------------------------------
 
 
-def _build_merge_recording_dt(capture: dict) -> MagicMock:
+def _build_merge_recording_dt(
+    capture: dict, *, target_schema: list[str] | None = None
+) -> MagicMock:
     """Build a DeltaTable-shaped MagicMock whose .merge() chain is captured.
 
     The production MERGE path calls, in order:
+        target_cols = [f.name for f in dt.schema().fields]
         dt.merge(source, predicate, source_alias, target_alias)
           .when_matched_update_all(predicate=...)   # only if compare cols exist
           .when_not_matched_insert_all()
@@ -997,6 +1000,14 @@ def _build_merge_recording_dt(capture: dict) -> MagicMock:
     calls return the same builder instance (records ALL invocations) and
     ``capture`` receives the ``merge()`` call kwargs plus a handle to the
     builder for post-hoc assertions.
+
+    ``target_schema`` is the list of column names the fake
+    ``dt.schema().fields`` should surface — this drives the
+    schema-tolerance alignment in production (see
+    ``_align_arrow_to_target_schema``). Tests that don't exercise
+    alignment pass the same column names the source Parquet has (so
+    rename is a no-op). Tests that DO exercise alignment pass the
+    target's non-lowercase spelling (e.g. ``["ID", "Name", "As_Of"]``).
     """
     builder = MagicMock(name="merge_builder")
     builder.when_matched_update_all.return_value = builder
@@ -1012,6 +1023,19 @@ def _build_merge_recording_dt(capture: dict) -> MagicMock:
 
     dt = MagicMock(name="DeltaTable_instance")
     dt.merge = MagicMock(side_effect=_merge)
+
+    # Wire up ``dt.schema().fields`` so production code can read the
+    # target's column names. Each field mock exposes a ``.name`` string
+    # (MagicMock's ``name=`` constructor kwarg controls repr, NOT the
+    # ``.name`` attribute, so we set it explicitly).
+    fake_fields = []
+    for col_name in (target_schema or []):
+        f = MagicMock()
+        f.name = col_name
+        fake_fields.append(f)
+    fake_schema = MagicMock(name="DeltaSchema")
+    fake_schema.fields = fake_fields
+    dt.schema.return_value = fake_schema
     return dt
 
 
@@ -1030,7 +1054,9 @@ def test_write_delta_table_merges_when_table_exists(tmp_path, monkeypatch):
     _write_real_parquet(parquet)
 
     capture: dict = {}
-    dt_instance = _build_merge_recording_dt(capture)
+    # _write_real_parquet emits {id, name} — target agrees on case,
+    # so alignment is a no-op rename.
+    dt_instance = _build_merge_recording_dt(capture, target_schema=["id", "name"])
 
     def _dt_ctor(url, storage_options=None):
         capture["ctor_url"] = url
@@ -1103,7 +1129,9 @@ def test_write_delta_table_merge_predicate_uses_only_primary_keys(
     )
 
     capture: dict = {}
-    dt_instance = _build_merge_recording_dt(capture)
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["id", "name", "as_of"]
+    )
     _install_fake_deltalake_module(
         monkeypatch,
         lambda *a, **k: None,
@@ -1119,7 +1147,9 @@ def test_write_delta_table_merge_predicate_uses_only_primary_keys(
     )
 
     # controls PK = ("id",) → predicate is exactly the id join, no as_of.
-    assert capture["predicate"] == "target.id = source.id"
+    # Identifiers are double-quoted so PascalCase / spaces / reserved
+    # words survive the SQL parse (see schema-tolerance in module docstring).
+    assert capture["predicate"] == 'target."id" = source."id"'
     assert "as_of" not in capture["predicate"]
 
 
@@ -1140,7 +1170,9 @@ def test_write_delta_table_update_predicate_excludes_as_of_and_pk(
     )
 
     capture: dict = {}
-    dt_instance = _build_merge_recording_dt(capture)
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["id", "name", "description", "as_of"]
+    )
     _install_fake_deltalake_module(
         monkeypatch,
         lambda *a, **k: None,
@@ -1158,12 +1190,19 @@ def test_write_delta_table_update_predicate_excludes_as_of_and_pk(
     update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
     update_predicate = update_kwargs["predicate"]
 
-    # Both non-PK, non-as_of columns must appear on both sides.
-    assert "target.name IS DISTINCT FROM source.name" in update_predicate
-    assert "target.description IS DISTINCT FROM source.description" in update_predicate
+    # Both non-PK, non-as_of columns must appear on both sides, with
+    # double-quoted identifiers (schema-tolerance invariant).
+    assert 'target."name" IS DISTINCT FROM source."name"' in update_predicate
+    assert (
+        'target."description" IS DISTINCT FROM source."description"'
+        in update_predicate
+    )
     # ORed together, not ANDed — any single column differing triggers update.
     assert " OR " in update_predicate
-    # PK column and as_of must NOT appear in the update predicate at all.
+    # PK column and as_of must NOT appear in the update predicate at all
+    # (in ANY case — check both quoted and unquoted spellings).
+    assert 'target."id"' not in update_predicate
+    assert 'source."id"' not in update_predicate
     assert "target.id" not in update_predicate
     assert "source.id" not in update_predicate
     assert "as_of" not in update_predicate
@@ -1184,7 +1223,9 @@ def test_write_delta_table_composite_pk_bridge_gap_entity(tmp_path, monkeypatch)
     )
 
     capture: dict = {}
-    dt_instance = _build_merge_recording_dt(capture)
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["gap_id", "entity_type", "entity_id"]
+    )
     _install_fake_deltalake_module(
         monkeypatch,
         lambda *a, **k: None,
@@ -1200,10 +1241,10 @@ def test_write_delta_table_composite_pk_bridge_gap_entity(tmp_path, monkeypatch)
     )
 
     predicate = capture["predicate"]
-    # Composite 3-column ANDed predicate.
-    assert "target.gap_id = source.gap_id" in predicate
-    assert "target.entity_type = source.entity_type" in predicate
-    assert "target.entity_id = source.entity_id" in predicate
+    # Composite 3-column ANDed predicate, double-quoted identifiers.
+    assert 'target."gap_id" = source."gap_id"' in predicate
+    assert 'target."entity_type" = source."entity_type"' in predicate
+    assert 'target."entity_id" = source."entity_id"' in predicate
     assert predicate.count(" AND ") == 2
 
     # All cols are PK → no non-PK, non-as_of cols → update must be SKIPPED.
@@ -1228,7 +1269,10 @@ def test_write_delta_table_composite_pk_relationships(tmp_path, monkeypatch):
     )
 
     capture: dict = {}
-    dt_instance = _build_merge_recording_dt(capture)
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=["source_id", "target_id", "rel_type", "weight"],
+    )
     _install_fake_deltalake_module(
         monkeypatch,
         lambda *a, **k: None,
@@ -1245,15 +1289,302 @@ def test_write_delta_table_composite_pk_relationships(tmp_path, monkeypatch):
 
     predicate = capture["predicate"]
     for pk in ("source_id", "target_id", "rel_type"):
-        assert f"target.{pk} = source.{pk}" in predicate
+        assert f'target."{pk}" = source."{pk}"' in predicate
     assert predicate.count(" AND ") == 2
 
     # weight is a non-PK, non-as_of column → update branch IS wired.
     update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
-    assert "target.weight IS DISTINCT FROM source.weight" in update_kwargs["predicate"]
+    assert (
+        'target."weight" IS DISTINCT FROM source."weight"'
+        in update_kwargs["predicate"]
+    )
 
 
-def test_write_delta_table_unknown_table_name_raises(tmp_path, monkeypatch):
+# ---------------------------------------------------------------------------
+# Schema-tolerance tests (2026-07-21 follow-up).
+#
+# The Fabric ``01_load_lakehouse`` notebook creates Delta tables with
+# PascalCase columns (``ID``, ``Name``, ``As_Of``, ``Value_Chain``, ...)
+# per Spark convention, while our local Parquet writer emits lowercase.
+# DataFusion (used by delta-rs for MERGE predicates) rejects
+# ``target.id = source.id`` when the target column is literally ``ID``.
+# ``write_delta_table`` translates at the MERGE seam via
+# ``_align_arrow_to_target_schema``; the internal
+# ``_TABLE_PRIMARY_KEYS`` contract stays lowercase.
+# ---------------------------------------------------------------------------
+
+
+def test_write_delta_table_merges_when_target_has_pascalcase_columns(
+    tmp_path, monkeypatch
+):
+    """Fabric notebook created ``controls`` with PascalCase columns
+    (``ID``, ``Name``, ``As_Of``). Our lowercase Parquet must still
+    MERGE cleanly — predicate identifiers use the TARGET's case,
+    double-quoted, and the source Arrow table handed to
+    ``.merge()`` has been renamed to match."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [1, 2], "name": ["a", "b"], "as_of": ["2026-07-21", "2026-07-21"]},
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["ID", "Name", "As_Of"]
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    # Predicate uses target case (PascalCase) with double-quoted identifiers.
+    assert capture["predicate"] == 'target."ID" = source."ID"'
+    # Update predicate compares Name (not name / NAME) — ``As_Of`` is
+    # excluded (case-insensitive ``as_of`` match) and ``ID`` is the PK.
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    update_predicate = update_kwargs["predicate"]
+    assert 'target."Name" IS DISTINCT FROM source."Name"' in update_predicate
+    assert "As_Of" not in update_predicate
+    assert "as_of" not in update_predicate
+    assert '"ID"' not in update_predicate
+
+    # The Arrow table actually handed to delta-rs has target-case names.
+    aligned = capture["source"]
+    assert list(aligned.column_names) == ["ID", "Name", "As_Of"]
+
+
+def test_write_delta_table_merges_when_target_has_mixed_case_columns(
+    tmp_path, monkeypatch
+):
+    """Each column renamed independently — the alignment is per-column,
+    not all-or-nothing. Target here mixes lowercase ``id``, TitleCase
+    ``Name``, and SHOUT ``AS_OF``."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [7], "name": ["mixed"], "as_of": ["2026-07-21"]},
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["id", "Name", "AS_OF"]
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    # PK ``id`` stays lowercase (matches target); update compares ``Name``;
+    # ``AS_OF`` is skipped (case-insensitive as_of).
+    assert capture["predicate"] == 'target."id" = source."id"'
+    aligned = capture["source"]
+    assert list(aligned.column_names) == ["id", "Name", "AS_OF"]
+
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    update_predicate = update_kwargs["predicate"]
+    assert 'target."Name" IS DISTINCT FROM source."Name"' in update_predicate
+    assert "AS_OF" not in update_predicate
+
+
+def test_write_delta_table_raises_when_source_column_missing_from_target(
+    tmp_path, monkeypatch
+):
+    """Source Parquet emits a column the target does not have. That's
+    structural drift (not just case) — we refuse rather than silently
+    drop the column."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [1], "name": ["x"], "ghost": ["nope"]},
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["ID", "Name"]  # no "ghost"
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+    msg = str(excinfo.value)
+    assert "controls" in msg
+    assert "'ghost'" in msg
+    assert "schema drift" in msg
+    # Merge was refused BEFORE any SQL predicate was built.
+    assert "predicate" not in capture
+
+
+def test_write_delta_table_raises_when_target_pk_missing_from_source(
+    tmp_path, monkeypatch
+):
+    """Target exists but has no column matching our lowercase PK
+    contract — target table is fundamentally incompatible. Refuse."""
+    parquet = tmp_path / "controls.parquet"
+    # Source has NO id column; target also lacks id. All source cols
+    # find a target match (name, as_of) — so the source-col check
+    # passes and we hit the PK check next.
+    _write_parquet_with_columns(
+        parquet,
+        {"name": ["x"], "as_of": ["2026-07-21"]},
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["Name", "As_Of"]  # no id-like column
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+    msg = str(excinfo.value)
+    assert "controls" in msg
+    assert "primary-key" in msg
+    assert "'id'" in msg  # the missing PK
+    assert "predicate" not in capture
+
+
+def test_write_delta_table_does_not_mutate_input_arrow_table(
+    tmp_path, monkeypatch
+):
+    """``_align_arrow_to_target_schema`` uses ``rename_columns`` which
+    returns a NEW pyarrow.Table. Verify the arrow table read from
+    Parquet is not mutated in place even when the target uses a
+    completely different case."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [1], "name": ["x"], "as_of": ["2026-07-21"]},
+    )
+
+    # Intercept what ``_read_parquet_table`` returns so we can hold a
+    # reference to the pre-alignment Arrow table and inspect it after.
+    import pyarrow.parquet as pq
+
+    real_read = pq.read_table
+    captured_source: dict = {}
+
+    def _intercepting_read(*args, **kwargs):
+        table = real_read(*args, **kwargs)
+        captured_source["table"] = table
+        captured_source["names_before"] = list(table.column_names)
+        return table
+
+    monkeypatch.setattr(
+        "regimpact.lakehouse._read_parquet_table",
+        lambda p: _intercepting_read(p),
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture, target_schema=["ID", "Name", "As_Of"]
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    # Original Arrow table is unchanged; the renamed COPY reached delta-rs.
+    assert captured_source["names_before"] == ["id", "name", "as_of"]
+    assert list(captured_source["table"].column_names) == ["id", "name", "as_of"]
+    assert list(capture["source"].column_names) == ["ID", "Name", "As_Of"]
+    # And the two arrow tables are distinct instances (rename_columns
+    # never returns self).
+    assert capture["source"] is not captured_source["table"]
+
+
+def test_write_delta_table_first_write_path_unchanged(tmp_path, monkeypatch):
+    """When the target doesn't exist yet, TableNotFoundError fires and
+    we fall through to ``write_deltalake`` — schema alignment MUST be
+    skipped (no target to read from). Lowercase source columns land in
+    the freshly created table exactly as-is."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [1], "name": ["first"], "as_of": ["2026-07-21"]},
+    )
+
+    write_calls: list[dict] = []
+
+    def _fake_write(*args, **kwargs):
+        # write_deltalake is called positionally in production:
+        #     write_deltalake(url, data, storage_options=..., mode="append")
+        # Capture whichever form arrives.
+        record: dict = {"args": args, "kwargs": kwargs}
+        # The Arrow table is either the 2nd positional or "data" kwarg.
+        if len(args) >= 2:
+            record["data"] = args[1]
+        elif "data" in kwargs:
+            record["data"] = kwargs["data"]
+        write_calls.append(record)
+
+    # Default fake DeltaTable raises TableNotFoundError → first-write path.
+    _install_fake_deltalake_module(monkeypatch, _fake_write)
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    assert len(write_calls) == 1
+    data = write_calls[0]["data"]
+    # Column case is preserved verbatim from the Parquet — no alignment
+    # happened because there was no target schema to align against.
+    assert list(data.column_names) == ["id", "name", "as_of"]
+
+
+
     """A Parquet file whose stem is not in _TABLE_PRIMARY_KEYS must
     raise LakehouseWriteError with the table name in the message — NEVER
     silently default to ("id",)."""
