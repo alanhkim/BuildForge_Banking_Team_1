@@ -2,6 +2,138 @@
 
 ## Active Decisions
 
+### 2026-07-21 (late evening, follow-up): OneLake Delta writeback flipped from append to MERGE upsert (dedup on change)
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; **41/41 tests green** in `tests/test_lakehouse.py` (34 pre-existing + 7 new MERGE-path tests)
+**Relates to:**
+- 2026-07-21 (late evening) Delta-tables append entry (immediately below — this is the follow-up implementation that flips the write semantics)
+- §0 (OneLake Writeback Scope & Failure Semantics — soft/hard-skip classes preserved)
+- FriendlyNameSupportDisabled trilogy (canonical-GUID / regional-endpoint / bare-lakehouse-ID) — all invariants preserved
+
+**What changed:**
+Rewrote `write_delta_table` in `src/regimpact/lakehouse.py` from blind append to **MERGE upsert**. Every `interpret` run was previously duplicating every row of every one of the 34 tables. It now dedups against the existing Delta log using a per-table primary key. Public API surface is unchanged: `write_delta_table(parquet_path, *, workspace_id, lakehouse_id, table_name, credential=None, onelake_endpoint=None) -> str` and `export_regimpact_tables(...) -> dict[str, list[str]]`. Docstrings, module docstring, and inline comments updated to flag the deliberate behavioural change.
+
+**Why:**
+User request: "only append the CHANGED rows." The bandwidth win alone justifies the change (34 tables × N rows every run → most runs write ~0 rows to unchanged tables), but the semantic win is bigger: the tables now hold **latest state**, which is what downstream Fabric SQL views expect. Snapshot history was never wired up — the append mode was accidentally producing garbage duplicate rows that no consumer wanted.
+
+The naïve implementation of MERGE would have failed silently for a different reason: every row has a fresh `as_of` stamp per run, so a matched-and-differs check that included `as_of` would evaluate as "always differs" and update every row anyway. **The `as_of` gotcha is the whole reason this needed careful design** — not the MERGE mechanics themselves.
+
+**MERGE semantics (verbatim — user-approved rules 1–6):**
+
+1. **Match** on the primary key columns ONLY (never on `as_of`).
+2. **Update predicate:** any non-`as_of`, non-PK column differs between source and target.
+3. **When matched AND changed:** update **all columns including `as_of`** (so the latest state carries the latest stamp).
+4. **When matched AND equal-except-`as_of`:** skip. No update, no version bump. The bandwidth win — the whole point of the exercise.
+5. **When not matched:** insert with the new `as_of`.
+6. **First write (table doesn't exist yet):** fall back to `write_deltalake(mode="append", schema_mode="merge")` to bootstrap the table with schema evolution enabled.
+
+**Behavioural consequence (flagged):**
+After this change, tables hold **one row per primary key** (latest observed state), NOT one row per `(PK, as_of)` snapshot. This is a **deliberate departure** from the previous append behaviour. If SCD Type 2 history is needed later, that is a **separate design** — probably a `<table>_history` sibling table populated by the MERGE's `WHEN MATCHED AND changed THEN INSERT INTO history` pattern. Out of scope for this drop. The `as_of` column is still present on every table and still updates in place — it just no longer accumulates.
+
+**Primary-key map — `_TABLE_PRIMARY_KEYS` (all 34 tables):**
+Centralised in a single module-level `dict[str, tuple[str, ...]]` in `lakehouse.py`. Keyed by Parquet file stem, value is a tuple of PK column names. **Unknown table names raise `LakehouseWriteError`** naming the file — deliberately NOT defaulting to `("id",)` because silent misconfiguration on a Delta table's identity semantics would be strictly worse than a loud failure.
+
+| Class | Count | PK shape | Examples |
+|---|---|---|---|
+| Raw entities (single `id` PK) | 15 | `("id",)` | `regulations`, `controls`, `obligations`, `gaps`, `remediation_actions`, … |
+| Gold dims (single `id` PK) | 13 | `("id",)` | `dim_regulation`, `dim_control`, `dim_capability`, `dim_risk`, … |
+| Gold facts (single non-`id` PK) | 3 | `("gap_id",)`, `("remediation_id",)`, `("score_key",)` | `fact_gap`, `fact_remediation`, `fact_compliance_score` |
+| Composite PK | 3 | see below | `compliance_scores`, `relationships`, `bridge_gap_entity` |
+| **Total** | **34** | | |
+
+The three composite-PK tables (entities with no single-column identity because they are join tables / value tuples):
+
+- **`compliance_scores`** → `("scope_type", "scope_id", "scenario", "change_id")` — `ComplianceScore` model has no `id`; each row is a (scope, scenario, change) tuple.
+- **`relationships`** → `("source_id", "target_id", "rel_type")` — `Edge` model has no `id`; each row is a directed edge triple.
+- **`bridge_gap_entity`** → `("gap_id", "entity_type", "entity_id")` — Gold bridge table with no single-column PK; every column is part of the composite. The "all columns are PK" edge case.
+
+**Edge cases handled:**
+
+- **All columns are PK (`bridge_gap_entity`).** After excluding PK + `as_of`, the compare-columns list is empty. Solution: skip `.when_matched_update_all(...)` entirely — any matched row is definitionally unchanged, so the only useful action is `.when_not_matched_insert_all()`. Verified by `test_write_delta_table_composite_pk_bridge_gap_entity`.
+- **`as_of` column missing.** Defensive: compare-cols are built from the actual source Arrow schema, so a column not present is silently excluded from the predicate. No hard-coded assumption that `as_of` exists on every table.
+- **NULL comparison in SQL.** Naïve `target.col <> source.col` returns NULL when either side is NULL, which SQL treats as false — silently missing "field went from NULL to a value" changes. Solution: DataFusion's null-safe `IS DISTINCT FROM` operator throughout the update predicate. Verified against delta-rs 1.6.2 SQL dialect (DataFusion). `(NULL, NULL)` → not distinct; `(NULL, 'x')` → distinct.
+- **First-write detection.** No listing round-trip (racy + slow). Drives off `DeltaTable(url, storage_options=...)` raising `deltalake.exceptions.TableNotFoundError`, matched by class name (`type(exc).__name__ == "TableNotFoundError"`) so the code tolerates delta-rs moving the class between `deltalake` and `deltalake.exceptions` across versions.
+- **Column identifier quoting.** Not required — `to_column_name` upstream already normalises to snake_case ASCII, which is bare-quote-safe in DataFusion.
+
+**Safety properties preserved (no regression):**
+- `_normalize_fabric_id` GUID validation still runs at the boundary.
+- `_resolve_onelake_endpoint` still resolves the regional URL.
+- URL still uses bare GUID, `Tables/{name}` path, regional host embedded (per the `_host_from_endpoint` decision in the append drop).
+- `storage_options` still includes `use_fabric_endpoint: "true"` + `bearer_token`.
+- Missing `deltalake` package still maps to `LakehouseNotConfiguredError` (yellow soft-skip per §0). Applies to BOTH `_load_write_deltalake` and the new `_load_delta_table`.
+- Auth failure still maps to `LakehouseWriteError` (red hard-failure).
+- Table name still comes from the Parquet file stem — no rename.
+- Public function signatures unchanged.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — Module docstring flags the new latest-state (not history) semantics. Added `_TABLE_PRIMARY_KEYS` module constant, `_get_primary_keys(table_name)` helper (raises `LakehouseWriteError` on unknown), `_load_delta_table()` lazy import, `_is_table_not_found(exc)` class-name matcher. Rewrote `write_delta_table` for the MERGE + first-write fallback flow with the update-predicate construction inlined and heavily commented. Updated `export_regimpact_tables` docstring (signature unchanged). Design-decision comment block above the Delta section rewritten to reflect the new semantics.
+- `tests/test_lakehouse.py` — Extended `_install_fake_deltalake_module` to plant a `DeltaTable` symbol on the fake module (default constructor raises a `_FakeTableNotFoundError` whose `__name__` is forcibly `"TableNotFoundError"` — triggers the create-path fallback and keeps every pre-existing test's assertions on `mode="append"` / `schema_mode="merge"` valid). Added `_build_merge_recording_dt` + `_write_parquet_with_columns` helpers. 7 new MERGE-path tests.
+
+Not touched: `cli.py` (no orchestrator change needed — `export_regimpact_tables` signature is unchanged). No infra / notebook / pyproject changes.
+
+**Test coverage — 41/41 lakehouse tests green (34 pre-existing + 7 new):**
+
+- `test_write_delta_table_merges_when_table_exists` — DeltaTable opens successfully, MERGE chain (`.merge().when_matched_update_all().when_not_matched_insert_all().execute()`) is driven end-to-end, `write_deltalake` is NEVER called.
+- `test_write_delta_table_creates_when_table_does_not_exist` — DeltaTable raises TableNotFoundError, falls through to `write_deltalake(mode="append", schema_mode="merge")`.
+- `test_write_delta_table_merge_predicate_uses_only_primary_keys` — verifies the join predicate is `target.id = source.id`, does NOT include `as_of`.
+- `test_write_delta_table_update_predicate_excludes_as_of_and_pk` — verifies the update predicate compares only non-PK, non-`as_of` columns using `IS DISTINCT FROM`, and PK / `as_of` columns are absent from both sides.
+- `test_write_delta_table_composite_pk_bridge_gap_entity` — 3-column composite predicate; `.when_matched_update_all(...)` is **skipped** because all columns are in the PK.
+- `test_write_delta_table_composite_pk_relationships` — 3-column composite predicate; update branch DOES fire because `weight` is a non-PK column.
+- `test_write_delta_table_unknown_table_name_raises` — `LakehouseWriteError` with the file name AND `_TABLE_PRIMARY_KEYS` in the message.
+
+All 34 pre-existing tests still pass unchanged. Because the default fake `DeltaTable` raises the fake `TableNotFoundError`, every pre-MERGE test flows through the create-path fallback (which still uses `mode="append"`, `schema_mode="merge"`), so their assertions on those kwargs remain valid. No test was deleted or watered down.
+
+**Deliberately NOT done:**
+- No live write from this session — user validates manually against the real Fabric endpoint.
+- No SCD Type 2 history table — explicit non-goal.
+- No CLI console-message rewording — the existing `📊 Wrote N raw + M gold Delta table(s) to lakehouse Tables/ (append)` message is now slightly inaccurate (it's upsert, not append). Flagged for optional follow-up.
+- No metric on rows-skipped-vs-updated-vs-inserted — delta-rs's `.execute()` returns a stats dict currently ignored. Observability follow-up if wanted.
+
+**Reversal:** Restore `write_delta_table` from git history prior to this commit (blind-append form). Remove `_TABLE_PRIMARY_KEYS`, `_get_primary_keys`, `_load_delta_table`, `_is_table_not_found`. Drop the 7 new tests and revert the `_install_fake_deltalake_module` extension. Would restore the accidental-duplication behaviour — not recommended.
+
+**Constitutional check:** Compliant. Pure I/O plumbing on the OneLake Delta writeback path — no agent behavior added, removed, or altered. Rule #3 (no deterministic/offline fallback for agent behavior) is unaffected.
+
+---
+
+### 2026-07-21 (late evening): OneLake `Tables/` Delta writeback via delta-rs (append mode, flat namespace, merge schema)
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; **superseded 47 minutes later** by the MERGE-upsert entry above (which flips the write semantics while preserving every other decision in this entry)
+**Relates to:** §0 (OneLake writeback failure semantics); 2026-07-21 evening CSV extension; OneLake trilogy (`eac7cbb`, `dcd3d6d`, and the regional-endpoint work); `.squad/skills/fabric-resource-id-validation/SKILL.md`
+
+**Context:**
+After the OneLake trilogy shipped Files/ Parquet + CSV writeback for the `interpret` CLI, the last remaining manual step in the Fabric loop was opening `01_load_lakehouse.ipynb` in the Fabric workspace and running it to promote the Files/ Parquet into managed Delta tables under `Tables/`. That notebook click was the difference between "data landed" and "data queryable via SQL endpoint / semantic model / Data Agent".
+
+User chose **Option 1** of three post-trilogy options: use the `deltalake` (delta-rs) Python library to write Delta tables directly from the CLI at the end of every `interpret` run. Rust-based, no JVM/Spark dependency, talks straight to ADLS Gen2 / OneLake via bearer token.
+
+**Original hard requirement (superseded):** append mode, never overwrite. Rows accumulate across `interpret` runs; overwriting would silently lose history and defeat the audit purpose of the lakehouse. **Note:** the follow-up MERGE-upsert decision (above) refines this — append-per-run turned out to duplicate every row of every table because `interpret` is a snapshot workload, not a delta workload. The MERGE entry is now the authoritative write-mode decision; the invariants below (schema_mode, flat namespace, storage_options, URL host, missing-package handling, credential model, Parquet-only source) remain in force.
+
+**Decisions (still in force):**
+
+1. **`schema_mode="merge"` — never silently drop schema drift.** Additive schema drift is absorbed automatically. Incompatible type drift fails loudly and the exception is re-raised as `LakehouseWriteError` with the **table name in the message** so operators can pinpoint which of the 34 tables in a batch is drifting. Overwrite mode is intentionally NOT exposed as a parameter.
+2. **Flat namespace under `Tables/`** — no `regimpact_raw` / `regimpact_gold` subfolders. Verified the 17 raw entity names + 17 gold names don't collide (34 unique names total). Fabric UI shows a clean flat list; the SQL endpoint surfaces flat table names most cleanly. Table name = file stem.
+3. **`storage_options` shape:** `{"bearer_token": <token>, "use_fabric_endpoint": "true"}`. `_STORAGE_SCOPE = "https://storage.azure.com/.default"` — same audience the Files SDK uses implicitly via `DefaultAzureCredential`. `use_fabric_endpoint` is required — without it delta-rs's underlying `object_store` layer attempts generic ADLS Gen2 discovery and may misroute the request.
+4. **URL host = resolved endpoint (regional if `FABRIC_ONELAKE_DFS_ENDPOINT` is set).** URL: `abfss://{workspace_id}@{host}/{lakehouse_id}/Tables/{table_name}` — bare-GUID canonical form, no `.Lakehouse` suffix (invariant from the trilogy). The host in the URL is the resolved endpoint, not the canonical `onelake.dfs.fabric.microsoft.com`. **Why the divergence:** on the Files path we keep the returned ABFSS host canonical because Spark shortcuts and OneLake lineage parse those URLs downstream. Delta URLs from delta-rs are internal to the write — nothing else parses them — and delta-rs uses the URL host as the actual endpoint to hit. Passing canonical here would silently reproduce the pre-trilogy regional-capacity misroute. **Trap for future maintainers:** don't "fix" this back to canonical. Documented in-code with a comment above `_host_from_endpoint`.
+5. **Missing `deltalake` package = soft-skip (yellow), not a hard failure.** Lazy `from deltalake import write_deltalake` inside `_load_write_deltalake()`. `ImportError` → `LakehouseNotConfiguredError` with message pointing at `pip install 'regimpact[fabric]'`. Matches decisions.md §0 taxonomy: config gap = yellow skip, transient / auth / write failure = red warn (non-fatal because Files/ upload already succeeded).
+6. **Credential shared, token refetched per write.** `export_regimpact_tables` builds one `DefaultAzureCredential` and passes it to every `write_delta_table` call. Inside `write_delta_table`, `credential.get_token(_STORAGE_SCOPE)` fires per write. `DefaultAzureCredential` caches tokens internally, so refetches are cheap. Refetching per-write immunises a 34-table batch against a mid-run token expiry. Credential fetch failure → `LakehouseWriteError` (not `LakehouseNotConfiguredError`) — the operator meant to write; something transient / auth-related broke.
+7. **Parquet is the source of truth; CSV siblings are ignored.** Files/ upload sends both `.parquet` and `.csv` (per the 2026-07-21 evening CSV decision) because non-Spark consumers want CSV. Tables/ writeback reads only `.parquet` because Parquet has proper types (Delta needs a typed schema). Ignoring `.csv` here is deliberate, not an omission.
+
+**Consequences:**
+- One less manual step in the Fabric loop. `interpret` end-to-end: local export → Files/ upload → Tables/ Delta write. The notebook is only needed for the view DDL, which is a one-time setup per lakehouse.
+- New optional dependency `deltalake>=0.17` in the `[fabric]` extra. Users who don't install the extra get the yellow-skip message and the pipeline still completes.
+- The `01_load_lakehouse.ipynb` notebook is no longer required for table materialisation. It stays in the repo for the view DDL and as a fallback path if delta-rs ever misbehaves against a new Fabric region.
+
+**Test coverage (append form):** `tests/test_lakehouse.py` grew 21 → 34 tests (+13 covering the Delta path). All boundaries mocked at `deltalake.write_deltalake` via a `sys.modules` fake; real Parquet files written via pyarrow so `pq.read_table` is genuine. **The MERGE follow-up brought the count to 41/41** — all 34 tests here still pass unchanged after that follow-up because the extended fake `DeltaTable` defaults to raising `TableNotFoundError`, so pre-existing tests flow through the create-path fallback (still `mode="append"`, `schema_mode="merge"`).
+
+**Reversal:** Both this entry and the follow-up MERGE entry would need to be reversed together. Restore `write_delta_table` from git history prior to `4d58f5c`, remove `write_delta_table` / `export_regimpact_tables` from the module, remove the `cli.py` call, drop `deltalake>=0.17` from the extra, delete the delta-path tests. Would re-instate the manual notebook click. Not recommended.
+
+**Constitutional check:** Compliant. Pure I/O plumbing on the OneLake writeback path — no agent behavior added, removed, or altered. Rule #3 unaffected.
+
+---
+
 ### 2026-07-21 (evening): OneLake writeback uploads CSV alongside Parquet
 
 **Author:** Bishop (Python Core Dev)

@@ -602,8 +602,19 @@ from regimpact.lakehouse import (  # noqa: E402 — grouped with Delta tests
 )
 
 
-def _install_fake_deltalake_module(monkeypatch, write_fn) -> MagicMock:
+def _install_fake_deltalake_module(
+    monkeypatch, write_fn, delta_table=None
+) -> MagicMock:
     """Register a fake ``deltalake`` module exposing ``write_deltalake``.
+
+    Also plants a ``DeltaTable`` symbol so :func:`_load_delta_table` in
+    the production code can import it. When ``delta_table`` is ``None``
+    (the default), the planted ``DeltaTable`` raises a fake
+    ``TableNotFoundError`` on construction — this forces the "first
+    write" fallback path (``write_deltalake(mode="append",
+    schema_mode="merge")``), which matches what all pre-MERGE tests were
+    asserting on. Pass a custom callable / class when a test needs the
+    MERGE-upsert path.
 
     Returns the ``write_deltalake`` mock so tests can assert on call args.
     Mirrors :func:`_install_fake_datalake_module` but for delta-rs.
@@ -611,8 +622,29 @@ def _install_fake_deltalake_module(monkeypatch, write_fn) -> MagicMock:
     write_mock = MagicMock(name="write_deltalake", side_effect=write_fn)
     deltalake_mod = types.ModuleType("deltalake")
     deltalake_mod.write_deltalake = write_mock
+    if delta_table is None:
+        def _default_dt_ctor(*args, **kwargs):
+            raise _FakeTableNotFoundError("Delta table does not exist")
+        deltalake_mod.DeltaTable = _default_dt_ctor
+    else:
+        deltalake_mod.DeltaTable = delta_table
     monkeypatch.setitem(sys.modules, "deltalake", deltalake_mod)
     return write_mock
+
+
+class _FakeTableNotFoundError(Exception):
+    """Stand-in for ``deltalake.exceptions.TableNotFoundError``.
+
+    Production code matches by class name (see ``_is_table_not_found``
+    in ``regimpact/lakehouse.py``) so we only need the class name to be
+    ``TableNotFoundError`` — the class body itself can stay trivial.
+    """
+    pass
+
+
+# The production ``_is_table_not_found`` check keys on ``type(exc).__name__``,
+# so we forcibly rename this fake to match the real delta-rs class name.
+_FakeTableNotFoundError.__name__ = "TableNotFoundError"
 
 
 def _write_real_parquet(path: Path, *, rows: int = 2) -> None:
@@ -942,3 +974,302 @@ def test_export_regimpact_tables_shares_single_credential_across_writes(
     assert cred.get_token.call_count == 3
     for call in cred.get_token.call_args_list:
         assert call.args == ("https://storage.azure.com/.default",)
+
+
+# ---------------------------------------------------------------------------
+# MERGE-upsert path tests (2026-07-21 follow-up on the initial Delta append
+# landing). These exercise the branch of ``write_delta_table`` that fires
+# when ``DeltaTable(...)`` opens successfully — the "table already exists"
+# case that must dedup / upsert rather than blindly append.
+# ---------------------------------------------------------------------------
+
+
+def _build_merge_recording_dt(capture: dict) -> MagicMock:
+    """Build a DeltaTable-shaped MagicMock whose .merge() chain is captured.
+
+    The production MERGE path calls, in order:
+        dt.merge(source, predicate, source_alias, target_alias)
+          .when_matched_update_all(predicate=...)   # only if compare cols exist
+          .when_not_matched_insert_all()
+          .execute()
+
+    This helper returns a MagicMock configured so the chained builder
+    calls return the same builder instance (records ALL invocations) and
+    ``capture`` receives the ``merge()`` call kwargs plus a handle to the
+    builder for post-hoc assertions.
+    """
+    builder = MagicMock(name="merge_builder")
+    builder.when_matched_update_all.return_value = builder
+    builder.when_not_matched_insert_all.return_value = builder
+
+    def _merge(*, source, predicate, source_alias, target_alias):
+        capture["source"] = source
+        capture["predicate"] = predicate
+        capture["source_alias"] = source_alias
+        capture["target_alias"] = target_alias
+        capture["builder"] = builder
+        return builder
+
+    dt = MagicMock(name="DeltaTable_instance")
+    dt.merge = MagicMock(side_effect=_merge)
+    return dt
+
+
+def _write_parquet_with_columns(path: Path, columns: dict) -> None:
+    """Write a Parquet file with the exact column dict supplied."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq.write_table(pa.table(columns), path)
+
+
+def test_write_delta_table_merges_when_table_exists(tmp_path, monkeypatch):
+    """When DeltaTable opens successfully we drive .merge(...) and NEVER
+    call write_deltalake (the create-path fallback)."""
+    parquet = tmp_path / "dim_control.parquet"
+    _write_real_parquet(parquet)
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(capture)
+
+    def _dt_ctor(url, storage_options=None):
+        capture["ctor_url"] = url
+        capture["ctor_storage_options"] = storage_options
+        return dt_instance
+
+    write_mock = _install_fake_deltalake_module(
+        monkeypatch, lambda *a, **k: None, delta_table=_dt_ctor
+    )
+
+    url = write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="dim_control",
+        credential=_mock_credential(),
+    )
+
+    # Create-path fallback must NOT be exercised when the table exists.
+    write_mock.assert_not_called()
+    # The MERGE chain was driven end-to-end.
+    dt_instance.merge.assert_called_once()
+    capture["builder"].when_matched_update_all.assert_called_once()
+    capture["builder"].when_not_matched_insert_all.assert_called_once()
+    capture["builder"].execute.assert_called_once()
+    # URL still has the canonical bare-GUID shape.
+    assert url.endswith("/Tables/dim_control")
+    # Storage options carried through to the DeltaTable constructor.
+    assert capture["ctor_storage_options"]["use_fabric_endpoint"] == "true"
+    assert capture["ctor_storage_options"]["bearer_token"] == "fake-bearer-token"
+
+
+def test_write_delta_table_creates_when_table_does_not_exist(tmp_path, monkeypatch):
+    """When DeltaTable raises TableNotFoundError, we bootstrap via
+    write_deltalake(mode=append, schema_mode=merge)."""
+    parquet = tmp_path / "dim_control.parquet"
+    _write_real_parquet(parquet)
+
+    captured: dict = {}
+
+    def fake_write(url, data, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+
+    # Default DeltaTable in the helper raises _FakeTableNotFoundError,
+    # which _is_table_not_found matches by class name → create path.
+    write_mock = _install_fake_deltalake_module(monkeypatch, fake_write)
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="dim_control",
+        credential=_mock_credential(),
+    )
+
+    write_mock.assert_called_once()
+    assert captured["kwargs"]["mode"] == "append"
+    assert captured["kwargs"]["schema_mode"] == "merge"
+
+
+def test_write_delta_table_merge_predicate_uses_only_primary_keys(
+    tmp_path, monkeypatch
+):
+    """The join predicate must reference PK columns ONLY — never as_of."""
+    parquet = tmp_path / "controls.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {"id": [1], "name": ["x"], "as_of": ["2026-07-21"]},
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(capture)
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    # controls PK = ("id",) → predicate is exactly the id join, no as_of.
+    assert capture["predicate"] == "target.id = source.id"
+    assert "as_of" not in capture["predicate"]
+
+
+def test_write_delta_table_update_predicate_excludes_as_of_and_pk(
+    tmp_path, monkeypatch
+):
+    """The update predicate must compare only non-PK, non-``as_of`` cols
+    with null-safe ``IS DISTINCT FROM``."""
+    parquet = tmp_path / "dim_control.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {
+            "id": [1, 2],
+            "name": ["a", "b"],
+            "description": ["d1", "d2"],
+            "as_of": ["2026-07-21", "2026-07-21"],
+        },
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(capture)
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="dim_control",
+        credential=_mock_credential(),
+    )
+
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    update_predicate = update_kwargs["predicate"]
+
+    # Both non-PK, non-as_of columns must appear on both sides.
+    assert "target.name IS DISTINCT FROM source.name" in update_predicate
+    assert "target.description IS DISTINCT FROM source.description" in update_predicate
+    # ORed together, not ANDed — any single column differing triggers update.
+    assert " OR " in update_predicate
+    # PK column and as_of must NOT appear in the update predicate at all.
+    assert "target.id" not in update_predicate
+    assert "source.id" not in update_predicate
+    assert "as_of" not in update_predicate
+
+
+def test_write_delta_table_composite_pk_bridge_gap_entity(tmp_path, monkeypatch):
+    """bridge_gap_entity: all 3 columns are in the composite PK, so
+    compare_columns is empty → we skip when_matched_update_all entirely
+    and only wire up when_not_matched_insert_all."""
+    parquet = tmp_path / "bridge_gap_entity.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {
+            "gap_id": ["g1", "g2"],
+            "entity_type": ["control", "control"],
+            "entity_id": ["c1", "c2"],
+        },
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(capture)
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="bridge_gap_entity",
+        credential=_mock_credential(),
+    )
+
+    predicate = capture["predicate"]
+    # Composite 3-column ANDed predicate.
+    assert "target.gap_id = source.gap_id" in predicate
+    assert "target.entity_type = source.entity_type" in predicate
+    assert "target.entity_id = source.entity_id" in predicate
+    assert predicate.count(" AND ") == 2
+
+    # All cols are PK → no non-PK, non-as_of cols → update must be SKIPPED.
+    capture["builder"].when_matched_update_all.assert_not_called()
+    # But new rows still land.
+    capture["builder"].when_not_matched_insert_all.assert_called_once()
+    capture["builder"].execute.assert_called_once()
+
+
+def test_write_delta_table_composite_pk_relationships(tmp_path, monkeypatch):
+    """relationships: 3-column composite PK + one non-PK column
+    (``weight``) → both branches of the MERGE fire."""
+    parquet = tmp_path / "relationships.parquet"
+    _write_parquet_with_columns(
+        parquet,
+        {
+            "source_id": ["s1"],
+            "target_id": ["t1"],
+            "rel_type": ["depends_on"],
+            "weight": [0.5],
+        },
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(capture)
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="relationships",
+        credential=_mock_credential(),
+    )
+
+    predicate = capture["predicate"]
+    for pk in ("source_id", "target_id", "rel_type"):
+        assert f"target.{pk} = source.{pk}" in predicate
+    assert predicate.count(" AND ") == 2
+
+    # weight is a non-PK, non-as_of column → update branch IS wired.
+    update_kwargs = capture["builder"].when_matched_update_all.call_args.kwargs
+    assert "target.weight IS DISTINCT FROM source.weight" in update_kwargs["predicate"]
+
+
+def test_write_delta_table_unknown_table_name_raises(tmp_path, monkeypatch):
+    """A Parquet file whose stem is not in _TABLE_PRIMARY_KEYS must
+    raise LakehouseWriteError with the table name in the message — NEVER
+    silently default to ("id",)."""
+    parquet = tmp_path / "mystery_table.parquet"
+    _write_real_parquet(parquet)
+    _install_fake_deltalake_module(monkeypatch, lambda *a, **k: None)
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="mystery_table",
+            credential=_mock_credential(),
+        )
+
+    msg = str(excinfo.value)
+    assert "mystery_table" in msg
+    assert "_TABLE_PRIMARY_KEYS" in msg

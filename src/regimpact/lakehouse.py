@@ -15,6 +15,21 @@ Confirmed against ``GET /v1/workspaces/{ws}/lakehouses/{lh}`` →
 ``https://onelake.dfs.fabric.microsoft.com/{workspace_id}/{lakehouse_id}/…``
 with no suffix. Parquet and CSV files land under ``Files/<subpath>/`` and
 can then be shortcut'd into a Delta table from the Fabric UI.
+
+Delta writeback semantics (deliberate behavioural change — 2026-07-21):
+    The Delta writer at the bottom of this module (:func:`write_delta_table`
+    and :func:`export_regimpact_tables`) uses **MERGE upsert**, not blind
+    append. Each Delta table under ``Tables/`` now holds **one row per
+    primary key** (the latest observed state), NOT one row per
+    ``(primary_key, as_of)`` snapshot. Rows whose non-key columns are
+    identical to what already exists — differing only in ``as_of`` — are
+    skipped without a write. New primary keys are inserted; changed rows
+    have every column (including ``as_of``) updated in place. This is a
+    deliberate departure from the earlier append-only behaviour: if
+    slowly-changing-dimension (SCD Type 2) history is needed later, that
+    is a separate design. See :data:`_TABLE_PRIMARY_KEYS` for the
+    per-table PK map and ``.squad/decisions/inbox/bishop-onelake-delta-
+    merge.md`` for the full rationale.
 """
 from __future__ import annotations
 
@@ -397,13 +412,33 @@ def export_regimpact_lakehouse(
 # read from now materialise automatically at the end of every ``interpret``
 # run.
 #
-# Design decisions (see ``.squad/decisions/inbox/bishop-onelake-delta-tables.md``):
+# Design decisions (see ``.squad/decisions/inbox/bishop-onelake-delta-tables.md``
+# for the original append-mode landing, and
+# ``.squad/decisions/inbox/bishop-onelake-delta-merge.md`` for the switch
+# to MERGE upsert documented below).
 #
-# 1. **Append mode, never overwrite.** Rows accumulate across ``interpret``
-#    runs — every run adds new obligation/control/gap rows and preserves
-#    prior state. Overwriting would silently lose history and defeat the
-#    audit purpose of the lakehouse.
-# 2. **Flat namespace under ``Tables/``.** No ``regimpact_raw`` /
+# 1. **MERGE upsert, NOT blind append (2026-07-21 follow-up).**
+#    The initial implementation used ``mode="append"``, which duplicated
+#    every row on every ``interpret`` run. It now MERGEs on the
+#    per-table primary key (see :data:`_TABLE_PRIMARY_KEYS`):
+#      * match on PK columns ONLY (never on ``as_of``);
+#      * when matched AND any non-PK, non-``as_of`` column differs →
+#        update every column (including ``as_of`` so the latest state
+#        carries the latest stamp);
+#      * when matched AND equal-except-``as_of`` → skip (the "no
+#        bandwidth" win — no write, no version bump);
+#      * when not matched → insert with the new ``as_of``.
+#    **Behavioural consequence:** tables now hold one row per PK
+#    (latest state only), NOT one row per ``(PK, as_of)`` snapshot.
+#    Deliberate change from the earlier append behaviour. If SCD Type 2
+#    history is later required, that is a separate design.
+# 2. **First-write fallback to append + ``schema_mode="merge"``.**
+#    Detected via ``DeltaTable(...)`` raising a "not found"-class
+#    exception. Caught by class name so we tolerate delta-rs moving the
+#    error class between ``deltalake`` and ``deltalake.exceptions``
+#    across versions. Existence probes via ``list`` would be a network
+#    round-trip and racy — this exception-driven flow is idiomatic.
+# 3. **Flat namespace under ``Tables/``.** No ``regimpact_raw`` /
 #    ``regimpact_gold`` subfolders. The raw entity names
 #    (``controls``, ``obligations``, ``regulations``) and the gold names
 #    (``dim_control``, ``fact_gap``, ``bridge_gap_entity``) don't collide,
@@ -411,14 +446,114 @@ def export_regimpact_lakehouse(
 #    endpoint surfaces flat table names most cleanly; nested "table
 #    schemas" under ``Tables/`` are supported but add UI clutter with no
 #    upside here.
-# 3. **Schema evolution: ``schema_mode="merge"``.** Additive column
-#    changes (a new column landing in an upstream regenerator) are
-#    absorbed automatically. Incompatible type drift still fails loudly,
-#    surfaced as ``LakehouseWriteError`` with the table name in the
-#    message. NEVER silently drop columns.
-# 4. **``deltalake`` import is lazy.** Same pattern as ``DataLakeServiceClient``
+# 4. **Schema evolution on first write only: ``schema_mode="merge"``.**
+#    Additive column changes (a new column landing in an upstream
+#    regenerator) are absorbed at create time. Once the table exists,
+#    the MERGE path assumes the schemas already align — incompatible
+#    drift will surface as a ``LakehouseWriteError`` naming the table.
+#    NEVER silently drop columns.
+# 5. **``deltalake`` import is lazy.** Same pattern as ``DataLakeServiceClient``
 #    above — missing package maps to ``LakehouseNotConfiguredError``
 #    pointing at ``pip install regimpact[fabric]``.
+# 6. **Unknown table name → hard failure.** :func:`_get_primary_keys`
+#    raises ``LakehouseWriteError`` (not a silent default of ``("id",)``)
+#    so a mis-named Parquet file lands as a loud, pinpointable error
+#    instead of quietly corrupting a Delta table's identity semantics.
+
+
+# --------------------------------------------------------------------------
+# Per-table primary key map (verified against ``src/regimpact/models.py``
+# and ``src/regimpact/gold.py``). This map is the single source of truth
+# for the MERGE predicate used in :func:`write_delta_table`. If a Parquet
+# file lands with a stem not in this map, the write raises
+# ``LakehouseWriteError`` — do NOT default to ``("id",)`` (silent
+# misconfiguration on a Delta table's identity would be worse than a
+# clear error).
+#
+# Shape summary:
+#   * 28 tables have a single-column ``id`` PK (15 raw entities + 13 gold dims).
+#   *  3 tables have a single-column non-``id`` PK (fact_gap, fact_remediation,
+#     fact_compliance_score — the last one built as a flattened composite
+#     string ``score_key`` in gold.py).
+#   *  3 tables have a composite PK (compliance_scores, relationships,
+#     bridge_gap_entity — these entities have no single-column ``id``
+#     because they are join tables / value tuples).
+# --------------------------------------------------------------------------
+_TABLE_PRIMARY_KEYS: dict[str, tuple[str, ...]] = {
+    # Raw entities (single-column ``id`` PK) — mirrors ``_TABLES`` in export.py.
+    "regulations": ("id",),
+    "regulatory_changes": ("id",),
+    "obligations": ("id",),
+    "controls": ("id",),
+    "capabilities": ("id",),
+    "technologies": ("id",),
+    "evidence": ("id",),
+    "systems": ("id",),
+    "business_processes": ("id",),
+    "products": ("id",),
+    "data_domains": ("id",),
+    "business_units": ("id",),
+    "risks": ("id",),
+    "gaps": ("id",),
+    "remediation_actions": ("id",),
+    # Gold dims (single-column ``id`` PK) — mirrors ``GOLD_SCHEMA`` in gold.py.
+    "dim_regulation": ("id",),
+    "dim_change": ("id",),
+    "dim_obligation": ("id",),
+    "dim_control": ("id",),
+    "dim_capability": ("id",),
+    "dim_technology": ("id",),
+    "dim_evidence": ("id",),
+    "dim_system": ("id",),
+    "dim_process": ("id",),
+    "dim_product": ("id",),
+    "dim_data_domain": ("id",),
+    "dim_unit": ("id",),
+    "dim_risk": ("id",),
+    # Gold facts (single-column non-``id`` PK).
+    "fact_gap": ("gap_id",),
+    "fact_remediation": ("remediation_id",),
+    # ``score_key`` is an already-flattened composite string built in
+    # gold.py (~L191) — treat as a single-column surrogate PK.
+    "fact_compliance_score": ("score_key",),
+    # Composite PK — entities with no single-column identity.
+    #   compliance_scores: ``ComplianceScore`` has no ``id``; each row is
+    #     a (scope, scenario, change) tuple.
+    #   relationships: ``Edge`` has no ``id``; each row is a directed
+    #     edge triple.
+    #   bridge_gap_entity: gold bridge table, no single-column PK.
+    "compliance_scores": (
+        "scope_type",
+        "scope_id",
+        "scenario",
+        "change_id",
+    ),
+    "relationships": ("source_id", "target_id", "rel_type"),
+    "bridge_gap_entity": ("gap_id", "entity_type", "entity_id"),
+}
+
+
+def _get_primary_keys(table_name: str) -> tuple[str, ...]:
+    """Return the primary-key columns for ``table_name`` or raise.
+
+    Raises
+    ------
+    LakehouseWriteError
+        If ``table_name`` has no entry in :data:`_TABLE_PRIMARY_KEYS`.
+        Silent default (``("id",)``) is deliberately NOT used — a Parquet
+        file with an unexpected stem is almost certainly a bug (renamed
+        upstream, typo, stray file) and should fail loudly before it
+        clobbers a Delta table's identity semantics.
+    """
+    try:
+        return _TABLE_PRIMARY_KEYS[table_name]
+    except KeyError as exc:
+        raise LakehouseWriteError(
+            f"Unknown Delta table '{table_name}' — no primary-key "
+            f"mapping registered in _TABLE_PRIMARY_KEYS. Either add an "
+            f"entry to that map in regimpact/lakehouse.py or fix the "
+            f"Parquet file name so its stem matches an existing table."
+        ) from exc
 
 # Format of a Delta table URL in OneLake — mirrors the Files pattern
 # (bare-GUID canonical form, no ``.Lakehouse`` suffix). Confirmed against
@@ -461,6 +596,38 @@ def _load_write_deltalake():
     return write_deltalake
 
 
+def _load_delta_table():
+    """Lazy-import ``deltalake.DeltaTable``.
+
+    Used for MERGE-upsert path — opening an existing Delta table so
+    :meth:`DeltaTable.merge` can be driven. Same lazy-import + soft-skip
+    contract as :func:`_load_write_deltalake` — missing package maps to
+    :class:`LakehouseNotConfiguredError` (yellow) rather than
+    :class:`LakehouseWriteError` (red) per decision §0.
+    """
+    try:
+        from deltalake import DeltaTable
+    except ImportError as exc:  # pragma: no cover — exercised via patch
+        raise LakehouseNotConfiguredError(
+            "The 'deltalake' package is required for OneLake Tables/ "
+            "writeback. Install it with: pip install 'regimpact[fabric]'."
+        ) from exc
+    return DeltaTable
+
+
+def _is_table_not_found(exc: BaseException) -> bool:
+    """Return True when ``exc`` looks like delta-rs's "table does not exist" error.
+
+    Match by class name so we tolerate delta-rs shuffling the class
+    location between ``deltalake`` and ``deltalake.exceptions`` across
+    versions (verified against 1.6.2 which surfaces it as
+    ``deltalake.exceptions.TableNotFoundError``). A class-name match is
+    also easy to fake in tests without depending on the real delta-rs
+    exception module tree.
+    """
+    return type(exc).__name__ == "TableNotFoundError"
+
+
 def _read_parquet_table(parquet_path: Path):
     """Read a Parquet file into a ``pyarrow.Table``.
 
@@ -501,26 +668,48 @@ def write_delta_table(
     credential=None,
     onelake_endpoint: str | None = None,
 ) -> str:
-    """Append the contents of ``parquet_path`` to a Delta table in OneLake ``Tables/``.
+    """MERGE-upsert ``parquet_path`` into a Delta table in OneLake ``Tables/``.
 
-    The table is created on the first call and appended to on every
-    subsequent call. Schema evolution is opt-in via delta-rs's
-    ``schema_mode="merge"`` — additive column changes are absorbed
-    automatically; incompatible type drift raises
-    :class:`LakehouseWriteError` naming the offending table.
+    Behaviour (deliberate change from the earlier append-only path — see
+    module docstring):
+
+    * **First write** (table does not exist yet) — falls back to
+      ``write_deltalake(mode="append", schema_mode="merge")`` so the
+      table is created with schema evolution enabled.
+    * **Subsequent writes** — MERGE upsert keyed on the table's primary
+      key columns (see :data:`_TABLE_PRIMARY_KEYS`):
+
+        - **Match** on PK columns ONLY (never on ``as_of``).
+        - When matched AND at least one non-PK, non-``as_of`` column
+          differs → update every column (including ``as_of``, so the
+          latest state carries the latest stamp).
+        - When matched AND equal-except-``as_of`` → skip (the "no
+          bandwidth" win: no version bump, no write).
+        - When not matched → insert with the new ``as_of``.
+
+    **Consequence:** after each run the table holds one row per PK — the
+    latest observed state — NOT one row per ``(PK, as_of)`` snapshot.
+    This is a deliberate departure from the earlier append-only
+    behaviour. SCD Type 2 history would be a separate design.
+
+    NULL semantics are handled with SQL ``IS DISTINCT FROM`` (null-safe:
+    ``(NULL, NULL)`` → not distinct; ``(NULL, 'x')`` → distinct). Naïve
+    ``target.col <> source.col`` returns NULL when either side is NULL,
+    which SQL treats as false — bad for change detection.
 
     Parameters
     ----------
     parquet_path:
-        Local Parquet file to append. Table rows are read via ``pyarrow``.
+        Local Parquet file to upsert. Rows are read via ``pyarrow``.
     workspace_id:
         Fabric workspace ID (GUID). Same validation as :func:`export_to_lakehouse`.
     lakehouse_id:
         Fabric lakehouse ID (GUID). Same validation as :func:`export_to_lakehouse`.
     table_name:
-        Name of the target Delta table under ``Tables/``. Should be a
-        Fabric-friendly identifier (letters, digits, underscores). File
-        stem of ``parquet_path`` is the typical choice.
+        Name of the target Delta table under ``Tables/``. MUST be a key
+        in :data:`_TABLE_PRIMARY_KEYS` — unknown names raise
+        :class:`LakehouseWriteError` (silent default of ``("id",)`` is
+        deliberately not used; see :func:`_get_primary_keys`).
     credential:
         Optional Azure credential. Defaults to
         :class:`azure.identity.DefaultAzureCredential`.
@@ -540,17 +729,26 @@ def write_delta_table(
         ``onelake_endpoint`` is malformed, or if the ``deltalake`` package
         is not installed.
     LakehouseWriteError
-        If token acquisition, Parquet read, or the Delta append itself
-        fails. The table name appears in the message so operators can
-        pinpoint schema drift or a single bad table in a batch run.
+        If ``table_name`` is not registered in :data:`_TABLE_PRIMARY_KEYS`,
+        if token acquisition fails, if the Parquet read fails, if the
+        create-path ``write_deltalake`` call fails, if the MERGE call
+        fails, or if opening the existing Delta table fails for any
+        reason other than "table not found". The table name appears in
+        the message so operators can pinpoint schema drift or a single
+        bad table in a batch run.
     """
     workspace_id = _normalize_fabric_id(workspace_id, "FABRIC_WORKSPACE_ID")
     lakehouse_id = _normalize_fabric_id(lakehouse_id, "FABRIC_LAKEHOUSE_ID")
     account_url = _resolve_onelake_endpoint(onelake_endpoint)
     host = _host_from_endpoint(account_url)
 
+    # Look up PK columns BEFORE touching credentials / disk. A mis-named
+    # Parquet file is a config bug (config-shaped, not I/O-shaped) so we
+    # want it to fail fast without spending a token round-trip.
+    pk_columns = _get_primary_keys(table_name)
+
     # Fail fast on missing library BEFORE touching credentials / disk.
-    write_deltalake = _load_write_deltalake()
+    DeltaTable = _load_delta_table()
 
     cred = credential if credential is not None else _default_credential()
     token = _bearer_token(cred)
@@ -577,26 +775,104 @@ def write_delta_table(
         "use_fabric_endpoint": "true",
     }
 
+    # ---- Open existing Delta table, or fall back to the create path. ----
+    #
+    # Existence probe via listing would be a network round-trip and racy.
+    # We drive it off the DeltaTable constructor: on first write it
+    # raises a "not found"-class exception (see :func:`_is_table_not_found`)
+    # and we bootstrap the table with append + schema_mode=merge.
     try:
-        # ``schema_mode="merge"`` absorbs additive schema drift (new
-        # columns in an upstream regenerator). Incompatible drift still
-        # fails and is re-raised as ``LakehouseWriteError`` below with
-        # the table name in the message — never silently drop columns.
-        write_deltalake(
-            table_url,
-            arrow_table,
-            mode="append",
-            schema_mode="merge",
-            storage_options=storage_options,
+        delta_table = DeltaTable(table_url, storage_options=storage_options)
+    except Exception as exc:  # noqa: BLE001
+        if _is_table_not_found(exc):
+            logger.info(
+                "Delta table '%s' does not exist yet — bootstrapping via "
+                "first-write append (schema_mode=merge). URL=%s",
+                table_name,
+                table_url,
+            )
+            write_deltalake = _load_write_deltalake()
+            try:
+                write_deltalake(
+                    table_url,
+                    arrow_table,
+                    mode="append",
+                    schema_mode="merge",
+                    storage_options=storage_options,
+                )
+            except Exception as create_exc:  # noqa: BLE001
+                raise LakehouseWriteError(
+                    f"Failed to create Delta table '{table_name}' in "
+                    f"OneLake (first-write path, "
+                    f"file={parquet_path.name}): {create_exc}"
+                ) from create_exc
+            logger.info(
+                "Created Delta table %s from %s (%s)",
+                table_name,
+                parquet_path.name,
+                table_url,
+            )
+            return table_url
+        # Anything other than "not found" is a genuine open failure —
+        # bad credentials, wrong URL, transient network. Surface it with
+        # the table name so operators can pinpoint the culprit.
+        raise LakehouseWriteError(
+            f"Failed to open Delta table '{table_name}' for MERGE "
+            f"upsert in OneLake: {exc}"
+        ) from exc
+
+    # ---- MERGE upsert path (existing table). ----
+    #
+    # Build predicates from the actual source columns so we skip any
+    # column that isn't present (defensive against schema drift where
+    # ``as_of`` might not yet exist upstream).
+    source_columns = list(arrow_table.column_names)
+    pk_predicate = " AND ".join(
+        f"target.{col} = source.{col}" for col in pk_columns
+    )
+    # Non-PK, non-``as_of`` columns are the "did anything actually change?"
+    # comparison set. If the source doesn't carry a column, we can't
+    # compare it — silently exclude rather than raise. If the target has
+    # extra columns, the MERGE leaves them alone.
+    compare_columns = [
+        c for c in source_columns if c not in pk_columns and c != "as_of"
+    ]
+    # ``IS DISTINCT FROM`` is null-safe under the DataFusion SQL dialect
+    # delta-rs uses. Verified against delta-rs 1.6.2.
+    update_predicate = (
+        " OR ".join(
+            f"target.{c} IS DISTINCT FROM source.{c}" for c in compare_columns
         )
+        if compare_columns
+        else None
+    )
+
+    try:
+        merge_builder = delta_table.merge(
+            source=arrow_table,
+            predicate=pk_predicate,
+            source_alias="source",
+            target_alias="target",
+        )
+        # Edge case: bridge tables like ``bridge_gap_entity`` have every
+        # column in the composite PK, so ``compare_columns`` is empty.
+        # Any matched row is definitionally unchanged (no non-PK column
+        # exists) — skip the update entirely. New rows still land via
+        # ``when_not_matched_insert_all`` below.
+        if update_predicate is not None:
+            merge_builder = merge_builder.when_matched_update_all(
+                predicate=update_predicate
+            )
+        merge_builder = merge_builder.when_not_matched_insert_all()
+        merge_builder.execute()
     except Exception as exc:  # noqa: BLE001 — wrap all delta-rs errors
         raise LakehouseWriteError(
-            f"Failed to append Parquet '{parquet_path.name}' to Delta "
-            f"table '{table_name}' in OneLake: {exc}"
+            f"Failed to MERGE-upsert Parquet '{parquet_path.name}' into "
+            f"Delta table '{table_name}' in OneLake: {exc}"
         ) from exc
 
     logger.info(
-        "Appended %s to Delta table %s (%s)",
+        "MERGE-upserted %s into Delta table %s (%s)",
         parquet_path.name,
         table_name,
         table_url,
@@ -613,8 +889,15 @@ def export_regimpact_tables(
     credential=None,
     onelake_endpoint: str | None = None,
 ) -> dict[str, list[str]]:
-    """Materialise every Parquet file in ``tables_dir`` and ``gold_dir`` as
-    a Delta table under OneLake ``Tables/`` (append mode).
+    """MERGE-upsert every Parquet file in ``tables_dir`` and ``gold_dir``
+    into its Delta table under OneLake ``Tables/``.
+
+    Each table's primary key is looked up in :data:`_TABLE_PRIMARY_KEYS`
+    (keyed by Parquet file stem). Rows accumulate as latest-state, not
+    snapshot history — see :func:`write_delta_table` for the MERGE
+    semantics (match on PK only, update-if-changed, insert-if-new, skip
+    equal-except-``as_of``). This is a deliberate change from the earlier
+    append-only behaviour.
 
     Parquet is the source of truth (typed, larger, exactly what the
     ``export_tables`` / ``export_gold`` local pipeline just produced) —
@@ -695,7 +978,7 @@ def export_regimpact_tables(
     gold_urls = _write_dir(gold_dir)
 
     logger.info(
-        "OneLake Delta writeback complete: %d raw + %d gold table(s) appended.",
+        "OneLake Delta writeback complete: %d raw + %d gold table(s) upserted.",
         len(raw_urls),
         len(gold_urls),
     )
