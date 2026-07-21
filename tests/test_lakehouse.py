@@ -11,6 +11,7 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pyarrow as pa
 import pytest
 
 from regimpact.lakehouse import (
@@ -985,12 +986,15 @@ def test_export_regimpact_tables_shares_single_credential_across_writes(
 
 
 def _build_merge_recording_dt(
-    capture: dict, *, target_schema: list[str] | None = None
+    capture: dict,
+    *,
+    target_schema=None,
 ) -> MagicMock:
     """Build a DeltaTable-shaped MagicMock whose .merge() chain is captured.
 
     The production MERGE path calls, in order:
-        target_cols = [f.name for f in dt.schema().fields]
+        target_arrow = pa.schema(dt.schema().to_arrow())
+        target_cols  = [f.name for f in dt.schema().fields]
         dt.merge(source, predicate, source_alias, target_alias)
           .when_matched_update_all(predicate=...)   # only if compare cols exist
           .when_not_matched_insert_all()
@@ -1001,14 +1005,30 @@ def _build_merge_recording_dt(
     ``capture`` receives the ``merge()`` call kwargs plus a handle to the
     builder for post-hoc assertions.
 
-    ``target_schema`` is the list of column names the fake
-    ``dt.schema().fields`` should surface — this drives the
-    schema-tolerance alignment in production (see
-    ``_align_arrow_to_target_schema``). Tests that don't exercise
-    alignment pass the same column names the source Parquet has (so
-    rename is a no-op). Tests that DO exercise alignment pass the
-    target's non-lowercase spelling (e.g. ``["ID", "Name", "As_Of"]``).
+    ``target_schema`` may be:
+
+    * ``pa.Schema`` — names AND types are wired verbatim. Use this in
+      tests that exercise type coercion (LargeUtf8 vs Utf8, int32 vs
+      int64, refusal on string↔numeric, etc.). ``dt.schema().to_arrow()``
+      returns exactly this pa.Schema.
+    * ``list[str]`` — names only; types default to ``pa.string()`` for
+      every field. Backward-compat form for tests that only exercise
+      case alignment / predicate wiring and whose source data is
+      predominantly strings. Since the production cast helper skips
+      cast when source_type == target_type, all-string source data
+      round-trips untouched.
+    * ``None`` — no schema wired (used for tests that never enter the
+      MERGE branch, or first-write path tests).
+
+    Notes
+    -----
+    MagicMock's ``name=`` constructor kwarg controls repr, NOT the
+    ``.name`` attribute, so we set ``.name`` explicitly on the field
+    mocks so production's ``[f.name for f in fields]`` returns strings
+    (not more MagicMock instances).
     """
+    import pyarrow as pa  # lazy — keeps import cost off the module load
+
     builder = MagicMock(name="merge_builder")
     builder.when_matched_update_all.return_value = builder
     builder.when_not_matched_insert_all.return_value = builder
@@ -1024,17 +1044,33 @@ def _build_merge_recording_dt(
     dt = MagicMock(name="DeltaTable_instance")
     dt.merge = MagicMock(side_effect=_merge)
 
-    # Wire up ``dt.schema().fields`` so production code can read the
-    # target's column names. Each field mock exposes a ``.name`` string
-    # (MagicMock's ``name=`` constructor kwarg controls repr, NOT the
-    # ``.name`` attribute, so we set it explicitly).
+    # Normalise target_schema → (name list for .fields, pa.Schema for .to_arrow).
+    if target_schema is None:
+        target_names: list[str] = []
+        target_pa_schema = pa.schema([])
+    elif isinstance(target_schema, pa.Schema):
+        target_names = list(target_schema.names)
+        target_pa_schema = target_schema
+    elif isinstance(target_schema, list):
+        target_names = list(target_schema)
+        target_pa_schema = pa.schema([(n, pa.string()) for n in target_names])
+    else:
+        raise TypeError(
+            f"_build_merge_recording_dt: target_schema must be pa.Schema, "
+            f"list[str], or None (got {type(target_schema).__name__})"
+        )
+
     fake_fields = []
-    for col_name in (target_schema or []):
+    for col_name in target_names:
         f = MagicMock()
         f.name = col_name
         fake_fields.append(f)
     fake_schema = MagicMock(name="DeltaSchema")
     fake_schema.fields = fake_fields
+    # Production wraps this in ``pa.schema(...)`` — passing a pa.Schema
+    # through pa.schema() is idempotent and returns the same-shaped
+    # schema, so this correctly stands in for arro3.core → pyarrow.
+    fake_schema.to_arrow = MagicMock(return_value=target_pa_schema)
     dt.schema.return_value = fake_schema
     return dt
 
@@ -1054,9 +1090,12 @@ def test_write_delta_table_merges_when_table_exists(tmp_path, monkeypatch):
     _write_real_parquet(parquet)
 
     capture: dict = {}
-    # _write_real_parquet emits {id, name} — target agrees on case,
-    # so alignment is a no-op rename.
-    dt_instance = _build_merge_recording_dt(capture, target_schema=["id", "name"])
+    # _write_real_parquet emits {id: int64, name: string} — target
+    # agrees on both case AND types, so both alignment steps are no-ops.
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema({"id": pa.int64(), "name": pa.string()}),
+    )
 
     def _dt_ctor(url, storage_options=None):
         capture["ctor_url"] = url
@@ -1130,7 +1169,10 @@ def test_write_delta_table_merge_predicate_uses_only_primary_keys(
 
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
-        capture, target_schema=["id", "name", "as_of"]
+        capture,
+        target_schema=pa.schema(
+            {"id": pa.int64(), "name": pa.string(), "as_of": pa.string()}
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1171,7 +1213,15 @@ def test_write_delta_table_update_predicate_excludes_as_of_and_pk(
 
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
-        capture, target_schema=["id", "name", "description", "as_of"]
+        capture,
+        target_schema=pa.schema(
+            {
+                "id": pa.int64(),
+                "name": pa.string(),
+                "description": pa.string(),
+                "as_of": pa.string(),
+            }
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1271,7 +1321,14 @@ def test_write_delta_table_composite_pk_relationships(tmp_path, monkeypatch):
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
         capture,
-        target_schema=["source_id", "target_id", "rel_type", "weight"],
+        target_schema=pa.schema(
+            {
+                "source_id": pa.string(),
+                "target_id": pa.string(),
+                "rel_type": pa.string(),
+                "weight": pa.float64(),
+            }
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1330,7 +1387,10 @@ def test_write_delta_table_merges_when_target_has_pascalcase_columns(
 
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
-        capture, target_schema=["ID", "Name", "As_Of"]
+        capture,
+        target_schema=pa.schema(
+            {"ID": pa.int64(), "Name": pa.string(), "As_Of": pa.string()}
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1376,7 +1436,10 @@ def test_write_delta_table_merges_when_target_has_mixed_case_columns(
 
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
-        capture, target_schema=["id", "Name", "AS_OF"]
+        capture,
+        target_schema=pa.schema(
+            {"id": pa.int64(), "Name": pa.string(), "AS_OF": pa.string()}
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1516,7 +1579,10 @@ def test_write_delta_table_does_not_mutate_input_arrow_table(
 
     capture: dict = {}
     dt_instance = _build_merge_recording_dt(
-        capture, target_schema=["ID", "Name", "As_Of"]
+        capture,
+        target_schema=pa.schema(
+            {"ID": pa.int64(), "Name": pa.string(), "As_Of": pa.string()}
+        ),
     )
     _install_fake_deltalake_module(
         monkeypatch,
@@ -1604,3 +1670,450 @@ def test_write_delta_table_first_write_path_unchanged(tmp_path, monkeypatch):
     msg = str(excinfo.value)
     assert "mystery_table" in msg
     assert "_TABLE_PRIMARY_KEYS" in msg
+
+
+# ---------------------------------------------------------------------------
+# Type-coercion tests (2026-07-21 follow-up #2 on the MERGE landing).
+# These exercise ``_cast_arrow_to_target_types``: source Arrow types get
+# cast to the target Delta table's types before the MERGE fires. Silent
+# coercions include LargeUtf8 ↔ Utf8 and safe integer widen/narrow; loud
+# refusals include string↔numeric mismatch and overflow-on-narrow.
+# ---------------------------------------------------------------------------
+
+
+def test_write_delta_table_casts_large_utf8_source_to_utf8_target(
+    tmp_path, monkeypatch
+):
+    """LargeUtf8 source → Utf8 target: source column type must be
+    ``pa.string()`` in the Arrow table handed to ``.merge()``, not
+    ``pa.large_string()``. This is the concrete failure that motivated
+    the type-coercion seam — ``LargeUtf8 OR Boolean`` broke DataFusion's
+    ``IS DISTINCT FROM`` reduction on ``business_processes``."""
+    parquet = tmp_path / "controls.parquet"
+    # Write Arrow directly (not via the {col: [...]} shortcut) so we can
+    # pin the column type to large_string.
+    import pyarrow.parquet as pq
+
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2], type=pa.int64()),
+            "name": pa.array(["a", "b"], type=pa.large_string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema({"id": pa.int64(), "name": pa.string()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    merged = capture["source"]
+    assert merged.schema.field("name").type == pa.string()
+    assert merged.schema.field("name").type != pa.large_string()
+
+
+def test_write_delta_table_casts_utf8_source_to_large_utf8_target(
+    tmp_path, monkeypatch
+):
+    """Reverse direction: Utf8 source → LargeUtf8 target. Same seam,
+    same policy — silent, transparent cast."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2], type=pa.int64()),
+            "name": pa.array(["a", "b"], type=pa.string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema({"id": pa.int64(), "name": pa.large_string()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    merged = capture["source"]
+    assert merged.schema.field("name").type == pa.large_string()
+    assert merged.schema.field("name").type != pa.string()
+
+
+def test_write_delta_table_casts_int64_to_int32_when_target_is_int32(
+    tmp_path, monkeypatch
+):
+    """Safe narrowing: int64 source with in-range values → int32 target
+    is silently coerced by pyarrow.compute.cast(safe=True)."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2, 3], type=pa.int64()),
+            "name": pa.array(["a", "b", "c"], type=pa.string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema({"id": pa.int32(), "name": pa.string()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    merged = capture["source"]
+    assert merged.schema.field("id").type == pa.int32()
+
+
+def test_write_delta_table_casts_int32_to_int64_when_target_is_int64(
+    tmp_path, monkeypatch
+):
+    """Always-safe widening: int32 source → int64 target."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2, 3], type=pa.int32()),
+            "name": pa.array(["a", "b", "c"], type=pa.string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema({"id": pa.int64(), "name": pa.string()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    merged = capture["source"]
+    assert merged.schema.field("id").type == pa.int64()
+
+
+def test_write_delta_table_raises_on_string_to_int_coercion(
+    tmp_path, monkeypatch
+):
+    """String source → integer target is a real schema mismatch, never a
+    case we silently coerce. LakehouseWriteError must name the column
+    and both types so operators can pinpoint the drift."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    # ``name`` is the offending non-PK column: source string, target int64.
+    # Using a non-PK column keeps the alignment step happy (PK ``id`` has
+    # matching int64 type on both sides).
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2], type=pa.int64()),
+            "name": pa.array(["not-an-int", "also-not"], type=pa.string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    dt_instance = _build_merge_recording_dt(
+        {},
+        target_schema=pa.schema({"id": pa.int64(), "name": pa.int64()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+    msg = str(excinfo.value)
+    # Column name + both types must all appear so operators can pinpoint
+    # the drift without digging into logs.
+    assert "name" in msg
+    assert "string" in msg.lower()
+    assert "int64" in msg.lower()
+
+
+def test_write_delta_table_raises_on_int_overflow_when_narrowing(
+    tmp_path, monkeypatch
+):
+    """Narrowing int64 → int32 is safe *only* when every value fits.
+    A value of 2**40 overflows int32 → pyarrow.compute.cast(safe=True)
+    raises ArrowInvalid, which the helper wraps as LakehouseWriteError."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    overflow_value = 2 ** 40  # 1_099_511_627_776 — way past int32 max (~2.1e9)
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2], type=pa.int64()),
+            "count": pa.array([overflow_value, 1], type=pa.int64()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    dt_instance = _build_merge_recording_dt(
+        {},
+        target_schema=pa.schema({"id": pa.int64(), "count": pa.int32()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    with pytest.raises(LakehouseWriteError) as excinfo:
+        write_delta_table(
+            parquet,
+            workspace_id=_WS_GUID,
+            lakehouse_id=_LH_GUID,
+            table_name="controls",
+            credential=_mock_credential(),
+        )
+
+    msg = str(excinfo.value)
+    assert "count" in msg
+    # The wrapped ArrowInvalid message references the overflow / cast.
+    # We don't over-pin the pyarrow phrasing but do require both types
+    # to be named (so drift is diagnosable from the error alone).
+    assert "int64" in msg.lower()
+    assert "int32" in msg.lower()
+
+
+def test_write_delta_table_first_write_path_no_type_coercion(
+    tmp_path, monkeypatch
+):
+    """First-write path (TableNotFoundError branch): no target schema
+    exists to align against, so type coercion MUST be skipped and
+    source types land in ``write_deltalake`` verbatim. Complementary to
+    ``test_write_delta_table_first_write_path_unchanged`` which pins
+    column *names*; this one pins *types*."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    # LargeUtf8 source — if type coercion incorrectly ran on the
+    # first-write path, this would be silently cast to Utf8 (or fail).
+    # It must reach write_deltalake as LargeUtf8.
+    source_table = pa.table(
+        {
+            "id": pa.array([1], type=pa.int64()),
+            "name": pa.array(["first"], type=pa.large_string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    write_calls: list[dict] = []
+
+    def _fake_write(*args, **kwargs):
+        record: dict = {"args": args, "kwargs": kwargs}
+        if len(args) >= 2:
+            record["data"] = args[1]
+        elif "data" in kwargs:
+            record["data"] = kwargs["data"]
+        write_calls.append(record)
+
+    # Default fake DeltaTable raises TableNotFoundError → first-write.
+    _install_fake_deltalake_module(monkeypatch, _fake_write)
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    assert len(write_calls) == 1
+    data = write_calls[0]["data"]
+    # Types are untouched — the caller's Parquet types define the fresh
+    # table's schema via write_deltalake(schema_mode="merge").
+    assert data.schema.field("name").type == pa.large_string()
+    assert data.schema.field("id").type == pa.int64()
+
+
+def test_write_delta_table_type_alignment_does_not_mutate_input_arrow(
+    tmp_path, monkeypatch
+):
+    """``_cast_arrow_to_target_types`` uses ``pyarrow.Table.set_column``
+    which returns a NEW Table each call. Verify the Arrow table read
+    from Parquet is not mutated even when every column is cast."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    source_table = pa.table(
+        {
+            "id": pa.array([1, 2], type=pa.int64()),
+            "name": pa.array(["a", "b"], type=pa.large_string()),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    # Intercept the Arrow table returned by ``_read_parquet_table`` so
+    # we can hold a reference to it and inspect after the write returns.
+    real_read = pq.read_table
+    captured_source: dict = {}
+
+    def _intercepting_read(*args, **kwargs):
+        table = real_read(*args, **kwargs)
+        captured_source["table"] = table
+        captured_source["types_before"] = {
+            f.name: f.type for f in table.schema
+        }
+        return table
+
+    monkeypatch.setattr(
+        "regimpact.lakehouse._read_parquet_table",
+        lambda p: _intercepting_read(p),
+    )
+
+    capture: dict = {}
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        # Target types differ from source on BOTH columns → cast helper
+        # rebuilds every column, so if any mutation crept in we'd see it.
+        target_schema=pa.schema({"id": pa.int32(), "name": pa.string()}),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    # Original Arrow table: types unchanged from what Parquet returned.
+    assert captured_source["types_before"] == {
+        "id": pa.int64(),
+        "name": pa.large_string(),
+    }
+    original = captured_source["table"]
+    assert original.schema.field("id").type == pa.int64()
+    assert original.schema.field("name").type == pa.large_string()
+
+    # The Arrow table that reached .merge() has the target's types.
+    merged = capture["source"]
+    assert merged.schema.field("id").type == pa.int32()
+    assert merged.schema.field("name").type == pa.string()
+
+    # And they are distinct instances (set_column never returns self).
+    assert merged is not original
+
+
+def test_write_delta_table_composes_case_and_type_alignment(
+    tmp_path, monkeypatch
+):
+    """Case-alignment and type-coercion compose in that order: source
+    ``id`` (large_string) + ``as_of`` (large_string) is renamed to
+    target case ``ID`` / ``As_Of`` and then cast to target types
+    (string). The Arrow table handed to ``.merge()`` must have BOTH
+    the target's names AND the target's types."""
+    parquet = tmp_path / "controls.parquet"
+    import pyarrow.parquet as pq
+
+    # Source: lowercase names, large_string types on both columns.
+    # Note: PK for controls is "id" — using string PK here is a
+    # deliberate mismatch scenario (target chose string PKs), covered
+    # by the case + type alignment seams.
+    source_table = pa.table(
+        {
+            "id": pa.array(["a1", "a2"], type=pa.large_string()),
+            "as_of": pa.array(
+                ["2026-07-21", "2026-07-21"], type=pa.large_string()
+            ),
+        }
+    )
+    pq.write_table(source_table, parquet)
+
+    capture: dict = {}
+    # Target: PascalCase names, plain string() types.
+    dt_instance = _build_merge_recording_dt(
+        capture,
+        target_schema=pa.schema(
+            {"ID": pa.string(), "As_Of": pa.string()}
+        ),
+    )
+    _install_fake_deltalake_module(
+        monkeypatch,
+        lambda *a, **k: None,
+        delta_table=lambda url, storage_options=None: dt_instance,
+    )
+
+    write_delta_table(
+        parquet,
+        workspace_id=_WS_GUID,
+        lakehouse_id=_LH_GUID,
+        table_name="controls",
+        credential=_mock_credential(),
+    )
+
+    merged = capture["source"]
+    # Names: PascalCase (case alignment ran).
+    assert list(merged.column_names) == ["ID", "As_Of"]
+    # Types: plain string (type coercion ran after case alignment).
+    assert merged.schema.field("ID").type == pa.string()
+    assert merged.schema.field("As_Of").type == pa.string()
+    # And large_string is definitively gone from both columns.
+    assert merged.schema.field("ID").type != pa.large_string()
+    assert merged.schema.field("As_Of").type != pa.large_string()

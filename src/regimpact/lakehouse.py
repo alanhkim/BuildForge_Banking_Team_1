@@ -54,6 +54,48 @@ Schema-tolerance on the MERGE path (2026-07-21 follow-up):
     are still created with our lowercase names via ``write_deltalake``.
     See ``.squad/decisions/inbox/bishop-onelake-schema-alignment.md`` for
     the full rationale.
+
+Type coercion on the MERGE path (2026-07-21 follow-up #2):
+    Column-name case alignment (above) is not enough. Even when the
+    source Arrow table names match the target after rename, DataFusion
+    still rejects the MERGE if the *types* differ across the join /
+    ``IS DISTINCT FROM`` boundary — the concrete failure we hit was
+    ``Cannot infer common argument type for logical boolean operation
+    LargeUtf8 OR Boolean`` on ``business_processes`` when the source
+    Parquet round-tripped as ``LargeUtf8`` but the target Delta column
+    was ``Utf8``. The MERGE branch of :func:`write_delta_table` now
+    reads the target's real pyarrow schema
+    (``pa.schema(DeltaTable.schema().to_arrow())``; delta-rs 1.6.2
+    surfaces this via arro3.core and the Arrow C Data Interface,
+    ``pa.schema`` accepts it transparently) and, after case alignment,
+    casts each source column to the target's type using
+    ``pyarrow.compute.cast(safe=True)`` in :func:`_cast_arrow_to_target_types`.
+
+    **Silently coerced** (safe casts — the seam is transparent):
+    ``LargeUtf8 ↔ Utf8``, ``LargeBinary ↔ Binary``, integer widening
+    (``int32 → int64``), integer narrowing when no value overflows
+    (``int64 → int32`` with all-in-range values), ``float32 ↔ float64``
+    within range, ``timestamp[ns] ↔ timestamp[us]``, ``date32 ↔ date64``.
+
+    **Refused loudly** with :class:`LakehouseWriteError` naming the
+    table + column + both types: string ↔ numeric coercion (unambiguous
+    schema mismatch, never a case we want to succeed silently); integer
+    overflow when narrowing (``pyarrow.compute.cast(safe=True)`` raises
+    :class:`pyarrow.ArrowInvalid` — we wrap it); nested types
+    (struct/list/map — coercion semantics are ill-defined at this seam,
+    and none of our tables use them today); decimal types (same
+    rationale — precision/scale coercion is out of scope for now).
+
+    The two hardenings compose: rename to target case → cast to target
+    types → hand the aligned+casted Arrow table to
+    ``DeltaTable.merge()``. Both helpers are pure and immutable
+    (``rename_columns`` and ``set_column`` both return new Tables), so
+    the caller's Arrow table survives untouched. First-write path is
+    unchanged — no target schema exists to align against, so
+    ``write_deltalake(schema_mode="merge")`` bootstraps the table with
+    whatever types the source Parquet carries. See
+    ``.squad/decisions/inbox/bishop-onelake-type-coercion.md`` for the
+    full rationale.
 """
 from __future__ import annotations
 
@@ -789,6 +831,142 @@ def _align_arrow_to_target_schema(
     return arrow_table.rename_columns(new_names), tuple(target_case_pk)
 
 
+def _cast_arrow_to_target_types(
+    arrow_table,
+    target_arrow_schema,
+    table_name: str,
+):
+    """Return a new ``pyarrow.Table`` whose columns are cast to the
+    target Delta table's types.
+
+    Second seam of the schema-tolerance pair (see module docstring for
+    the "Type coercion on the MERGE path" section). This helper runs
+    AFTER :func:`_align_arrow_to_target_schema` — by construction every
+    column in ``arrow_table`` has a same-name field in
+    ``target_arrow_schema``. For each column, we compare source type to
+    target type:
+
+    * **Same type** → no cast (the column is passed through untouched).
+    * **Nested target type** (``struct`` / ``list`` / ``map``) → refuse.
+      Coercion semantics are ill-defined and none of our tables use
+      nested types today. If they ever do, this seam is not the right
+      place to handle them — the source Parquet writer should produce
+      the correct nested layout up front.
+    * **Decimal target type** → refuse. Precision/scale coercion is
+      out of scope for now; explicit is better than silent lossy casts.
+    * **Otherwise** → ``pyarrow.compute.cast(safe=True)``. This raises
+      :class:`pyarrow.ArrowInvalid` on integer overflow when narrowing
+      and on impossible casts (e.g. ``"abc" → int64``); we wrap those
+      failures with the table + column + both types so operators can
+      pinpoint the drift.
+
+    Immutability: ``pyarrow.Table.set_column`` returns a new Table each
+    call, so the input ``arrow_table`` is never mutated.
+
+    Parameters
+    ----------
+    arrow_table:
+        The source ``pyarrow.Table`` after case alignment. Its column
+        names MUST already match the target's case.
+    target_arrow_schema:
+        The target Delta table's real pyarrow schema, obtained via
+        ``pa.schema(DeltaTable.schema().to_arrow())``.
+    table_name:
+        Used only in error messages.
+
+    Returns
+    -------
+    pyarrow.Table
+        A new table with each column cast to the target type. Never
+        the same instance as ``arrow_table``.
+
+    Raises
+    ------
+    LakehouseWriteError
+        If any source column has no matching field in
+        ``target_arrow_schema`` (defensive — should be unreachable if
+        :func:`_align_arrow_to_target_schema` ran first).
+
+        If the target field type is nested (``struct``/``list``/``map``)
+        or decimal — coercion is refused rather than attempted.
+
+        If ``pyarrow.compute.cast`` fails (safe=True): overflow when
+        narrowing, string ↔ numeric mismatch, or any other cast the
+        pyarrow compute kernel refuses.
+    """
+    import pyarrow as pa  # noqa: F401 — imported for parity + future ext
+    import pyarrow.compute as pc
+    import pyarrow.types as pt
+
+    result = arrow_table
+    for idx, col_name in enumerate(list(result.column_names)):
+        # Column MUST exist in target schema after case-alignment. If it
+        # doesn't, that's a bug in the alignment step — refuse loudly
+        # rather than silently drop or invent.
+        try:
+            target_field = target_arrow_schema.field(col_name)
+        except (KeyError, Exception) as exc:  # noqa: BLE001
+            # pa.Schema.field(name) raises KeyError on missing name; wrap
+            # anything else defensively.
+            if not isinstance(exc, KeyError) and "not found" not in str(exc).lower():
+                raise
+            raise LakehouseWriteError(
+                f"Table '{table_name}' schema drift: source column "
+                f"'{col_name}' has no matching field in the target Delta "
+                f"schema after case alignment. This should be unreachable "
+                f"— _align_arrow_to_target_schema should have caught it. "
+                f"Please file a bug."
+            ) from exc
+
+        source_type = result.column(col_name).type
+        target_type = target_field.type
+
+        # Same type → skip. This is the common case for tables our own
+        # writer created (source Parquet types == target Delta types).
+        if source_type == target_type:
+            continue
+
+        # Nested types (struct/list/map) — refuse. Coercion is
+        # ill-defined at this seam; producers must emit the right shape.
+        if pt.is_nested(target_type):
+            raise LakehouseWriteError(
+                f"Table '{table_name}' column '{col_name}': cannot "
+                f"coerce {source_type} \u2192 {target_type} \u2014 nested "
+                f"types (struct/list/map) are not supported by the Delta "
+                f"MERGE type-coercion seam. Fix the source Parquet writer "
+                f"to emit the correct nested layout."
+            )
+
+        # Decimal types — refuse. Precision/scale coercion is out of
+        # scope; explicit is better than silent lossy casts.
+        if pt.is_decimal(target_type):
+            raise LakehouseWriteError(
+                f"Table '{table_name}' column '{col_name}': cannot "
+                f"coerce {source_type} \u2192 {target_type} \u2014 decimal "
+                f"types are not supported by the Delta MERGE type-coercion "
+                f"seam. Fix the source Parquet writer to emit a matching "
+                f"decimal precision/scale."
+            )
+
+        # All other casts go through pyarrow.compute.cast with
+        # safe=True — overflow / impossible casts raise ArrowInvalid,
+        # which we wrap with the table + column + both types.
+        try:
+            casted = pc.cast(result.column(col_name), target_type, safe=True)
+        except Exception as exc:  # noqa: BLE001 — wrap any cast failure
+            raise LakehouseWriteError(
+                f"Table '{table_name}' column '{col_name}': cannot "
+                f"coerce {source_type} \u2192 {target_type}: {exc}"
+            ) from exc
+
+        # ``set_column`` returns a new Table; ``result`` progressively
+        # rebuilds column-by-column. Input ``arrow_table`` is never
+        # mutated even when every column is cast.
+        result = result.set_column(idx, col_name, casted)
+
+    return result
+
+
 def write_delta_table(
     parquet_path: Path,
     *,
@@ -956,21 +1134,40 @@ def write_delta_table(
     # Boundary-layer accommodation: tables created by the Fabric
     # ``01_load_lakehouse`` notebook spell columns in PascalCase
     # (``ID``, ``Name``, ``As_Of``, ``Value_Chain``) while our local
-    # writer emits lowercase. Read the target's schema first, then
-    # translate our source's column case to match — see
-    # :func:`_align_arrow_to_target_schema` for the full rationale.
-    # Structural drift (missing columns / missing PKs) raises HERE,
-    # before we build any SQL predicate.
+    # writer emits lowercase, AND source Parquet types can drift from
+    # target Delta types (e.g. LargeUtf8 vs Utf8 breaks DataFusion's
+    # ``IS DISTINCT FROM`` reduction). Read the target's real pyarrow
+    # schema first, then translate our source's column case to match
+    # (:func:`_align_arrow_to_target_schema`) and cast each column to
+    # the target's type (:func:`_cast_arrow_to_target_types`) before
+    # building the MERGE. Structural drift (missing columns / missing
+    # PKs / unsupported type coercions) raises HERE, before we build
+    # any SQL predicate.
     try:
-        target_columns = [f.name for f in delta_table.schema().fields]
+        import pyarrow as pa
+        # delta-rs 1.6.2 returns arro3.core.Schema from
+        # ``DeltaTable.schema().to_arrow()``. ``pa.schema`` accepts it
+        # via the Arrow C Data Interface and returns a real pyarrow
+        # Schema — the format we need for field-by-field type lookups.
+        target_arrow_schema = pa.schema(delta_table.schema().to_arrow())
     except Exception as exc:  # noqa: BLE001 — wrap schema-read failures
         raise LakehouseWriteError(
             f"Failed to read schema of Delta table '{table_name}' for "
             f"MERGE upsert alignment: {exc}"
         ) from exc
 
+    target_columns = list(target_arrow_schema.names)
+
     aligned_arrow, target_pk_columns = _align_arrow_to_target_schema(
         arrow_table, target_columns, pk_columns, table_name
+    )
+
+    # Cast each source column to the target's type (LargeUtf8 → Utf8,
+    # int64 → int32 when safe, etc.). Refuses nested/decimal targets
+    # and string↔numeric coercions. See helper docstring for the full
+    # silent-vs-loud policy.
+    aligned_arrow = _cast_arrow_to_target_types(
+        aligned_arrow, target_arrow_schema, table_name
     )
 
     # After alignment, aligned_arrow.column_names ARE the target's case.

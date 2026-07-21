@@ -2,6 +2,115 @@
 
 ## Active Decisions
 
+### 2026-07-21 (late evening, hardening #2): OneLake Delta MERGE — type-coerce Arrow to target Delta schema
+
+**Author:** Bishop (Python Core Dev)
+**Requested by:** briandenicola
+**Status:** Implemented; **55/55 tests green** in `tests/test_lakehouse.py` (46 pre-existing after `775c857` + 9 new type-coercion tests). Test count trajectory: 34 (pre-MERGE) → 41 (`57daf7a`) → 46 (`775c857`) → **55** (this drop).
+**Relates to:**
+- 2026-07-21 (late evening, hardening) case-alignment entry (immediately below — this is the second hardening of the same MERGE seam; column names were bridged there, column types are bridged here; both helpers compose)
+- `775c857` (case-alignment landing commit — 2026-07-21T20:00:37Z)
+- `57daf7a` (MERGE landing commit — 2026-07-21T17:05:16Z; user-approved rules 1–6 preserved verbatim through both hardenings)
+- §0 (OneLake Writeback Scope & Failure Semantics — soft/hard-skip classes preserved)
+
+**Triggering event:**
+User re-ran `interpret` immediately after the case-alignment drop landed. Column *names* were now bridged correctly — the run then hit the *next* layer of the same DataFusion mismatch on column *types*:
+
+```
+Cannot infer common argument type for logical boolean operation
+LargeUtf8 OR Boolean
+```
+
+Concrete failure: `business_processes` MERGE (same PascalCase Fabric-notebook target that surfaced the case bug). Source Parquet round-tripped through pyarrow as `LargeUtf8`; the target Delta column materialised as `Utf8`; DataFusion's boolean type-inference refuses `LargeUtf8 OR Boolean` when constructing the `IS DISTINCT FROM` update predicate. Second boundary-layer type mismatch on the same seam, next layer down.
+
+**What changed:**
+Added `_cast_arrow_to_target_types(arrow_table, target_arrow_schema, table_name)` helper in `src/regimpact/lakehouse.py` (~110 LOC with docstring). Extended the MERGE branch of `write_delta_table` to (a) read the target's real pyarrow schema via `pa.schema(delta_table.schema().to_arrow())` (delta-rs 1.6.2 surfaces this via arro3.core and the Arrow C Data Interface; pyarrow accepts it transparently), (b) call `_align_arrow_to_target_schema` to rename source columns to the target's case (existing helper from `775c857`, unchanged), (c) call `_cast_arrow_to_target_types` to cast each source column to the target's type via `pyarrow.compute.cast(safe=True)`, (d) hand the aligned + casted Arrow table to `DeltaTable.merge()`. Compose order is fixed: **rename → cast → merge**. First-write / `TableNotFoundError` path unchanged — no target schema exists to align/cast against; lowercase Arrow lands as-is via `write_deltalake(mode="append", schema_mode="merge")`, and subsequent MERGEs align + cast to whatever the first writer locked in.
+
+**Why the seam-translation approach (options considered):**
+
+1. **Force the Fabric notebook / Spark writer to emit specific pyarrow types.** Rejected — Fabric notebooks legitimately materialise columns as `Utf8` (not `LargeUtf8`); forcing them to a specific variant would fight Spark idioms, spread coupling upstream, and would not help against future targets created by hand from the Fabric UI or by any other producer that picks its own defaults.
+2. **Normalise all source Parquet to a canonical type set before writing.** Rejected — would push a type-normalisation pass into every `export_tables()` / `export_gold()` caller, ossify the local Parquet schema, and still fail the moment Fabric introduced a new type variant we hadn't anticipated.
+3. **Cast at the MERGE seam (chosen).** Keep every non-MERGE codepath untouched; the internal contract (`_TABLE_PRIMARY_KEYS`, table names, Parquet exports) stays unchanged; add ONE helper that runs on the MERGE branch only, alongside the existing case-alignment helper. Reads target types live from the Delta log — no static type map to maintain.
+
+**Semantics — silently coerced (safe pyarrow casts; the seam is transparent):**
+
+| Target type      | Source type         | Behaviour                                     |
+|------------------|---------------------|------------------------------------------------|
+| `Utf8`           | `LargeUtf8`         | `pc.cast(safe=True)` — the triggering fix      |
+| `LargeUtf8`      | `Utf8`              | `pc.cast(safe=True)` — inverse direction       |
+| `Binary`         | `LargeBinary`       | `pc.cast(safe=True)`                            |
+| `LargeBinary`    | `Binary`            | `pc.cast(safe=True)`                            |
+| `int64`          | `int32`             | Widening — always safe                          |
+| `int32`          | `int64`             | Narrowing — safe iff no value overflows        |
+| `float64`        | `float32`           | Widening — always safe                          |
+| `float32`        | `float64`           | Narrowing — safe within range                  |
+| `timestamp[us]`  | `timestamp[ns]`     | Precision drop when values allow               |
+| `date64`         | `date32`            | Widening                                        |
+
+**Semantics — refused loudly (all raise `LakehouseWriteError` with table + column + both types in the message, BEFORE the MERGE SQL is constructed):**
+
+| Situation                                       | Reason                                                                 |
+|-------------------------------------------------|------------------------------------------------------------------------|
+| String source → integer target (or vice versa)  | Unambiguous schema mismatch; never a case we want to succeed silently  |
+| Integer overflow when narrowing (e.g. `int64` value > `INT32_MAX` cast to `int32`) | `pyarrow.compute.cast(safe=True)` raises `ArrowInvalid` — we wrap it |
+| Nested target type (`struct`/`list`/`map`)      | Coercion semantics ill-defined; none of our tables use nested types today |
+| Decimal target type                             | Precision/scale coercion out of scope; explicit > silent lossy cast    |
+
+**Invariants preserved (no regression from `775c857` or `57daf7a`):**
+
+1. `_TABLE_PRIMARY_KEYS` still lowercase-authoritative. No new type map — target Delta schema is the source of truth for both column case AND column types, read live.
+2. `pyarrow.Table.set_column` returns a NEW Table each call (parallel to `.rename_columns` from `775c857`). Caller's Arrow table is never mutated, even when every column is cast. Verified against pyarrow 15+; locked with `test_write_delta_table_type_alignment_does_not_mutate_input_arrow`.
+3. First-write path unchanged. When the target doesn't exist yet, there IS no target schema to align/cast against; the lowercase Arrow table lands as-is via `write_deltalake(mode="append", schema_mode="merge")`. Subsequent MERGEs then align + cast to whatever the first writer locked in.
+4. `as_of` exclusion from the update predicate remains active and case-insensitive (from `775c857`).
+5. All six MERGE rules from `57daf7a` preserved verbatim (match on PK only, `IS DISTINCT FROM`, `as_of` excluded, `.when_matched_update_all()` when changed, `.when_not_matched_insert_all()`, first-write fallback).
+6. All two hard-error modes from `775c857` preserved (missing source column, missing PK column). Two new hard-error modes added (nested target type, decimal target type), plus two `pyarrow.compute.cast` failure modes wrapped (string↔numeric, overflow-on-narrow). All raise `LakehouseWriteError` carrying the table name, column name, and both types.
+7. SQL identifier quoting unchanged from `775c857` (`target."ID" = source."ID"`). Type coercion is orthogonal to identifier quoting.
+
+**delta-rs 1.6.2 schema → pyarrow round-trip — verified in the loop, not assumed:**
+`DeltaTable(url, storage_options=...).schema()` returns a `DeltaSchema`. `.to_arrow()` returns an arro3.core `Schema` (delta-rs 1.6 switched away from the pyarrow-native return type). `pa.schema(...)` accepts arro3 schemas via the Arrow C Data Interface — one-line round-trip: `target_arrow_schema = pa.schema(delta_table.schema().to_arrow())`. `.field(name)` on the resulting `pa.Schema` returns a `pa.Field` with `.type` as the target pyarrow type. Confirmed via `pylanceRunCodeSnippet` before writing the code.
+
+**Compose order (rename before cast — locked with a dedicated test):**
+`_align_arrow_to_target_schema` runs first: it renames source columns to the target's case using a case-insensitive lookup against `[f.name for f in delta_table.schema().fields]`. `_cast_arrow_to_target_types` runs second: it iterates the (now case-aligned) source columns and looks each one up in `target_arrow_schema.field(col_name)` — a lookup that only succeeds because rename already ran. If the compose order were reversed, the cast helper would raise `LakehouseWriteError` on every non-lowercase target (defensive branch: "source column '{col_name}' has no matching field in the target Delta schema after case alignment"). `test_write_delta_table_composes_case_and_type_alignment` locks the correct order end-to-end.
+
+**Behavioural consequences:**
+- `interpret` runs whose target tables were created by the Fabric notebook (or by any producer that picks `Utf8` over `LargeUtf8`, or vice versa) now MERGE successfully instead of hard-failing on `Cannot infer common argument type ... LargeUtf8 OR Boolean`.
+- MERGE now performs O(N) safe pyarrow casts per write (N = number of columns in the target). Cost is negligible relative to the MERGE itself; `pc.cast(safe=True)` is zero-copy for same-type pass-through and near-zero-cost for the `LargeUtf8 ↔ Utf8` bridge (same underlying buffer layout, different offset width).
+- New failure modes (nested-target-type, decimal-target-type, string↔numeric, overflow-on-narrow) are strictly ADDITIONS. Previously they either succeeded silently with wrong data (impossible in practice — DataFusion would refuse first) or failed with a delta-rs `Schema error` deep in the stack; now they fail cleanly with our own `LakehouseWriteError` carrying the table + column + both types.
+
+**Explicit non-goals:**
+- No lossy coercion. `safe=True` on every `pc.cast` — never truncates, never rounds, never drops precision without raising.
+- No collation tolerance (same as `775c857`).
+- No SCD Type 2 history table (same as `775c857` and `57daf7a`).
+- No autofix of `01_load_lakehouse.ipynb`. Fabric notebooks legitimately materialise columns as `Utf8`; forcing them to `LargeUtf8` (or vice versa) would fight Spark idioms and spread coupling upstream.
+- No live Fabric verification from the session — user re-runs `interpret` post-merge to confirm.
+- No support for nested or decimal type coercion at this seam. Refused explicitly with a message that names the offending type. If a future table adds a nested column, the producer must emit the correct nested layout up front.
+
+**Two-spawn story (mechanical fact, not a design decision):**
+Spawn 1 (Bishop, sync) implemented `_cast_arrow_to_target_types` and integrated it into the MERGE branch, extended the module docstring, appended learnings to `.squad/agents/bishop/history.md`, and dropped `.squad/decisions/inbox/bishop-onelake-type-coercion.md`. Response was truncated before the test file was written. Spawn 2 (Bishop, sync) added the 9 required tests against the already-shipped helper without touching production code. `_build_merge_recording_dt` was NOT modified — the `775c857` spawn had already extended it to accept a `pa.Schema` for the target. Net effect across both spawns is a single logical drop.
+
+**Pre-existing orphan — flagged, NOT fixed by Bishop (out of scope for this drop):**
+`tests/test_lakehouse.py` lines 1655-1671 have a stray test body ("A Parquet file whose stem is not in `_TABLE_PRIMARY_KEYS` must raise `LakehouseWriteError`...") missing its `def test_...` line — body runs as trailing statements inside `test_write_delta_table_first_write_path_unchanged`. Both assertions pass so pytest sees one long test. Do NOT block this commit on it. Noted in Hicks's history for future cleanup.
+
+**Files touched:**
+- `src/regimpact/lakehouse.py` — ~209 net new lines. Module docstring extended with a "Type coercion on the MERGE path (2026-07-21 follow-up #2)" section that names `LargeUtf8 ↔ Utf8`, `LargeBinary ↔ Binary`, and safe integer widening/narrowing as the silently-coerced set. Added `_cast_arrow_to_target_types` helper (~110 LOC with full docstring). Extended MERGE branch of `write_delta_table` to align types after aligning names. First-write path unchanged.
+- `tests/test_lakehouse.py` — ~112 net new lines, 9 new tests. Test count 46 → 55. All 9 exercise the type-coercion helper via `write_delta_table`.
+- `.squad/agents/bishop/history.md` — learnings appended (spawn 1): LargeUtf8/Utf8 DataFusion quirk, `DeltaTable.schema().to_arrow()` round-trip via arro3.core + Arrow C Data Interface, compose-then-cast pipeline shape, `pyarrow.compute.cast(safe=True)` failure taxonomy.
+- `.squad/decisions/inbox/bishop-onelake-type-coercion.md` — decision drop (spawn 1) folded into this file by Scribe this turn.
+
+**Nine new tests locking the invariants above:**
+
+1. `test_write_delta_table_casts_large_utf8_source_to_utf8_target` — the triggering failure inverted into a passing test.
+2. `test_write_delta_table_casts_utf8_source_to_large_utf8_target` — inverse direction.
+3. `test_write_delta_table_widens_int32_source_to_int64_target` — safe widening.
+4. `test_write_delta_table_narrows_int64_source_to_int32_target` — safe narrowing when all values in range.
+5. `test_write_delta_table_raises_on_string_to_int_coercion` — refuses silently-lossy coercion; message names table + column + both types.
+6. `test_write_delta_table_raises_on_int_overflow_when_narrowing` — wraps `pyarrow.ArrowInvalid` as `LakehouseWriteError`.
+7. `test_write_delta_table_first_write_path_no_type_coercion` — first-write bypasses BOTH alignment and coercion.
+8. `test_write_delta_table_type_alignment_does_not_mutate_input_arrow` — pyarrow immutability locked for `set_column`.
+9. `test_write_delta_table_composes_case_and_type_alignment` — end-to-end: PascalCase LargeUtf8 target from lowercase Utf8 source → rename `id → ID` then cast `Utf8 → LargeUtf8` → MERGE succeeds. Locks compose order.
+
+---
+
 ### 2026-07-21 (late evening, hardening): OneLake Delta MERGE — schema-tolerant column-case alignment (Fabric-notebook PascalCase compat)
 
 **Author:** Bishop (Python Core Dev)
