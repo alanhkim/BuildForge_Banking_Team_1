@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 try:
@@ -95,7 +96,13 @@ class Settings:
     """Environment-driven settings — all values must be supplied via .env or the shell."""
 
     seed: int = int(os.getenv("REGIMPACT_SEED") or "42")
-    as_of: str = os.getenv("REGIMPACT_AS_OF") or ""
+    # ``as_of`` stamps the ``As_Of`` column on every exported row. It defaults
+    # to today's date so each workflow run is dated to when it actually ran.
+    # ``REGIMPACT_AS_OF`` (ISO date, e.g. ``2026-06-25``) pins the value for
+    # reproducible backfills, replays, and deterministic tests.
+    as_of: str = field(
+        default_factory=lambda: os.getenv("REGIMPACT_AS_OF") or date.today().isoformat()
+    )
     output_dir: Path = field(
         default_factory=lambda: Path(os.getenv("REGIMPACT_OUTPUT_DIR") or "output")
     )

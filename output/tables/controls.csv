@@ -1,52 +1,52 @@
 ID,Name,Control_Family,Capability_ID,Description,Status,Maturity,Owner_Unit_ID,As_Of
-CTL-CDD-1,Identity Verification & KYC,Customer Due Diligence,CAP-FC,Identity Verification & KYC control within the Customer Due Diligence family.,Implemented,3,BU-RISK,2026-06-25
-CTL-CDD-2,Beneficial Ownership Checks,Customer Due Diligence,CAP-FC,Beneficial Ownership Checks control within the Customer Due Diligence family.,Partially Implemented,2,BU-RISK,2026-06-25
-CTL-CDD-3,Ongoing Customer Risk Rating,Customer Due Diligence,CAP-FC,Ongoing Customer Risk Rating control within the Customer Due Diligence family.,Implemented,4,BU-RISK,2026-06-25
-CTL-SAN-1,Real-time Payment Screening,Sanctions Screening,CAP-SANCT,Real-time Payment Screening control within the Sanctions Screening family.,Partially Implemented,1,BU-RISK,2026-06-25
-CTL-SAN-2,Watchlist Management,Sanctions Screening,CAP-SANCT,Watchlist Management control within the Sanctions Screening family.,Implemented,4,BU-RISK,2026-06-25
-CTL-TM-1,Behavioural Monitoring Scenarios,Transaction Monitoring,CAP-FC,Behavioural Monitoring Scenarios control within the Transaction Monitoring family.,Planned,0,BU-RISK,2026-06-25
-CTL-TM-2,Alert Triage & Investigation,Transaction Monitoring,CAP-FC,Alert Triage & Investigation control within the Transaction Monitoring family.,Implemented,3,BU-RISK,2026-06-25
-CTL-TM-3,Suspicious Activity Reporting (SAR),Transaction Monitoring,CAP-FC,Suspicious Activity Reporting (SAR) control within the Transaction Monitoring family.,Partially Implemented,2,BU-RISK,2026-06-25
-CTL-OR-1,Important Business Service Mapping,Operational Resilience,CAP-RES,Important Business Service Mapping control within the Operational Resilience family.,Partially Implemented,2,BU-OPS,2026-06-25
-CTL-OR-2,Impact Tolerances & Scenario Testing,Operational Resilience,CAP-RES,Impact Tolerances & Scenario Testing control within the Operational Resilience family.,Partially Implemented,2,BU-OPS,2026-06-25
-CTL-OR-3,ICT Continuity & Recovery,Operational Resilience,CAP-RES,ICT Continuity & Recovery control within the Operational Resilience family.,Partially Implemented,1,BU-OPS,2026-06-25
-CTL-IC-1,ICT Incident Detection & Response,ICT Security & Incident Mgmt,CAP-INC,ICT Incident Detection & Response control within the ICT Security & Incident Mgmt family.,Partially Implemented,2,BU-TECH,2026-06-25
-CTL-IC-2,Major Incident Regulatory Notification,ICT Security & Incident Mgmt,CAP-INC,Major Incident Regulatory Notification control within the ICT Security & Incident Mgmt family.,Partially Implemented,1,BU-TECH,2026-06-25
-CTL-IC-3,Threat-Led Penetration Testing,ICT Security & Incident Mgmt,CAP-INC,Threat-Led Penetration Testing control within the ICT Security & Incident Mgmt family.,Partially Implemented,2,BU-TECH,2026-06-25
-CTL-TP-1,Critical Provider Register,Third-Party / Outsourcing Risk,CAP-TPR,Critical Provider Register control within the Third-Party / Outsourcing Risk family.,Partially Implemented,1,BU-RISK,2026-06-25
-CTL-TP-2,Concentration & Exit Strategy,Third-Party / Outsourcing Risk,CAP-TPR,Concentration & Exit Strategy control within the Third-Party / Outsourcing Risk family.,Partially Implemented,2,BU-RISK,2026-06-25
-CTL-CY-1,Security Monitoring & SIEM,Cyber Security,CAP-CYBER,Security Monitoring & SIEM control within the Cyber Security family.,Partially Implemented,2,BU-TECH,2026-06-25
-CTL-CY-2,Vulnerability Management,Cyber Security,CAP-CYBER,Vulnerability Management control within the Cyber Security family.,Partially Implemented,2,BU-TECH,2026-06-25
-CTL-AC-1,Role-Based Access & Least Privilege,Access Control,CAP-AC,Role-Based Access & Least Privilege control within the Access Control family.,Implemented,5,BU-TECH,2026-06-25
-CTL-AC-2,Privileged Access Reviews,Access Control,CAP-AC,Privileged Access Reviews control within the Access Control family.,Partially Implemented,1,BU-TECH,2026-06-25
-CTL-CAP-1,RWA Calculation Engine,Capital & RWA,CAP-CAPITAL,RWA Calculation Engine control within the Capital & RWA family.,Implemented,5,BU-FIN,2026-06-25
-CTL-CAP-2,Capital Adequacy Reporting,Capital & RWA,CAP-CAPITAL,Capital Adequacy Reporting control within the Capital & RWA family.,Implemented,5,BU-FIN,2026-06-25
-CTL-DQ-1,Data Quality Rules & Monitoring,Data Quality & Governance,CAP-DQ,Data Quality Rules & Monitoring control within the Data Quality & Governance family.,Partially Implemented,1,BU-DATA,2026-06-25
-CTL-DQ-2,Critical Data Element Catalog,Data Quality & Governance,CAP-DQ,Critical Data Element Catalog control within the Data Quality & Governance family.,Partially Implemented,2,BU-DATA,2026-06-25
-CTL-LIN-1,End-to-End Data Lineage,Risk Data Aggregation & Lineage,CAP-LIN,End-to-End Data Lineage control within the Risk Data Aggregation & Lineage family.,Partially Implemented,2,BU-DATA,2026-06-25
-CTL-LIN-2,Reconciliation & Aggregation Controls,Risk Data Aggregation & Lineage,CAP-LIN,Reconciliation & Aggregation Controls control within the Risk Data Aggregation & Lineage family.,Partially Implemented,1,BU-DATA,2026-06-25
-CTL-MD-1,Enterprise Data Catalog,Metadata & Catalog,CAP-MDM,Enterprise Data Catalog control within the Metadata & Catalog family.,Planned,0,BU-DATA,2026-06-25
-CTL-MD-2,Business Glossary,Metadata & Catalog,CAP-MDM,Business Glossary control within the Metadata & Catalog family.,Planned,0,BU-DATA,2026-06-25
-CTL-RT-1,Retention Schedule Enforcement,Data Retention,CAP-RET,Retention Schedule Enforcement control within the Data Retention family.,Implemented,4,BU-DATA,2026-06-25
-CTL-PR-1,Consent & Lawful Basis Management,Data Privacy,CAP-PII,Consent & Lawful Basis Management control within the Data Privacy family.,Implemented,3,BU-RISK,2026-06-25
-CTL-PR-2,Data Subject Rights (DSAR),Data Privacy,CAP-PII,Data Subject Rights (DSAR) control within the Data Privacy family.,Partially Implemented,1,BU-RISK,2026-06-25
-CTL-PR-3,Personal Data Breach Management,Data Privacy,CAP-PII,Personal Data Breach Management control within the Data Privacy family.,Implemented,3,BU-RISK,2026-06-25
-CTL-SCA-1,Multi-Factor Authentication,Strong Customer Authentication,CAP-AUTH,Multi-Factor Authentication control within the Strong Customer Authentication family.,Implemented,4,BU-TECH,2026-06-25
-CTL-SCA-2,Transaction Risk Analysis (TRA),Strong Customer Authentication,CAP-AUTH,Transaction Risk Analysis (TRA) control within the Strong Customer Authentication family.,Planned,0,BU-TECH,2026-06-25
-CTL-CO-1,Product Approval & Target Market,Product Governance & Conduct,CAP-COND,Product Approval & Target Market control within the Product Governance & Conduct family.,Implemented,5,BU-RISK,2026-06-25
-CTL-CO-2,Fair Value Assessment,Product Governance & Conduct,CAP-COND,Fair Value Assessment control within the Product Governance & Conduct family.,Implemented,3,BU-RISK,2026-06-25
-CTL-CO-3,Customer Outcomes Monitoring,Product Governance & Conduct,CAP-COND,Customer Outcomes Monitoring control within the Product Governance & Conduct family.,Implemented,3,BU-RISK,2026-06-25
-CTL-MR-1,Model Inventory & Versioning,Model Risk Management,CAP-MRM,Model Inventory & Versioning control within the Model Risk Management family.,Partially Implemented,2,BU-RISK,2026-06-25
-CTL-MR-2,Model Validation & Backtesting,Model Risk Management,CAP-MRM,Model Validation & Backtesting control within the Model Risk Management family.,Implemented,3,BU-RISK,2026-06-25
-CTL-MR-3,Model Performance Monitoring,Model Risk Management,CAP-MRM,Model Performance Monitoring control within the Model Risk Management family.,Partially Implemented,1,BU-RISK,2026-06-25
-CTL-AI-1,AI System Risk Classification,AI Governance,CAP-AIG,AI System Risk Classification control within the AI Governance family.,Implemented,4,BU-DATA,2026-06-25
-CTL-AI-2,Human Oversight & Approval,AI Governance,CAP-AIG,Human Oversight & Approval control within the AI Governance family.,Implemented,3,BU-DATA,2026-06-25
-CTL-AI-3,Bias & Fairness Testing,AI Governance,CAP-AIG,Bias & Fairness Testing control within the AI Governance family.,Planned,0,BU-DATA,2026-06-25
-CTL-TD-1,Training Data Governance,Training Data Quality,CAP-TDQ,Training Data Governance control within the Training Data Quality family.,Partially Implemented,2,BU-DATA,2026-06-25
-CTL-TD-2,Dataset Documentation & Provenance,Training Data Quality,CAP-TDQ,Dataset Documentation & Provenance control within the Training Data Quality family.,Partially Implemented,2,BU-DATA,2026-06-25
-CTL-TR-1,Decision Logging & Traceability,Traceability & Explainability,CAP-TRACE,Decision Logging & Traceability control within the Traceability & Explainability family.,Planned,0,BU-DATA,2026-06-25
-CTL-TR-2,Model Explainability Reporting,Traceability & Explainability,CAP-TRACE,Model Explainability Reporting control within the Traceability & Explainability family.,Partially Implemented,1,BU-DATA,2026-06-25
-CTL-AU-1,Immutable Audit Trail,Auditability & Evidence,CAP-AUD,Immutable Audit Trail control within the Auditability & Evidence family.,Implemented,4,BU-RISK,2026-06-25
-CTL-AU-2,Evidence Repository,Auditability & Evidence,CAP-AUD,Evidence Repository control within the Auditability & Evidence family.,Implemented,5,BU-RISK,2026-06-25
-CTL-RP-1,Regulatory Report Production,Regulatory Reporting,CAP-REP,Regulatory Report Production control within the Regulatory Reporting family.,Implemented,3,BU-FIN,2026-06-25
-CTL-RP-2,Report Review & Sign-off,Regulatory Reporting,CAP-REP,Report Review & Sign-off control within the Regulatory Reporting family.,Implemented,4,BU-FIN,2026-06-25
+CTL-CDD-1,Identity Verification & KYC,Customer Due Diligence,CAP-FC,Identity Verification & KYC control within the Customer Due Diligence family.,Implemented,3,BU-RISK,2026-07-21
+CTL-CDD-2,Beneficial Ownership Checks,Customer Due Diligence,CAP-FC,Beneficial Ownership Checks control within the Customer Due Diligence family.,Partially Implemented,2,BU-RISK,2026-07-21
+CTL-CDD-3,Ongoing Customer Risk Rating,Customer Due Diligence,CAP-FC,Ongoing Customer Risk Rating control within the Customer Due Diligence family.,Implemented,4,BU-RISK,2026-07-21
+CTL-SAN-1,Real-time Payment Screening,Sanctions Screening,CAP-SANCT,Real-time Payment Screening control within the Sanctions Screening family.,Partially Implemented,1,BU-RISK,2026-07-21
+CTL-SAN-2,Watchlist Management,Sanctions Screening,CAP-SANCT,Watchlist Management control within the Sanctions Screening family.,Implemented,4,BU-RISK,2026-07-21
+CTL-TM-1,Behavioural Monitoring Scenarios,Transaction Monitoring,CAP-FC,Behavioural Monitoring Scenarios control within the Transaction Monitoring family.,Planned,0,BU-RISK,2026-07-21
+CTL-TM-2,Alert Triage & Investigation,Transaction Monitoring,CAP-FC,Alert Triage & Investigation control within the Transaction Monitoring family.,Implemented,3,BU-RISK,2026-07-21
+CTL-TM-3,Suspicious Activity Reporting (SAR),Transaction Monitoring,CAP-FC,Suspicious Activity Reporting (SAR) control within the Transaction Monitoring family.,Partially Implemented,2,BU-RISK,2026-07-21
+CTL-OR-1,Important Business Service Mapping,Operational Resilience,CAP-RES,Important Business Service Mapping control within the Operational Resilience family.,Partially Implemented,2,BU-OPS,2026-07-21
+CTL-OR-2,Impact Tolerances & Scenario Testing,Operational Resilience,CAP-RES,Impact Tolerances & Scenario Testing control within the Operational Resilience family.,Partially Implemented,2,BU-OPS,2026-07-21
+CTL-OR-3,ICT Continuity & Recovery,Operational Resilience,CAP-RES,ICT Continuity & Recovery control within the Operational Resilience family.,Partially Implemented,1,BU-OPS,2026-07-21
+CTL-IC-1,ICT Incident Detection & Response,ICT Security & Incident Mgmt,CAP-INC,ICT Incident Detection & Response control within the ICT Security & Incident Mgmt family.,Partially Implemented,2,BU-TECH,2026-07-21
+CTL-IC-2,Major Incident Regulatory Notification,ICT Security & Incident Mgmt,CAP-INC,Major Incident Regulatory Notification control within the ICT Security & Incident Mgmt family.,Partially Implemented,1,BU-TECH,2026-07-21
+CTL-IC-3,Threat-Led Penetration Testing,ICT Security & Incident Mgmt,CAP-INC,Threat-Led Penetration Testing control within the ICT Security & Incident Mgmt family.,Partially Implemented,2,BU-TECH,2026-07-21
+CTL-TP-1,Critical Provider Register,Third-Party / Outsourcing Risk,CAP-TPR,Critical Provider Register control within the Third-Party / Outsourcing Risk family.,Partially Implemented,1,BU-RISK,2026-07-21
+CTL-TP-2,Concentration & Exit Strategy,Third-Party / Outsourcing Risk,CAP-TPR,Concentration & Exit Strategy control within the Third-Party / Outsourcing Risk family.,Partially Implemented,2,BU-RISK,2026-07-21
+CTL-CY-1,Security Monitoring & SIEM,Cyber Security,CAP-CYBER,Security Monitoring & SIEM control within the Cyber Security family.,Partially Implemented,2,BU-TECH,2026-07-21
+CTL-CY-2,Vulnerability Management,Cyber Security,CAP-CYBER,Vulnerability Management control within the Cyber Security family.,Partially Implemented,2,BU-TECH,2026-07-21
+CTL-AC-1,Role-Based Access & Least Privilege,Access Control,CAP-AC,Role-Based Access & Least Privilege control within the Access Control family.,Implemented,5,BU-TECH,2026-07-21
+CTL-AC-2,Privileged Access Reviews,Access Control,CAP-AC,Privileged Access Reviews control within the Access Control family.,Partially Implemented,1,BU-TECH,2026-07-21
+CTL-CAP-1,RWA Calculation Engine,Capital & RWA,CAP-CAPITAL,RWA Calculation Engine control within the Capital & RWA family.,Implemented,5,BU-FIN,2026-07-21
+CTL-CAP-2,Capital Adequacy Reporting,Capital & RWA,CAP-CAPITAL,Capital Adequacy Reporting control within the Capital & RWA family.,Implemented,5,BU-FIN,2026-07-21
+CTL-DQ-1,Data Quality Rules & Monitoring,Data Quality & Governance,CAP-DQ,Data Quality Rules & Monitoring control within the Data Quality & Governance family.,Partially Implemented,1,BU-DATA,2026-07-21
+CTL-DQ-2,Critical Data Element Catalog,Data Quality & Governance,CAP-DQ,Critical Data Element Catalog control within the Data Quality & Governance family.,Partially Implemented,2,BU-DATA,2026-07-21
+CTL-LIN-1,End-to-End Data Lineage,Risk Data Aggregation & Lineage,CAP-LIN,End-to-End Data Lineage control within the Risk Data Aggregation & Lineage family.,Partially Implemented,2,BU-DATA,2026-07-21
+CTL-LIN-2,Reconciliation & Aggregation Controls,Risk Data Aggregation & Lineage,CAP-LIN,Reconciliation & Aggregation Controls control within the Risk Data Aggregation & Lineage family.,Partially Implemented,1,BU-DATA,2026-07-21
+CTL-MD-1,Enterprise Data Catalog,Metadata & Catalog,CAP-MDM,Enterprise Data Catalog control within the Metadata & Catalog family.,Planned,0,BU-DATA,2026-07-21
+CTL-MD-2,Business Glossary,Metadata & Catalog,CAP-MDM,Business Glossary control within the Metadata & Catalog family.,Planned,0,BU-DATA,2026-07-21
+CTL-RT-1,Retention Schedule Enforcement,Data Retention,CAP-RET,Retention Schedule Enforcement control within the Data Retention family.,Implemented,4,BU-DATA,2026-07-21
+CTL-PR-1,Consent & Lawful Basis Management,Data Privacy,CAP-PII,Consent & Lawful Basis Management control within the Data Privacy family.,Implemented,3,BU-RISK,2026-07-21
+CTL-PR-2,Data Subject Rights (DSAR),Data Privacy,CAP-PII,Data Subject Rights (DSAR) control within the Data Privacy family.,Partially Implemented,1,BU-RISK,2026-07-21
+CTL-PR-3,Personal Data Breach Management,Data Privacy,CAP-PII,Personal Data Breach Management control within the Data Privacy family.,Implemented,3,BU-RISK,2026-07-21
+CTL-SCA-1,Multi-Factor Authentication,Strong Customer Authentication,CAP-AUTH,Multi-Factor Authentication control within the Strong Customer Authentication family.,Implemented,4,BU-TECH,2026-07-21
+CTL-SCA-2,Transaction Risk Analysis (TRA),Strong Customer Authentication,CAP-AUTH,Transaction Risk Analysis (TRA) control within the Strong Customer Authentication family.,Planned,0,BU-TECH,2026-07-21
+CTL-CO-1,Product Approval & Target Market,Product Governance & Conduct,CAP-COND,Product Approval & Target Market control within the Product Governance & Conduct family.,Implemented,5,BU-RISK,2026-07-21
+CTL-CO-2,Fair Value Assessment,Product Governance & Conduct,CAP-COND,Fair Value Assessment control within the Product Governance & Conduct family.,Implemented,3,BU-RISK,2026-07-21
+CTL-CO-3,Customer Outcomes Monitoring,Product Governance & Conduct,CAP-COND,Customer Outcomes Monitoring control within the Product Governance & Conduct family.,Implemented,3,BU-RISK,2026-07-21
+CTL-MR-1,Model Inventory & Versioning,Model Risk Management,CAP-MRM,Model Inventory & Versioning control within the Model Risk Management family.,Partially Implemented,2,BU-RISK,2026-07-21
+CTL-MR-2,Model Validation & Backtesting,Model Risk Management,CAP-MRM,Model Validation & Backtesting control within the Model Risk Management family.,Implemented,3,BU-RISK,2026-07-21
+CTL-MR-3,Model Performance Monitoring,Model Risk Management,CAP-MRM,Model Performance Monitoring control within the Model Risk Management family.,Partially Implemented,1,BU-RISK,2026-07-21
+CTL-AI-1,AI System Risk Classification,AI Governance,CAP-AIG,AI System Risk Classification control within the AI Governance family.,Implemented,4,BU-DATA,2026-07-21
+CTL-AI-2,Human Oversight & Approval,AI Governance,CAP-AIG,Human Oversight & Approval control within the AI Governance family.,Implemented,3,BU-DATA,2026-07-21
+CTL-AI-3,Bias & Fairness Testing,AI Governance,CAP-AIG,Bias & Fairness Testing control within the AI Governance family.,Planned,0,BU-DATA,2026-07-21
+CTL-TD-1,Training Data Governance,Training Data Quality,CAP-TDQ,Training Data Governance control within the Training Data Quality family.,Partially Implemented,2,BU-DATA,2026-07-21
+CTL-TD-2,Dataset Documentation & Provenance,Training Data Quality,CAP-TDQ,Dataset Documentation & Provenance control within the Training Data Quality family.,Partially Implemented,2,BU-DATA,2026-07-21
+CTL-TR-1,Decision Logging & Traceability,Traceability & Explainability,CAP-TRACE,Decision Logging & Traceability control within the Traceability & Explainability family.,Planned,0,BU-DATA,2026-07-21
+CTL-TR-2,Model Explainability Reporting,Traceability & Explainability,CAP-TRACE,Model Explainability Reporting control within the Traceability & Explainability family.,Partially Implemented,1,BU-DATA,2026-07-21
+CTL-AU-1,Immutable Audit Trail,Auditability & Evidence,CAP-AUD,Immutable Audit Trail control within the Auditability & Evidence family.,Implemented,4,BU-RISK,2026-07-21
+CTL-AU-2,Evidence Repository,Auditability & Evidence,CAP-AUD,Evidence Repository control within the Auditability & Evidence family.,Implemented,5,BU-RISK,2026-07-21
+CTL-RP-1,Regulatory Report Production,Regulatory Reporting,CAP-REP,Regulatory Report Production control within the Regulatory Reporting family.,Implemented,3,BU-FIN,2026-07-21
+CTL-RP-2,Report Review & Sign-off,Regulatory Reporting,CAP-REP,Report Review & Sign-off control within the Regulatory Reporting family.,Implemented,4,BU-FIN,2026-07-21

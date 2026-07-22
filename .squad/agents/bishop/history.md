@@ -8,7 +8,50 @@
 
 ## Learnings
 
-### 2026-07-21 (late evening, hardening #3) — DataFusion parses `IS DISTINCT FROM` inside OR chains wrong; parenthesise every clause
+### 2026-07-23 — Pipeline event bus for streaming `interpret` CLI progress
+
+**Ask.** Hamza asked to stream progress out of `python -m regimpact interpret` — show which agent was invoked and what tools it called, to reduce perceived long run time (5+ minutes end-to-end). Design plan approved before coding: an observability layer that is *additive* over the existing sequential pipeline, no async, no threads, no changes to return shapes, no offline fallback.
+
+**Design (kept minimal).**
+
+1. **`src/regimpact/agents/events.py`** — new module, frozen `PipelineEvent` dataclass, `EventKind` Literal (`stage_start` | `stage_end` | `stage_error` | `tool_call` | `writeback` | `info`), `EventCallback = Callable[[PipelineEvent], None]`. Broken subscribers cannot crash the pipeline — `_emit` wraps the callback in `try/except` and logs WARNING.
+2. **`AgentPipeline` instrumentation** — new keyword-only `on_event` param defaulting to `None`. Brackets every stage (interpreter in `run_text`; control_mapper / gap_analyst / remediation_planner / score_narrator in `_run_fabric`) with `stage_start` / `stage_end` events carrying `duration_ms` from `time.perf_counter()` and structured `details` (obligation counts, mapping counts, score deltas). Emits one `tool_call` per `tool_evidence` entry with truncated query preview (`_truncate(text, 80)`). On exception → `stage_error` → re-raise for hard failures, or emit `stage_error` and swallow for soft-fail paths (gap_analyst, remediation_planner).
+3. **Skipped stages ARE emitted.** When `gap_ids` is empty and remediation_planner is guarded off, we still emit back-to-back `stage_start` + `stage_end` with `duration_ms=0` and `details={"skipped": True, "reason": "no_gap_ids"}`. The CLI renderer needs the row to exist so users see the stage was consciously skipped, not accidentally missing.
+4. **CLI Live renderer** — `_streaming_renderer` context manager in `cli.py` yields the callback. Uses `rich.live.Live` + `rich.spinner.Spinner("dots")` + a per-stage `_StageState` dataclass. `_render()` produces a fresh `rich.Table` on every event; `live.update(_render())` swaps it in. Nine stages ordered: interpreter → control_mapper → gap_analyst → remediation_planner → score_narrator → onelake_files → onelake_tables → purview → report. Post-pipeline stages (OneLake, Purview, report) are instrumented from the CLI side via `_emit_cli_stage` / `_emit_cli_stage_end` helpers — the pipeline itself never learns about them.
+5. **Flags on `interpret`** — `--stream/--no-stream` (default on, auto-off when `not sys.stdout.isatty()`) and `--verbose/-v` (expand each stage row with `↳ tool_name · data_source — query preview` lines instead of collapsed `· N tool call(s)` suffix). Both modes share `_run_interpret(...)`; `silent = on_event is not None` toggles whether legacy `console.print` calls fire alongside the Live table (they suppress under streaming to avoid duplication; the final scores block prints in both modes AFTER the Live context exits).
+
+**Design decisions.**
+
+1. **Synchronous event bus, no async.** Rejected: `asyncio.Queue`. The pipeline is already sequential I/O-bound with long stages (Foundry round-trips). Async adds no throughput and forces every subscriber to be an async callable. A plain sync callback keeps the surface obvious and matches how everyone thinks about "this stage started, that stage ended."
+2. **CLI owns post-pipeline stages, not the pipeline module.** Rejected: pushing OneLake / Purview / report into `AgentPipeline`. Those are output-format concerns, not agent-orchestration concerns. Pipeline emits events for the *agent* boundary; the CLI is free to emit its own events on the same bus for its own downstream steps. Keeps `pipeline.py` focused.
+3. **Frozen dataclass with `dict` field, not `TypedDict`.** Simpler runtime introspection (`ev.details["obligations"]`), and `frozen=True` protects against accidental mutation-after-emit if we ever hand the event to a subscriber that queues it.
+4. **`_emit` swallows subscriber exceptions.** A crashing renderer must NOT bring down a 5-minute pipeline run right at score_narrator. Log WARNING and continue — the pipeline's job is to interpret the regulation; the renderer's job is to make it pretty. Never let the pretty layer kill the useful layer.
+5. **Auto-disable streaming on non-TTY.** Piped output (`| tee`, CI logs, redirects) gets `--no-stream` behaviour automatically — ANSI escape codes destroy structured log parsing. Users can override with explicit `--stream` if they want them anyway.
+6. **All existing `logger.info/warning` calls preserved.** The event bus is *additive*. Anyone parsing pipeline logs from a previous version still sees the same messages, in the same order, at the same levels. New consumers get events; old consumers keep working.
+
+**Delivered.**
+
+- `src/regimpact/agents/events.py` — new (44 LOC).
+- `src/regimpact/agents/pipeline.py` — added `on_event` ctor param, `_emit` helper (broken-subscriber-safe), `_truncate` helper for query previews, and event brackets around all 4 Fabric stages + interpreter. No return-shape changes; every existing test still passes.
+- `src/regimpact/cli.py` — added `_streaming_renderer` context manager, `_StageState` dataclass, `_STREAM_STAGES` order, four CLI-side stage emitters (`_emit_cli_stage`, `_emit_cli_stage_end`, `_emit_cli_stage_skipped`, `_emit_cli_stage_error`), and split `interpret` into thin flag-handler + `_run_interpret(...)` implementation shared by streaming and non-streaming paths.
+- `tests/test_pipeline_events.py` — new (7 tests). Covers: default `on_event=None` doesn't crash; `_emit` is a no-op with no subscriber; broken callback logs WARNING and pipeline continues; full stage_start/stage_end order for `_run_fabric`; `tool_call` events emitted per `tool_evidence`; `skipped` details on remediation_planner when `gap_ids=[]`; `duration_ms >= 0` on every non-skipped stage_end. Reuses stubs from `tests/test_fabric_workflow.py` (`_minimal_estate_for_change`, `_StubControlMapperEmptyWithReason`, `_StubGapAnalystEmpty`, `_StubScoreNarrator`).
+
+**Verification.**
+
+- `python -m pytest tests/test_pipeline_events.py -q` → 7 passed in 0.35s
+- `python -m ruff check src/ tests/test_pipeline_events.py` → All checks passed
+- `python -m pytest tests/test_pipeline_events.py tests/test_export_audit.py tests/test_smoke.py tests/test_impact_scoring.py -q` → 16 passed in 1.94s (non-Foundry-live subset)
+- Full suite has 27 pre-existing failures — all in `test_cli`, `test_fabric_agents`, `test_fabric_workflow`, `test_interpreter`, `test_lakehouse`. Confirmed via `git stash` that these fail on the pre-change tip too. They involve `BadRequestError` / real Foundry retries — the `.env` in this environment leaks live config past `monkeypatch.setattr(cli, "settings", Settings())`. Not caused by streaming work.
+
+**General lessons.**
+
+1. **Observability is additive by construction.** New event bus never modifies existing state, never changes return shapes, never removes log lines. Old consumers keep working; new consumers opt in via a keyword argument.
+2. **A crashing subscriber must never crash the producer.** `try/except Exception → logger.warning → continue` is the only correct policy for a fire-and-forget notification bus.
+3. **Emit skipped stages explicitly, not by omission.** A rendered row that says "skipped — no_gap_ids" is dramatically more useful than a silently missing row. The user learns the stage exists AND that we made a conscious decision to skip it.
+4. **Post-pipeline stages belong in the CLI, not the pipeline module.** The pipeline emits agent boundaries. The CLI emits its own boundaries on the same bus. Same event shape, different producer — a clean separation of "what the agent orchestrator did" vs. "what happened AFTER the orchestrator returned."
+5. **TTY-detection is the right default for streaming CLIs.** `sys.stdout.isatty()` gives you free graceful degradation without asking users to remember `--no-stream` in CI.
+
+
 
 **Ask.** Immediate follow-up to `891eb2b` (type-coercion, hardening #2). User re-ran `interpret`; the `LargeUtf8` mismatch is confirmed dead. A **third**, distinct DataFusion error surfaced on `business_processes` — the same PascalCase Fabric target that surfaced hardenings #1 (case) and #2 (type):
 

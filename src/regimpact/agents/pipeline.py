@@ -11,8 +11,10 @@ Two entry points:
 """
 from __future__ import annotations
 
-from datetime import date
 import logging
+import time
+from datetime import date
+from typing import Any
 
 from ..models import (
     ComplianceScore,
@@ -39,6 +41,7 @@ from ..contracts import (
 )
 from ..scoring import score_change as _score_change_local
 from ..settings import settings as _settings
+from .events import EventCallback, PipelineEvent
 from .fabric_control_mapper import FabricControlMapperAgent
 from .fabric_gap_analyst import FabricGapAnalystAgent
 from .fabric_remediation_planner import FabricRemediationPlannerAgent
@@ -130,8 +133,59 @@ def _truncate(text: str | None, limit: int) -> str:
 
 
 class AgentPipeline:
-    def __init__(self, estate: Estate):
+    def __init__(
+        self,
+        estate: Estate,
+        *,
+        on_event: EventCallback | None = None,
+    ):
         self.est = estate
+        self._on_event = on_event
+
+    # ------------------------------------------------------------------ #
+    # Observability — synchronous event emission. Callers pass ``on_event``
+    # to render live progress (see ``regimpact.cli._make_streaming_callback``)
+    # or capture events in tests. Default ``None`` keeps the hot path a
+    # single ``is None`` check per call site.
+    # ------------------------------------------------------------------ #
+    def _emit(
+        self,
+        kind: str,
+        stage: str,
+        *,
+        message: str = "",
+        tool_name: str | None = None,
+        data_source: str | None = None,
+        duration_ms: int | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """Emit a :class:`PipelineEvent`. No-op when ``on_event`` is None.
+
+        A subscriber that raises must NEVER crash the pipeline — the whole
+        point of observability is to be invisible when it fails. We swallow
+        the exception, log it at WARNING, and continue. Renderers that keep
+        raising will flood the log, which is the correct signal.
+        """
+        if self._on_event is None:
+            return
+        try:
+            event = PipelineEvent(
+                kind=kind,  # type: ignore[arg-type]
+                stage=stage,
+                message=message,
+                tool_name=tool_name,
+                data_source=data_source,
+                duration_ms=duration_ms,
+                details=details or {},
+            )
+            self._on_event(event)
+        except Exception as exc:  # noqa: BLE001 — observability must not raise
+            logger.warning(
+                "PipelineEvent callback failed stage=%s kind=%s error=%s",
+                stage,
+                kind,
+                exc,
+            )
 
     # ------------------------------------------------------------------ #
     def run(self, change_id: str) -> dict:
@@ -162,14 +216,41 @@ class AgentPipeline:
     ) -> dict:
         """Interpret raw regulation text and inject + analyse it as a change."""
         change_id = f"CHG-{regulation_id.replace('REG-', '')}-UPLOAD"
-        interpretation = InterpreterAgent().interpret(
-            InterpretRequest(
-                regulation_id=regulation_id,
-                change_id=change_id,
-                name=regulation_name,
-                title=change_title,
-                source_text=text,
+        # Bracket the InterpreterAgent call with stage_start/stage_end so
+        # renderers can show it as the first row. On failure we emit
+        # stage_error and re-raise — hard-fail, no partial pipeline.
+        self._emit(
+            "stage_start",
+            "interpreter",
+            message="Interpreting regulation text",
+        )
+        _t0 = time.perf_counter()
+        try:
+            interpretation = InterpreterAgent().interpret(
+                InterpretRequest(
+                    regulation_id=regulation_id,
+                    change_id=change_id,
+                    name=regulation_name,
+                    title=change_title,
+                    source_text=text,
+                )
             )
+        except Exception as exc:
+            self._emit(
+                "stage_error",
+                "interpreter",
+                message=str(exc),
+                duration_ms=int((time.perf_counter() - _t0) * 1000),
+            )
+            raise
+        self._emit(
+            "stage_end",
+            "interpreter",
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+            details={
+                "obligations": len(interpretation.obligations),
+                "mode": interpretation.mode,
+            },
         )
         self._inject(
             interpretation.obligations,
@@ -347,6 +428,16 @@ class AgentPipeline:
             )
 
         # Stage 1: Control Mapper — ground obligation-to-control mappings in Fabric
+        self._emit(
+            "stage_start",
+            "control_mapper",
+            message="Mapping obligations → controls",
+            details={
+                "obligations": len(obligation_ids),
+                "candidate_controls": len(candidate_control_facts),
+            },
+        )
+        _cm_t0 = time.perf_counter()
         try:
             cm_response = FabricControlMapperAgent().map(
                 ControlMappingRequest(
@@ -374,9 +465,25 @@ class AgentPipeline:
                 len(obligation_ids),
                 exc,
             )
+            self._emit(
+                "stage_error",
+                "control_mapper",
+                message=str(exc),
+                duration_ms=int((time.perf_counter() - _cm_t0) * 1000),
+            )
             raise FabricPipelineError(
                 f"Fabric stage 'control_mapper' failed for {change_id}: {exc}"
             ) from exc
+        # One tool_call event per unique tool_evidence entry — surfaces to
+        # renderers as "↳ tool: ... · data_source: ..." rows under the stage.
+        for _ev in cm_response.tool_evidence:
+            self._emit(
+                "tool_call",
+                "control_mapper",
+                tool_name=_ev.tool_name,
+                data_source=_ev.data_source,
+                message=_truncate(_ev.query, 80),
+            )
         # Documented empty-with-reason: control_mapper returned no mappings
         # but supplied a reason (e.g. shortlist exhausted). This is a valid
         # outcome per the ControlMappingResponse contract — log at WARNING
@@ -420,6 +527,20 @@ class AgentPipeline:
             "Fabric writeback stage=control_mapper change_id=%s edges_added=%d",
             change_id,
             edges_added,
+        )
+        self._emit(
+            "stage_end",
+            "control_mapper",
+            duration_ms=int((time.perf_counter() - _cm_t0) * 1000),
+            details={
+                "mappings": len(cm_response.mappings),
+                "controls": len(control_ids),
+                "edges_added": edges_added,
+                "tool_calls": len(cm_response.tool_evidence),
+                "empty_with_reason": bool(
+                    not cm_response.mappings and cm_response.reason
+                ),
+            },
         )
 
         # Stage 2: Gap Analyst — identify maturity/evidence gaps via Fabric views
@@ -477,6 +598,17 @@ class AgentPipeline:
                 cm_response.reason,
             )
         ga_response = None
+        self._emit(
+            "stage_start",
+            "gap_analyst",
+            message="Analysing maturity + evidence gaps",
+            details={
+                "obligations": len(obligation_ids),
+                "controls": len(control_ids),
+                "mappings": len(mapping_facts),
+            },
+        )
+        _ga_t0 = time.perf_counter()
         try:
             ga_response = FabricGapAnalystAgent().analyze(
                 GapAnalysisRequest(
@@ -516,7 +648,22 @@ class AgentPipeline:
                 len(control_ids),
                 exc,
             )
+            self._emit(
+                "stage_error",
+                "gap_analyst",
+                message=str(exc),
+                duration_ms=int((time.perf_counter() - _ga_t0) * 1000),
+                details={"soft_fail": True},
+            )
         if ga_response is not None:
+            for _ev in ga_response.tool_evidence:
+                self._emit(
+                    "tool_call",
+                    "gap_analyst",
+                    tool_name=_ev.tool_name,
+                    data_source=_ev.data_source,
+                    message=_truncate(_ev.query, 80),
+                )
             gap_ids = [f.gap_id for f in ga_response.findings]
             logger.debug(
                 "Fabric stage complete stage=gap_analyst change_id=%s findings=%d",
@@ -546,6 +693,16 @@ class AgentPipeline:
                 change_id,
                 len(persisted_gaps),
             )
+            self._emit(
+                "stage_end",
+                "gap_analyst",
+                duration_ms=int((time.perf_counter() - _ga_t0) * 1000),
+                details={
+                    "findings": len(ga_response.findings),
+                    "persisted_gaps": len(persisted_gaps),
+                    "tool_calls": len(ga_response.tool_evidence),
+                },
+            )
         else:
             gap_ids = []
             persisted_gaps = []
@@ -553,7 +710,15 @@ class AgentPipeline:
         # Stage 3: Remediation Planner — prioritised owner-assigned actions from Fabric
         rp_actions: list = []
         total_effort: int = 0
+        rp_response = None
         if gap_ids:
+            self._emit(
+                "stage_start",
+                "remediation_planner",
+                message="Planning remediation actions",
+                details={"gaps": len(gap_ids)},
+            )
+            _rp_t0 = time.perf_counter()
             # Inline gap facts for freshly-derived gaps not yet in the lakehouse.
             # rationale is truncated to keep the prompt small.
             gap_facts = [
@@ -590,8 +755,23 @@ class AgentPipeline:
                     len(gap_ids),
                     exc,
                 )
+                self._emit(
+                    "stage_error",
+                    "remediation_planner",
+                    message=str(exc),
+                    duration_ms=int((time.perf_counter() - _rp_t0) * 1000),
+                    details={"soft_fail": True},
+                )
                 rp_response = None
             if rp_response is not None:
+                for _ev in rp_response.tool_evidence:
+                    self._emit(
+                        "tool_call",
+                        "remediation_planner",
+                        tool_name=_ev.tool_name,
+                        data_source=_ev.data_source,
+                        message=_truncate(_ev.query, 80),
+                    )
                 rp_actions = list(rp_response.actions)
                 total_effort = sum(a.estimated_effort_days for a in rp_actions)
                 if not rp_actions and rp_response.reason:
@@ -617,6 +797,20 @@ class AgentPipeline:
                 change_id,
                 len(persisted_actions),
             )
+            # Only emit stage_end on the happy path. stage_error already
+            # closed the row on soft-fail (rp_response is None then).
+            if rp_response is not None:
+                self._emit(
+                    "stage_end",
+                    "remediation_planner",
+                    duration_ms=int((time.perf_counter() - _rp_t0) * 1000),
+                    details={
+                        "actions": len(rp_actions),
+                        "total_effort_days": total_effort,
+                        "persisted_actions": len(persisted_actions),
+                        "tool_calls": len(rp_response.tool_evidence),
+                    },
+                )
         else:
             logger.debug(
                 "Fabric stage skipped stage=remediation_planner change_id=%s reason=no_gap_ids",
@@ -624,6 +818,20 @@ class AgentPipeline:
             )
             # Clear any prior remediations for this change's gaps
             self._persist_remediations([], persisted_gaps)
+            # Emit skipped stage bracket so the renderer can show a row
+            # rather than silently omit the stage. Start + end back-to-back
+            # keeps the event stream honest for capturing callbacks.
+            self._emit(
+                "stage_start",
+                "remediation_planner",
+                message="Skipped — no gaps to remediate",
+            )
+            self._emit(
+                "stage_end",
+                "remediation_planner",
+                duration_ms=0,
+                details={"skipped": True, "reason": "no_gap_ids"},
+            )
 
         # Stage 4: Score Narrator — Fabric-grounded score movement explanation.
         # Compute local scores from the freshly-persisted gaps/remediations
@@ -634,6 +842,17 @@ class AgentPipeline:
         # the agent in its true role (narrator, not calculator) while the
         # scoring math stays deterministic and repo-owned.
         precomputed = self._compute_local_score_facts(change_id)
+        self._emit(
+            "stage_start",
+            "score_narrator",
+            message="Narrating compliance score movement",
+            details={
+                "as_is": precomputed["as_is"],
+                "post_change": precomputed["post_change"],
+                "post_remediation": precomputed["post_remediation"],
+            },
+        )
+        _sn_t0 = time.perf_counter()
         try:
             sn_response = FabricScoreNarratorAgent().narrate(
                 ScoreNarrationRequest(
@@ -649,9 +868,23 @@ class AgentPipeline:
                 change_id,
                 exc,
             )
+            self._emit(
+                "stage_error",
+                "score_narrator",
+                message=str(exc),
+                duration_ms=int((time.perf_counter() - _sn_t0) * 1000),
+            )
             raise FabricPipelineError(
                 f"Fabric stage 'score_narrator' failed for {change_id}: {exc}"
             ) from exc
+        for _ev in sn_response.tool_evidence:
+            self._emit(
+                "tool_call",
+                "score_narrator",
+                tool_name=_ev.tool_name,
+                data_source=_ev.data_source,
+                message=_truncate(_ev.query, 80),
+            )
         logger.debug(
             "Fabric stage complete stage=score_narrator change_id=%s "
             "as_is=%.2f post_change=%.2f post_remediation=%.2f "
@@ -690,6 +923,18 @@ class AgentPipeline:
         # We compute these on a shallow copy so it does not overwrite the
         # authoritative Fabric scores we just persisted.
         derived = self._derived_local_fields(change_id)
+
+        self._emit(
+            "stage_end",
+            "score_narrator",
+            duration_ms=int((time.perf_counter() - _sn_t0) * 1000),
+            details={
+                "as_is": sn_response.as_is,
+                "post_change": sn_response.post_change,
+                "post_remediation": sn_response.post_remediation,
+                "tool_calls": len(sn_response.tool_evidence),
+            },
+        )
 
         return self._fabric_report(
             change_id,

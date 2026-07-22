@@ -13,19 +13,23 @@ Usage (from project root, after `pip install -r requirements.txt`):
 """
 from __future__ import annotations
 
+import sys
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.live import Live
+from rich.spinner import Spinner
 from rich.table import Table
 
 from .agents import AgentPipeline
+from .agents.events import PipelineEvent
 from .agents.foundry_client import (
     FabricDataAgentClient,
-    FabricDataAgentConfig,
     FabricDataAgentError,
-    FoundryAgentClient,
-    FoundryAgentConfig,
 )
 from .agents.foundry_interpreter import FoundryInterpreterError
 from .audit import run_audit
@@ -119,12 +123,220 @@ def ask_fabric(
     _print_tool_evidence(response.tool_evidence)
 
 
+# ---------------------------------------------------------------------------
+# Live streaming renderer for ``interpret`` — subscribes to PipelineEvent and
+# refreshes a Rich table so the user sees each stage as it runs. Keeps the
+# pipeline itself dependency-free (rich imports live here in the CLI layer).
+# ---------------------------------------------------------------------------
+_STREAM_STAGES: tuple[tuple[str, str], ...] = (
+    ("interpreter",         "Regulation Interpreter"),
+    ("control_mapper",      "Control Mapper"),
+    ("gap_analyst",         "Gap Analyst"),
+    ("remediation_planner", "Remediation Planner"),
+    ("score_narrator",      "Score Narrator"),
+    ("onelake_files",       "OneLake Files/"),
+    ("onelake_tables",      "OneLake Tables/"),
+    ("purview",             "Purview export"),
+    ("report",              "Report + gold export"),
+)
+
+
+@dataclass
+class _StageState:
+    label: str
+    status: str = "pending"  # pending | running | done | error | skipped
+    detail: str = ""
+    tool_count: int = 0
+    tool_lines: list[str] = field(default_factory=list)
+    duration_ms: int | None = None
+
+
+def _format_stage_detail(stage_key: str, details: dict, fallback: str) -> str:
+    """Produce a short human-readable stage summary from event details."""
+    d = details or {}
+    if stage_key == "interpreter" and "obligations" in d:
+        return f"{d['obligations']} obligations · mode={d.get('mode', '?')}"
+    if stage_key == "control_mapper" and "mappings" in d:
+        extra = " · empty-with-reason" if d.get("empty_with_reason") else ""
+        return f"{d['mappings']} mappings · {d.get('controls', 0)} controls{extra}"
+    if stage_key == "gap_analyst" and "findings" in d:
+        return f"{d['findings']} gaps"
+    if stage_key == "remediation_planner":
+        if d.get("skipped"):
+            return d.get("reason", "skipped")
+        if "actions" in d:
+            return f"{d['actions']} actions · {d.get('total_effort_days', 0)}d effort"
+    if stage_key == "score_narrator" and "as_is" in d:
+        return (
+            f"scores {d['as_is']:.1f} → {d['post_change']:.1f} "
+            f"→ {d['post_remediation']:.1f}"
+        )
+    return fallback
+
+
+@contextmanager
+def _streaming_renderer(verbose: bool):
+    """Enter a ``rich.live.Live`` context and yield an event callback.
+
+    Rendering is driven by a mutable ``dict[stage_key, _StageState]`` that
+    the callback updates in-place on every event. ``verbose=True`` expands
+    each stage row to show one ``↳`` line per tool_call; otherwise a
+    collapsed ``· N tool call(s)`` suffix is shown.
+
+    The renderer is idempotent to unknown ``stage`` values (silently
+    ignored) so a future pipeline stage can emit events without breaking
+    existing CLI builds.
+    """
+    state: dict[str, _StageState] = {
+        key: _StageState(label=lbl) for key, lbl in _STREAM_STAGES
+    }
+    order = [key for key, _ in _STREAM_STAGES]
+
+    def _render() -> Table:
+        table = Table(
+            title="regimpact interpret — live progress",
+            show_lines=False,
+        )
+        table.add_column("Stage", no_wrap=True)
+        table.add_column("Status", no_wrap=True, width=14)
+        table.add_column("Detail", overflow="fold")
+        for key in order:
+            s = state[key]
+            if s.status == "running":
+                status_cell = Spinner("dots", text="running")
+            elif s.status == "done":
+                dur = f" {s.duration_ms/1000:.1f}s" if s.duration_ms else ""
+                status_cell = f"[green]✓[/]{dur}"
+            elif s.status == "error":
+                status_cell = "[red]✗ error[/]"
+            elif s.status == "skipped":
+                status_cell = "[dim]skipped[/]"
+            else:
+                status_cell = "[dim]…[/]"
+            detail = s.detail
+            if s.tool_count and not verbose:
+                suffix = f"  [dim]· {s.tool_count} tool call(s)[/]"
+                detail = (detail + suffix) if detail else suffix.strip()
+            if verbose and s.tool_lines:
+                joined = "\n".join(f"  [dim]↳ {ln}[/]" for ln in s.tool_lines)
+                detail = (detail + "\n" if detail else "") + joined
+            table.add_row(s.label, status_cell, detail)
+        return table
+
+    live = Live(
+        _render(),
+        console=console,
+        refresh_per_second=8,
+        transient=False,
+    )
+
+    def _callback(ev: PipelineEvent) -> None:
+        s = state.get(ev.stage)
+        if s is None:
+            return
+        if ev.kind == "stage_start":
+            s.status = "running"
+            if ev.message:
+                s.detail = ev.message
+        elif ev.kind == "stage_end":
+            if ev.details.get("skipped"):
+                s.status = "skipped"
+                s.detail = ev.details.get("reason") or s.detail
+            else:
+                s.status = "done"
+                s.duration_ms = ev.duration_ms
+                s.detail = _format_stage_detail(ev.stage, ev.details, s.detail)
+        elif ev.kind == "stage_error":
+            s.status = "error"
+            s.detail = (ev.message or "unknown error")[:200]
+        elif ev.kind == "tool_call":
+            s.tool_count += 1
+            if ev.tool_name:
+                line = ev.tool_name
+                if ev.data_source:
+                    line += f" · {ev.data_source}"
+                if ev.message:
+                    line += f" — {ev.message[:60]}"
+                s.tool_lines.append(line)
+        live.update(_render())
+
+    with live:
+        yield _callback
+
+
+def _emit_cli_stage(callback, stage: str, message: str) -> "float":
+    """Emit stage_start for a CLI-level stage and return the start time."""
+    if callback is None:
+        return 0.0
+    callback(PipelineEvent(kind="stage_start", stage=stage, message=message))
+    return time.perf_counter()
+
+
+def _emit_cli_stage_end(
+    callback,
+    stage: str,
+    started: float,
+    *,
+    details: dict | None = None,
+) -> None:
+    if callback is None:
+        return
+    callback(
+        PipelineEvent(
+            kind="stage_end",
+            stage=stage,
+            duration_ms=int((time.perf_counter() - started) * 1000),
+            details=details or {},
+        )
+    )
+
+
+def _emit_cli_stage_skipped(callback, stage: str, reason: str) -> None:
+    if callback is None:
+        return
+    callback(PipelineEvent(kind="stage_start", stage=stage, message="Skipped"))
+    callback(
+        PipelineEvent(
+            kind="stage_end",
+            stage=stage,
+            duration_ms=0,
+            details={"skipped": True, "reason": reason},
+        )
+    )
+
+
+def _emit_cli_stage_error(
+    callback, stage: str, started: float, message: str
+) -> None:
+    if callback is None:
+        return
+    callback(
+        PipelineEvent(
+            kind="stage_error",
+            stage=stage,
+            message=message,
+            duration_ms=int((time.perf_counter() - started) * 1000),
+        )
+    )
+
+
 @app.command()
 def interpret(
     file: Path = typer.Option(..., help="Path to a regulation text file"),
     regulation: str = typer.Option(..., "--regulation", help="Regulation ID, e.g. REG-AIACT"),
     name: str = typer.Option(..., help="Regulation name, e.g. 'EU AI Act'"),
     title: str = typer.Option("Uploaded regulatory change", help="Change title"),
+    stream: bool = typer.Option(
+        True,
+        "--stream/--no-stream",
+        help="Render live per-stage progress (auto-off on non-TTY).",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Expand each stage with per-tool-call detail lines.",
+    ),
 ) -> None:
     """Run the Foundry-backed four-agent pipeline on a regulation document."""
     if not file.exists():
@@ -132,7 +344,52 @@ def interpret(
         raise typer.Exit(code=1)
     text = file.read_text(encoding="utf-8")
     est = _build()
-    pipeline = AgentPipeline(est)
+
+    # Auto-disable streaming when the CLI is not attached to a TTY
+    # (piped, redirected, CI). rich.live degrades to a garbled log
+    # otherwise, and log-parsing consumers hate ANSI escape codes.
+    use_stream = stream and sys.stdout.isatty()
+
+    if use_stream:
+        with _streaming_renderer(verbose=verbose) as on_event:
+            _run_interpret(
+                est,
+                text=text,
+                regulation=regulation,
+                name=name,
+                title=title,
+                on_event=on_event,
+            )
+    else:
+        _run_interpret(
+            est,
+            text=text,
+            regulation=regulation,
+            name=name,
+            title=title,
+            on_event=None,
+        )
+
+
+def _run_interpret(
+    est,
+    *,
+    text: str,
+    regulation: str,
+    name: str,
+    title: str,
+    on_event,
+) -> None:
+    """Execute the interpret pipeline and post-pipeline exports.
+
+    Split out from ``interpret`` so the streaming and non-streaming code
+    paths share a single implementation. ``on_event`` is either a live
+    renderer callback or ``None`` (silent mode — legacy console.print
+    output is restored so CI logs remain useful).
+    """
+    silent = on_event is not None  # True when Live is driving the display
+
+    pipeline = AgentPipeline(est, on_event=on_event)
     try:
         report = pipeline.run_text(
             text,
@@ -141,21 +398,25 @@ def interpret(
             change_title=title,
         )
     except FoundryInterpreterError as exc:
-        console.print(f"[red]Foundry interpreter failed:[/] {exc}")
+        if not silent:
+            console.print(f"[red]Foundry interpreter failed:[/] {exc}")
         raise typer.Exit(code=1) from exc
     except FabricDataAgentError as exc:
-        console.print(f"[red]Fabric pipeline failed:[/] {exc}")
+        if not silent:
+            console.print(f"[red]Fabric pipeline failed:[/] {exc}")
         raise typer.Exit(code=1) from exc
 
     export_tables(est, settings.tables_dir)
     export_gold(est, settings.gold_dir)
     export_graph(est, settings.graph_dir)
+
     # Push Parquet tables to the configured Fabric lakehouse (best-effort).
     # Uploads raw entity tables to Files/regimpact_raw/ and the gold star
     # schema to Files/regimpact_gold/, matching the layout the PySpark
     # loader notebook (src/regimpact/01_load_lakehouse.ipynb) reads.
     # Delta table + view materialization is owned by that notebook inside
     # Fabric; Python's responsibility ends at Parquet-in-Files/.
+    _t = _emit_cli_stage(on_event, "onelake_files", "Uploading Parquet to Files/")
     try:
         uploaded = export_regimpact_lakehouse(
             settings.tables_dir,
@@ -164,20 +425,36 @@ def interpret(
             lakehouse_id=settings.fabric_lakehouse_id,
             onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
         )
-        console.print(
-            f"[green]Uploaded to OneLake:[/] "
-            f"[cyan]{len(uploaded['raw'])}[/] raw + "
-            f"[cyan]{len(uploaded['gold'])}[/] gold file(s) into "
-            f"[cyan]{settings.fabric_lakehouse_id}/Files/"
-            f"{{regimpact_raw,regimpact_gold}}[/]"
+        _emit_cli_stage_end(
+            on_event,
+            "onelake_files",
+            _t,
+            details={
+                "raw": len(uploaded["raw"]),
+                "gold": len(uploaded["gold"]),
+                "message": f"{len(uploaded['raw'])} raw + "
+                f"{len(uploaded['gold'])} gold file(s)",
+            },
         )
+        if not silent:
+            console.print(
+                f"[green]Uploaded to OneLake:[/] "
+                f"[cyan]{len(uploaded['raw'])}[/] raw + "
+                f"[cyan]{len(uploaded['gold'])}[/] gold file(s) into "
+                f"[cyan]{settings.fabric_lakehouse_id}/Files/"
+                f"{{regimpact_raw,regimpact_gold}}[/]"
+            )
     except LakehouseNotConfiguredError:
-        console.print(
-            "[yellow]OneLake upload skipped:[/] "
-            "set FABRIC_WORKSPACE_ID and FABRIC_LAKEHOUSE_ID to enable."
-        )
+        _emit_cli_stage_skipped(on_event, "onelake_files", "FABRIC_* not configured")
+        if not silent:
+            console.print(
+                "[yellow]OneLake upload skipped:[/] "
+                "set FABRIC_WORKSPACE_ID and FABRIC_LAKEHOUSE_ID to enable."
+            )
     except LakehouseWriteError as exc:
-        console.print(f"[red]OneLake upload failed:[/] {exc}")
+        _emit_cli_stage_error(on_event, "onelake_files", _t, str(exc))
+        if not silent:
+            console.print(f"[red]OneLake upload failed:[/] {exc}")
         # Do NOT raise — local export succeeded, this is best-effort writeback.
 
     # Materialise Parquet files as Delta tables directly in the lakehouse
@@ -186,6 +463,7 @@ def interpret(
     # v_capability_health) still live in the notebook because they need
     # SQL, but the tables they read from now materialise without any
     # notebook click.
+    _t = _emit_cli_stage(on_event, "onelake_tables", "Appending Delta tables")
     try:
         delta_uploaded = export_regimpact_tables(
             settings.tables_dir,
@@ -194,34 +472,67 @@ def interpret(
             lakehouse_id=settings.fabric_lakehouse_id,
             onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
         )
-        console.print(
-            f"[green]📊 Wrote {len(delta_uploaded['raw'])} raw + "
-            f"{len(delta_uploaded['gold'])} gold Delta table(s) to "
-            f"lakehouse Tables/[/] (append)"
+        _emit_cli_stage_end(
+            on_event,
+            "onelake_tables",
+            _t,
+            details={
+                "raw": len(delta_uploaded["raw"]),
+                "gold": len(delta_uploaded["gold"]),
+                "message": f"{len(delta_uploaded['raw'])} raw + "
+                f"{len(delta_uploaded['gold'])} gold table(s)",
+            },
         )
+        if not silent:
+            console.print(
+                f"[green]📊 Wrote {len(delta_uploaded['raw'])} raw + "
+                f"{len(delta_uploaded['gold'])} gold Delta table(s) to "
+                f"lakehouse Tables/[/] (append)"
+            )
     except LakehouseNotConfiguredError as exc:
-        console.print(f"[yellow]OneLake Delta writeback skipped:[/] {exc}")
+        _emit_cli_stage_skipped(on_event, "onelake_tables", str(exc)[:80])
+        if not silent:
+            console.print(f"[yellow]OneLake Delta writeback skipped:[/] {exc}")
     except LakehouseWriteError as exc:
-        console.print(f"[red]OneLake Delta writeback failed:[/] {exc}")
+        _emit_cli_stage_error(on_event, "onelake_tables", _t, str(exc))
+        if not silent:
+            console.print(f"[red]OneLake Delta writeback failed:[/] {exc}")
         # Do NOT raise — Files/ upload above already succeeded, this is
         # a best-effort additional writeback for automatic table
         # materialisation.
 
+    _t = _emit_cli_stage(on_event, "purview", "Exporting Purview glossary + lineage")
     export_purview(est, settings.purview_dir)
+    _emit_cli_stage_end(on_event, "purview", _t)
+
     # Report is built from Fabric-persisted gaps/remediations in the estate.
     # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that
     # would overwrite Fabric's authoritative outputs with local Python analysis.
+    _t = _emit_cli_stage(on_event, "report", "Building impact report")
     engine_summary = pipeline.build_engine_summary(report["change_id"])
     export_report(est, engine_summary, settings.reports_dir)
+    _emit_cli_stage_end(on_event, "report", _t)
 
-    console.print(f"\n[bold]Agent pipeline[/] — mode: [yellow]{report['llm_mode']}[/]")
-    agent_table = Table(title="Agent read-out")
-    agent_table.add_column("Agent")
-    agent_table.add_column("Result")
-    for a in report["agents"]:
-        agent_table.add_row(a["agent"], a["result"])
-    console.print(agent_table)
-    console.print(f"\nInterpreted obligations: [cyan]{report.get('interpreted_obligations', 0)}[/]")
+    if not silent:
+        # Legacy read-out — only shown when the live renderer is off, to
+        # avoid duplicating the streamed table. Under streaming, the Live
+        # table already shows all agent outcomes.
+        console.print(
+            f"\n[bold]Agent pipeline[/] — mode: [yellow]{report['llm_mode']}[/]"
+        )
+        agent_table = Table(title="Agent read-out")
+        agent_table.add_column("Agent")
+        agent_table.add_column("Result")
+        for a in report["agents"]:
+            agent_table.add_row(a["agent"], a["result"])
+        console.print(agent_table)
+
+    # Post-run summary — printed in BOTH modes. Under streaming this
+    # renders AFTER the Live context has exited (see ``interpret``), so
+    # the final scores + narrative land cleanly under the finished table.
+    console.print(
+        f"\nInterpreted obligations: [cyan]{report.get('interpreted_obligations', 0)}[/]"
+    )
     console.print(f"Remediation narrative: {report['remediation']['narrative']}")
     _print_scores(report["scores"])
 

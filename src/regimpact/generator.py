@@ -122,12 +122,17 @@ def _assert_referential_integrity(est: Estate) -> None:
         )
 
 
-def generate_estate(seed: int = 42, as_of: str = "2026-06-25") -> Estate:
-    """Generate the full correlated estate."""
+def generate_estate(seed: int = 42, as_of: str | None = None) -> Estate:
+    """Generate the full correlated estate.
+
+    ``as_of`` stamps every exported row's ``As_Of`` column. When ``None`` (or
+    empty), today's date is used so each run is dated to when it actually ran.
+    Callers that need a pinned value (backfills, tests) may pass an ISO date.
+    """
     rng = random.Random(seed)
     cat = load_catalog()
     est = Estate()
-    est.as_of = as_of
+    est.as_of = as_of or date.today().isoformat()
 
     # Curated demo cohort (Rule 14): pinned, narratable baseline values that
     # override the seeded RNG for named cohort members only.
