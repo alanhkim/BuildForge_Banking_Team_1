@@ -1480,8 +1480,8 @@
     {
       "id": "el-1047",
       "type": "rectangle",
-      "x": 1006.6665649414062,
-      "y": 222.22218831380223,
+      "x": 1013.7074620353133,
+      "y": 226.44672657014644,
       "width": 320,
       "height": 150,
       "angle": 0,
@@ -1498,8 +1498,8 @@
         "type": 3
       },
       "seed": 1047,
-      "version": 198,
-      "versionNonce": 838382273,
+      "version": 213,
+      "versionNonce": 550485711,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1511,7 +1511,7 @@
           "type": "arrow"
         }
       ],
-      "updated": 1784824909356,
+      "updated": 1784825287042,
       "link": null,
       "locked": false,
       "index": "ak"
@@ -1602,7 +1602,7 @@
       "type": "rectangle",
       "x": 1008.6486104790129,
       "y": 421.7099873531374,
-      "width": 336.2245796216593,
+      "width": 323.55096485262715,
       "height": 150,
       "angle": 0,
       "strokeColor": "#862e9c",
@@ -1618,8 +1618,8 @@
         "type": 3
       },
       "seed": 1050,
-      "version": 219,
-      "versionNonce": 2041610447,
+      "version": 227,
+      "versionNonce": 1736644399,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1627,7 +1627,7 @@
           "type": "arrow"
         }
       ],
-      "updated": 1784824896434,
+      "updated": 1784825283790,
       "link": null,
       "locked": false,
       "index": "an"
@@ -1716,9 +1716,9 @@
     {
       "id": "el-1053",
       "type": "rectangle",
-      "x": -626.190825242262,
+      "x": -530.4358430695463,
       "y": 605.2381388346355,
-      "width": 1821.111305432441,
+      "width": 1863.3562818944101,
       "height": 158.88890584309888,
       "angle": 0,
       "strokeColor": "#343a40",
@@ -1734,11 +1734,11 @@
         "type": 3
       },
       "seed": 1053,
-      "version": 135,
-      "versionNonce": 1041797825,
+      "version": 200,
+      "versionNonce": 687392737,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824062634,
+      "updated": 1784825274721,
       "link": null,
       "locked": false,
       "index": "aq"
@@ -1746,8 +1746,8 @@
     {
       "id": "el-1054",
       "type": "text",
-      "x": -611.5241570105914,
-      "y": 722.5714846880009,
+      "x": 8.06729693716386,
+      "y": 780.3061188998637,
       "width": 1791.7779689690997,
       "height": 26.88889175806289,
       "angle": 0,
@@ -1762,11 +1762,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 1054,
-      "version": 98,
-      "versionNonce": 98210465,
+      "version": 143,
+      "versionNonce": 421846081,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824062634,
+      "updated": 1784825261115,
       "link": null,
       "locked": false,
       "text": "Cross-cutting: governance, quality, observability",
@@ -1784,10 +1784,10 @@
     {
       "id": "el-1055",
       "type": "text",
-      "x": -611.5241570105914,
-      "y": 610.1270282451924,
-      "width": 1791.7779689690997,
-      "height": 107.55556703225156,
+      "x": -191.89174392095606,
+      "y": 622.5273225534954,
+      "width": 1168.251953125,
+      "height": 125,
       "angle": 0,
       "strokeColor": "#343a40",
       "backgroundColor": "transparent",
@@ -1800,16 +1800,16 @@
       "frameId": null,
       "roundness": null,
       "seed": 1055,
-      "version": 98,
-      "versionNonce": 689018497,
+      "version": 178,
+      "versionNonce": 45190927,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824062634,
+      "updated": 1784825277024,
       "link": null,
       "locked": false,
       "text": "• Entra-only auth — no API keys, no Semantic Kernel, no offline fallback path for agent behavior\n• Schema validation on every agent response (contracts.py) — hard-fail on ValidationError\n• Ruff lint + pytest regression gates in CI\n• PipelineEvent observability stream (agents/events.py, pipeline.py) — stage_start / stage_end / stage_error / tool_call\n• Foundry + Fabric wrapping stays behind adapters so Foundry Hosted Agent deployment can be added without rebinding core logic",
       "originalText": "• Entra-only auth — no API keys, no Semantic Kernel, no offline fallback path for agent behavior\n• Schema validation on every agent response (contracts.py) — hard-fail on ValidationError\n• Ruff lint + pytest regression gates in CI\n• PipelineEvent observability stream (agents/events.py, pipeline.py) — stage_start / stage_end / stage_error / tool_call\n• Foundry + Fabric wrapping stays behind adapters so Foundry Hosted Agent deployment can be added without rebinding core logic",
-      "fontSize": 15.888890584309888,
+      "fontSize": 20,
       "fontFamily": 2,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -2567,10 +2567,10 @@
     {
       "id": "el-1083",
       "type": "arrow",
-      "x": 588.0974369400432,
-      "y": 489.7979600551405,
-      "width": 412.9959970092291,
-      "height": 166.0153002844894,
+      "x": 588.097436940043,
+      "y": 489.79796005514044,
+      "width": 420.0368941031363,
+      "height": 164.38919018807667,
       "angle": 0,
       "strokeColor": "#5c940d",
       "backgroundColor": "transparent",
@@ -2585,11 +2585,11 @@
         "type": 2
       },
       "seed": 1083,
-      "version": 828,
-      "versionNonce": 151396961,
+      "version": 843,
+      "versionNonce": 2032995567,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824844996,
+      "updated": 1784825287043,
       "link": null,
       "locked": false,
       "points": [
@@ -2598,12 +2598,12 @@
           0
         ],
         [
-          247.32801811614888,
-          -142.17745121917716
+          247.328018116149,
+          -142.1774512191771
         ],
         [
-          412.9959970092291,
-          -166.0153002844894
+          420.0368941031363,
+          -164.38919018807667
         ]
       ],
       "lastCommittedPoint": null,
@@ -2624,10 +2624,10 @@
     {
       "id": "el-1084",
       "type": "arrow",
-      "x": 590.9133445537474,
-      "y": 521.3969214975607,
-      "width": 410.6940078522715,
-      "height": 9.842877561292653,
+      "x": 590.9133445537473,
+      "y": 521.3711465238194,
+      "width": 410.69400785227174,
+      "height": 9.939067476004766,
       "angle": 0,
       "strokeColor": "#862e9c",
       "backgroundColor": "transparent",
@@ -2642,11 +2642,11 @@
         "type": 2
       },
       "seed": 1084,
-      "version": 474,
-      "versionNonce": 1017482991,
+      "version": 482,
+      "versionNonce": 1419139407,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824896435,
+      "updated": 1784825283791,
       "link": null,
       "locked": false,
       "points": [
@@ -2655,8 +2655,8 @@
           0
         ],
         [
-          410.6940078522715,
-          -9.842877561292653
+          410.69400785227174,
+          -9.939067476004766
         ]
       ],
       "lastCommittedPoint": null,
@@ -2679,8 +2679,8 @@
       "type": "arrow",
       "x": 983.4444089123106,
       "y": 119.89355895346068,
-      "width": 186.57857786004183,
-      "height": 100.44902763323202,
+      "width": 191.15721400254915,
+      "height": 104.67356588957622,
       "angle": 0,
       "strokeColor": "#5c940d",
       "backgroundColor": "transparent",
@@ -2695,11 +2695,11 @@
         "type": 2
       },
       "seed": 1085,
-      "version": 484,
-      "versionNonce": 1228669935,
+      "version": 499,
+      "versionNonce": 284923663,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784824909626,
+      "updated": 1784825287043,
       "link": null,
       "locked": false,
       "points": [
@@ -2712,8 +2712,8 @@
           5.237354180581804
         ],
         [
-          186.57857786004183,
-          100.44902763323202
+          191.15721400254915,
+          104.67356588957622
         ]
       ],
       "lastCommittedPoint": null,
