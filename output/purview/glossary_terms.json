@@ -145,8 +145,8 @@
       }
     },
     {
-      "name": "EUAIACT",
-      "longDescription": "Injected via Regulation Interpreter agent: EU AI Act.",
+      "name": "EU-AI-ACT-HIGH-RISK",
+      "longDescription": "Injected via Regulation Interpreter agent: Eu Ai Act High Risk.",
       "status": "Approved",
       "termType": "Regulation",
       "attributes": {

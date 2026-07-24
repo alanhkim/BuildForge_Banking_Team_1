@@ -1,13 +1,13 @@
 ID,Name,Vendor,Category,Is_Microsoft,As_Of
-TEC-FABRIC,Microsoft Fabric,Microsoft,Analytics,True,2026-07-21
-TEC-ONELAKE,OneLake,Microsoft,Storage,True,2026-07-21
-TEC-PURVIEW,Microsoft Purview,Microsoft,Governance,True,2026-07-21
-TEC-FOUNDRY,Azure AI Foundry,Microsoft,AI,True,2026-07-21
-TEC-POLICY,Azure Policy,Microsoft,Policy,True,2026-07-21
-TEC-ENTRA,Microsoft Entra ID,Microsoft,Identity,True,2026-07-21
-TEC-DEFENDER,Microsoft Defender/Sentinel,Microsoft,Security,True,2026-07-21
-TEC-DATABRICKS,Databricks,Databricks,Analytics,False,2026-07-21
-TEC-SNOWFLAKE,Snowflake,Snowflake,Storage,False,2026-07-21
-TEC-INFORMATICA,Informatica,Informatica,Data Mgmt,False,2026-07-21
-TEC-SERVICENOW,ServiceNow,ServiceNow,Workflow,False,2026-07-21
-TEC-COLLIBRA,Collibra,Collibra,Governance,False,2026-07-21
+TEC-FABRIC,Microsoft Fabric,Microsoft,Analytics,True,2026-07-24
+TEC-ONELAKE,OneLake,Microsoft,Storage,True,2026-07-24
+TEC-PURVIEW,Microsoft Purview,Microsoft,Governance,True,2026-07-24
+TEC-FOUNDRY,Azure AI Foundry,Microsoft,AI,True,2026-07-24
+TEC-POLICY,Azure Policy,Microsoft,Policy,True,2026-07-24
+TEC-ENTRA,Microsoft Entra ID,Microsoft,Identity,True,2026-07-24
+TEC-DEFENDER,Microsoft Defender/Sentinel,Microsoft,Security,True,2026-07-24
+TEC-DATABRICKS,Databricks,Databricks,Analytics,False,2026-07-24
+TEC-SNOWFLAKE,Snowflake,Snowflake,Storage,False,2026-07-24
+TEC-INFORMATICA,Informatica,Informatica,Data Mgmt,False,2026-07-24
+TEC-SERVICENOW,ServiceNow,ServiceNow,Workflow,False,2026-07-24
+TEC-COLLIBRA,Collibra,Collibra,Governance,False,2026-07-24

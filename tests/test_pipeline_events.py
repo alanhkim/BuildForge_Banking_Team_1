@@ -201,3 +201,145 @@ def test_stage_end_carries_duration_ms(monkeypatch):
     for ev in non_skipped:
         assert ev.duration_ms is not None, f"{ev.stage} missing duration_ms"
         assert ev.duration_ms >= 0, f"{ev.stage} duration_ms must be >= 0"
+
+
+# ---------------------------------------------------------------------- #
+# run_post_pipeline_exports — shared CLI/UI post-pipeline helper
+# ---------------------------------------------------------------------- #
+class _StubExportPipeline:
+    """Duck-typed pipeline stub — only needs ``build_engine_summary``.
+
+    Shape mirrors ``AgentPipeline.build_engine_summary`` exactly since
+    ``export_report`` treats these keys as required (KeyError on miss).
+    """
+
+    def build_engine_summary(self, change_id: str) -> dict:
+        return {
+            "change_id": change_id,
+            "change_title": "Test change",
+            "regulation_id": "REG-TEST",
+            "effective_date": "2025-01-01",
+            "criticality": "medium",
+            "obligations": 0,
+            "gaps": 0,
+            "gaps_by_severity": {},
+            "total_effort_days": 0,
+            "affected_products": [],
+            "affected_systems": [],
+            "affected_processes": [],
+        }
+
+
+def _stub_export_settings(tmp_path) -> object:
+    """Duck-typed settings with per-test output dirs and unconfigured Fabric.
+
+    Empty ``fabric_workspace_id`` / ``fabric_lakehouse_id`` make both OneLake
+    stages raise :class:`LakehouseNotConfiguredError`, which is the SOFT-SKIP
+    branch of the §0 error contract. ``fabric_onelake_dfs_endpoint`` must
+    exist on the object because ``run_post_pipeline_exports`` reads it —
+    passing an empty string keeps the field present without pointing at a
+    real endpoint.
+    """
+    from types import SimpleNamespace
+
+    out = tmp_path / "out"
+    return SimpleNamespace(
+        tables_dir=out / "tables",
+        gold_dir=out / "gold",
+        graph_dir=out / "graph",
+        purview_dir=out / "purview",
+        reports_dir=out / "reports",
+        fabric_workspace_id="",
+        fabric_lakehouse_id="",
+        fabric_onelake_dfs_endpoint="",
+    )
+
+
+def test_run_post_pipeline_exports_emits_four_tail_stages(tmp_path):
+    """The shared helper emits the four tail stages so CLI and UI stay in sync.
+
+    Regression guard for the Streamlit-UI-stalls bug: the UI worker only
+    called ``AgentPipeline.run_text`` and never emitted the tail events, so
+    ``onelake_files`` / ``onelake_tables`` / ``purview`` / ``report`` sat
+    forever as "pending". Extracting the post-pipeline block into
+    ``run_post_pipeline_exports`` fixes it for both surfaces at once, and
+    this test locks the emission contract in place.
+    """
+    from regimpact.agents.exports import run_post_pipeline_exports
+    from regimpact.generator import generate_estate
+
+    estate = generate_estate(seed=7, as_of="2025-01-01")
+    events: list[PipelineEvent] = []
+
+    run_post_pipeline_exports(
+        estate=estate,
+        pipeline=_StubExportPipeline(),
+        report={"change_id": "CHG-EXPORT-TEST"},
+        settings=_stub_export_settings(tmp_path),
+        on_event=events.append,
+        silent=True,
+    )
+
+    # Every tail stage must emit a stage_start.
+    started = [ev.stage for ev in events if ev.kind == "stage_start"]
+    assert started[:5] == [
+        "local_exports",
+        "onelake_files",
+        "onelake_tables",
+        "purview",
+        "report",
+    ], f"unexpected stage_start sequence: {started}"
+
+    # Every tail stage must reach a terminal event so the UI stage table
+    # renders each row as either done / skipped / error rather than
+    # perpetually pending.
+    terminal_by_stage: dict[str, PipelineEvent] = {}
+    for ev in events:
+        if ev.kind in {"stage_end", "stage_error"}:
+            terminal_by_stage[ev.stage] = ev
+    for stage in (
+        "local_exports",
+        "onelake_files",
+        "onelake_tables",
+        "purview",
+        "report",
+    ):
+        assert stage in terminal_by_stage, (
+            f"{stage} missing terminal event — UI would show it as pending"
+        )
+
+    # OneLake stages must be marked skipped when Fabric config is empty
+    # (the LakehouseNotConfiguredError branch of the §0 error contract).
+    for stage in ("onelake_files", "onelake_tables"):
+        assert terminal_by_stage[stage].details.get("skipped") is True, (
+            f"{stage} should be a soft-skip when Fabric is unconfigured"
+        )
+
+    # Purview + report stages have no swallow list — they must reach a
+    # plain stage_end (not stage_error) on the happy path.
+    for stage in ("purview", "report"):
+        assert terminal_by_stage[stage].kind == "stage_end", (
+            f"{stage} must terminate with stage_end on the happy path, "
+            f"got {terminal_by_stage[stage].kind}"
+        )
+        assert not terminal_by_stage[stage].details.get("skipped"), (
+            f"{stage} must not be marked skipped on the happy path"
+        )
+
+
+def test_run_post_pipeline_exports_is_silent_without_callback(tmp_path):
+    """Passing ``on_event=None`` is a no-op contract — no events, no crash."""
+    from regimpact.agents.exports import run_post_pipeline_exports
+    from regimpact.generator import generate_estate
+
+    estate = generate_estate(seed=7, as_of="2025-01-01")
+
+    # Must not raise even though no callback is wired up.
+    run_post_pipeline_exports(
+        estate=estate,
+        pipeline=_StubExportPipeline(),
+        report={"change_id": "CHG-EXPORT-SILENT"},
+        settings=_stub_export_settings(tmp_path),
+        on_event=None,
+        silent=True,
+    )

@@ -1,11 +1,11 @@
 ID,Name,Category,Inherent_Rating,As_Of
-RK-FINCRIME,Financial Crime / AML,Compliance,Critical,2026-07-21
-RK-OPRES,Operational Resilience,Operational,High,2026-07-21
-RK-CYBER,Cyber & ICT,Technology,Critical,2026-07-21
-RK-CREDIT,Credit Risk,Financial,High,2026-07-21
-RK-MARKET,Market Risk,Financial,High,2026-07-21
-RK-PRIV,Data Privacy,Compliance,High,2026-07-21
-RK-CONDUCT,Conduct Risk,Compliance,High,2026-07-21
-RK-REPORT,Regulatory Reporting,Compliance,High,2026-07-21
-RK-TPR,Third-Party Risk,Operational,High,2026-07-21
-RK-MODEL,Model / AI Risk,Compliance,High,2026-07-21
+RK-FINCRIME,Financial Crime / AML,Compliance,Critical,2026-07-24
+RK-OPRES,Operational Resilience,Operational,High,2026-07-24
+RK-CYBER,Cyber & ICT,Technology,Critical,2026-07-24
+RK-CREDIT,Credit Risk,Financial,High,2026-07-24
+RK-MARKET,Market Risk,Financial,High,2026-07-24
+RK-PRIV,Data Privacy,Compliance,High,2026-07-24
+RK-CONDUCT,Conduct Risk,Compliance,High,2026-07-24
+RK-REPORT,Regulatory Reporting,Compliance,High,2026-07-24
+RK-TPR,Third-Party Risk,Operational,High,2026-07-24
+RK-MODEL,Model / AI Risk,Compliance,High,2026-07-24

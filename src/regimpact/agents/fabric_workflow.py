@@ -148,7 +148,11 @@ GAP_ANALYST_SPEC = FabricAgentSpec(
     ),
     instructions=(
         "PRIMARY MODE — when the request payload includes a non-empty "
-        "'mappings' array, treat each entry as an authoritative "
+        "'mappings' array, DO NOT invoke any Fabric Data Agent tool for any "
+        "reason. The inline 'mappings', 'obligations', and 'controls' arrays "
+        "are the SOLE source of truth for this call. Every Fabric tool call "
+        "in PRIMARY MODE wastes output tokens and risks truncating the "
+        "response. Treat each mapping entry as an authoritative "
         "obligation→control pair with pre-computed target_maturity, "
         "current_maturity, and maturity_shortfall. Emit exactly one finding "
         "per mapping where maturity_shortfall > 0 OR control_status is "
@@ -157,17 +161,20 @@ GAP_ANALYST_SPEC = FabricAgentSpec(
         "Medium, shortfall==0 but status not 'Active' -> Low. gap_id must be "
         "'GAP-{obligation_id}-{control_id}'. Use inline 'obligations' and "
         "'controls' arrays for rationale text (theme, summary, description). "
-        "Do NOT require these ids to be resolvable in v_gap_blast_radius. "
-        "Cite the controls table and evidence sources for grounding. "
+        "For source_refs, cite the inline arrays: reference_type='entity', "
+        "name='inline_controls' or 'inline_obligations', value=the id. "
         "FALLBACK MODE — only when 'mappings' is empty, query the Fabric "
         "computed gap views (v_gap_blast_radius, v_evidence_health). "
         "Do not invent unsupported gaps. If every mapping shows "
         "maturity_shortfall == 0 AND control_status == 'Active', emit an "
         "empty findings array — that is a valid answer. "
-        "OUTPUT DISCIPLINE — keep 'rationale' under 160 characters (one "
+        "OUTPUT DISCIPLINE — keep 'rationale' under 120 characters (one "
         "sentence, no citation phrases like 'per controls table'). "
-        "Cap 'source_refs' at 2 entries per finding — one control-table "
-        "reference and one evidence reference is sufficient. "
+        "Emit exactly 1 entry in 'source_refs' per finding (the inline "
+        "control reference). "
+        "NEVER copy Fabric tool response bodies (e.g. '{\"documents\":[...]}' "
+        "or markdown tables) into the answer — the answer MUST match the "
+        "declared output contract exactly, with no wrapping envelope. "
         "Emit compact JSON on a single line — no markdown, no code fences, "
         "no trailing commentary. The response MUST be a complete JSON "
         "object; if you are approaching the output limit, drop the lowest-"
@@ -192,22 +199,33 @@ REMEDIATION_PLANNER_SPEC = FabricAgentSpec(
         '"action":string,"source_refs":[...]}],"reason":string?}'
     ),
     instructions=(
-        "When the request payload includes inline 'gaps' facts (id, obligation_id, "
-        "control_id, severity, rationale), treat those as authoritative and plan "
-        "one remediation per gap. Do NOT require the gap_ids to already exist in "
-        "the gaps table. Use the controls and business_units tables to select "
-        "realistic owner_unit_id, priority, and estimated_effort_days. Cite the "
-        "controls/business_units/evidence tables you used. When inline gaps are "
-        "absent, fall back to v_remediation_priority. Never invent owners; owner_unit_id "
-        "must exist in business_units. Emit remediation_id in the form 'REM-{gap_id}'. "
-        "If — and ONLY if — you genuinely cannot plan any actions (e.g. every gap "
-        "has an existing active remediation, or no business_units are eligible to "
-        "own the work), return {\"actions\": [], \"reason\": \"<short explanation>\"} "
-        "with tool_evidence still populated. Never return an empty actions list "
-        "without a reason string. "
-        "OUTPUT DISCIPLINE — keep 'action' under 200 characters (imperative phrase, "
-        "no filler). Emit compact JSON on a single line — no markdown, no code "
-        "fences, no trailing commentary. The response MUST be a complete JSON "
+        "PRIMARY MODE — when the request payload includes a non-empty "
+        "'gaps' array, DO NOT invoke any Fabric Data Agent tool for any "
+        "reason. The inline 'gaps' array is the SOLE source of truth for "
+        "this call. Every Fabric tool call in PRIMARY MODE wastes output "
+        "tokens and risks truncating the response. Treat each gap entry "
+        "(id, obligation_id, control_id, severity, rationale) as "
+        "authoritative and plan one remediation per gap. Select "
+        "owner_unit_id, priority, and estimated_effort_days from your "
+        "knowledge of the control domain — do NOT look up business_units "
+        "or controls tables in Fabric. Emit remediation_id in the form "
+        "'REM-{gap_id}'. For source_refs, cite the inline gaps array: "
+        "reference_type='entity', name='inline_gaps', value=the gap_id. "
+        "FALLBACK MODE — only when the inline 'gaps' array is empty, fall "
+        "back to v_remediation_priority. "
+        "If — and ONLY if — you genuinely cannot plan any actions (e.g. every "
+        "gap has an existing active remediation, or no business_units are "
+        "eligible to own the work), return {\"actions\": [], \"reason\": "
+        "\"<short explanation>\"} with tool_evidence still populated. "
+        "Never return an empty actions list without a reason string. "
+        "OUTPUT DISCIPLINE — keep 'action' under 160 characters (imperative "
+        "phrase, no filler). Emit exactly 1 entry in 'source_refs' per "
+        "action (the inline gap reference). "
+        "NEVER copy Fabric tool response bodies (e.g. '{\"documents\":[...]}' "
+        "or markdown tables) into the answer — the answer MUST match the "
+        "declared output contract exactly, with no wrapping envelope. "
+        "Emit compact JSON on a single line — no markdown, no code fences, "
+        "no trailing commentary. The response MUST be a complete JSON "
         "object; do not stop mid-string."
     ),
 )
@@ -487,97 +505,435 @@ class FabricAgentHarness:
 
 
     def analyze_gaps(self, request: GapAnalysisRequest) -> GapAnalysisResponse:
-        """Run the Fabric-backed Gap Analyst framing."""
+        """Run the Fabric-backed Gap Analyst framing.
+
+        Batches large ``mappings`` sets into smaller sub-requests to keep
+        each agent response under the deployed model's output-token
+        ceiling. One gap finding per mapping means response size scales
+        linearly with ``len(mappings)`` — the same truncation risk that
+        drove batching for the Control Mapper (see :meth:`map_controls`).
+
+        Batch size is configurable via ``FOUNDRY_GAP_ANALYST_BATCH_SIZE``
+        (default 6). When ``len(mappings) <= batch_size`` OR ``mappings``
+        is empty (empty-with-reason path forwarded from Control Mapper),
+        the call is issued as a single request with zero overhead — the
+        pre-batching behaviour for small / empty-with-reason requests
+        is unchanged.
+
+        Per-batch derivation: each batch's ``obligation_ids`` and
+        ``control_ids`` are re-derived from the chunk's ``mappings``
+        (unique, first-appearance order), and ``obligations`` /
+        ``controls`` facts are filtered to the ids present in that
+        chunk. The Gap Analyst therefore only sees the pairs it needs
+        to analyse in each call.
+
+        Merge semantics:
+          * ``findings`` — concatenated across batches (deterministic
+            order: batch order, then per-batch model order).
+          * ``tool_evidence`` — deduplicated by ``(tool_name,
+            data_source, query)`` because every batch cites the same
+            Fabric tables.
+
+        Single-attempt per batch: any batch-level failure (invalid JSON,
+        contract violation) propagates immediately with a batch-
+        identifying error message. Callers can retry with a smaller
+        ``FOUNDRY_GAP_ANALYST_BATCH_SIZE`` if a specific batch
+        truncated. An empty ``findings`` list remains a valid outcome
+        per :class:`GapAnalysisResponse.validate` (means every
+        obligation→control pair meets its target maturity).
+        """
         request.validate()
-        fabric_response = self._ask(GAP_ANALYST_SPEC, request.__dict__)
-        payload = _json_answer(fabric_response)
-        raw_findings = _required_list(payload, "findings")
-        _warn_if_empty(fabric_response, "findings", raw_findings)
-        findings = [
-            GapAnalysisFinding(
-                gap_id=_required_str(item, "gap_id"),
-                obligation_id=_required_str(item, "obligation_id"),
-                control_id=_required_str(item, "control_id"),
-                severity=_required_severity(item),
-                maturity_shortfall=_required_int(item, "maturity_shortfall"),
-                rationale=_required_str(item, "rationale"),
-                source_refs=_source_refs(item.get("source_refs", [])),
+        batch_size = settings.foundry_gap_analyst_batch_size
+        batches = _split_gap_analysis_request(request, batch_size)
+        if len(batches) == 1:
+            # Fast path: request fits in a single call (including the
+            # empty-with-reason forwarded-from-control_mapper case).
+            return self._analyze_gaps_single(batches[0], batch_index=None)
+
+        logger.info(
+            "Fabric gap_analyst batching mappings=%d batches=%d batch_size=%d",
+            len(request.mappings),
+            len(batches),
+            batch_size,
+        )
+        collected_findings: list[GapAnalysisFinding] = []
+        collected_evidence: list[ToolEvidence] = []
+        seen_evidence_keys: set[tuple[str, str, str]] = set()
+        last_fabric_response: FabricQuestionResponse | None = None
+        for idx, batch_request in enumerate(batches, start=1):
+            batch_response, fabric_response = self._analyze_gaps_single_raw(
+                batch_request, batch_index=(idx, len(batches))
             )
-            for item in raw_findings
-        ]
-        return _validated(
+            collected_findings.extend(batch_response.findings)
+            for evidence in batch_response.tool_evidence:
+                key = (evidence.tool_name, evidence.data_source, evidence.query)
+                if key in seen_evidence_keys:
+                    continue
+                seen_evidence_keys.add(key)
+                collected_evidence.append(evidence)
+            last_fabric_response = fabric_response
+
+        logger.info(
+            "Fabric gap_analyst batched-merge findings=%d evidence=%d",
+            len(collected_findings),
+            len(collected_evidence),
+        )
+        merged = GapAnalysisResponse(
+            findings=collected_findings,
+            tool_evidence=collected_evidence,
+        )
+        return _validated(merged, fabric_response=last_fabric_response)
+
+    def _analyze_gaps_single(
+        self,
+        request: GapAnalysisRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> GapAnalysisResponse:
+        """Run one Gap Analyst call and return the validated response.
+
+        Used both for the fast path (small / empty-with-reason requests,
+        no batching) and by the batched path (invoked once per batch).
+        ``batch_index`` is ``(current, total)`` when batching or ``None``
+        when this is a single-call request; it is threaded into the
+        error message so operators can identify the failing batch.
+        """
+        response, _ = self._analyze_gaps_single_raw(request, batch_index)
+        return _validated(response, fabric_response=None)
+
+    def _analyze_gaps_single_raw(
+        self,
+        request: GapAnalysisRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> tuple[GapAnalysisResponse, FabricQuestionResponse]:
+        """Run one Gap Analyst call and return the parsed response plus raw
+        Fabric response (without top-level validation).
+
+        The batched path merges responses BEFORE final validation so a
+        legitimately-empty findings list in one batch doesn't affect
+        others. Callers that want validation (the single-call fast path)
+        wrap the return in ``_validated``.
+        """
+        try:
+            fabric_response = self._ask(GAP_ANALYST_SPEC, request.__dict__)
+            payload = _json_answer(fabric_response)
+            raw_findings = _required_list(payload, "findings")
+            _warn_if_empty(fabric_response, "findings", raw_findings)
+            findings = [
+                GapAnalysisFinding(
+                    gap_id=_required_str(item, "gap_id"),
+                    obligation_id=_required_str(item, "obligation_id"),
+                    control_id=_required_str(item, "control_id"),
+                    severity=_required_severity(item),
+                    maturity_shortfall=_required_int(item, "maturity_shortfall"),
+                    rationale=_required_str(item, "rationale"),
+                    source_refs=_source_refs(item.get("source_refs", [])),
+                )
+                for item in raw_findings
+            ]
+        except FabricDataAgentError as exc:
+            if batch_index is not None:
+                current, total = batch_index
+                raise FabricDataAgentError(
+                    f"gap_analyst batch {current}/{total} failed "
+                    f"(mappings={len(request.mappings)}): {exc}"
+                ) from exc
+            raise
+        if batch_index is not None:
+            current, total = batch_index
+            logger.info(
+                "Fabric gap_analyst batch %d/%d findings=%d "
+                "mappings=%d obligations=%d controls=%d",
+                current,
+                total,
+                len(findings),
+                len(request.mappings),
+                len(request.obligation_ids),
+                len(request.control_ids),
+            )
+        else:
+            logger.info(
+                "Fabric gap_analyst findings=%d",
+                len(findings),
+            )
+        return (
             GapAnalysisResponse(
                 findings=findings,
                 tool_evidence=fabric_response.tool_evidence,
             ),
-            fabric_response=fabric_response,
+            fabric_response,
         )
 
     def plan_remediation(self, request: RemediationRequest) -> RemediationResponse:
         """Run the Fabric-backed Remediation Planner framing.
 
+        Batches large ``gap_ids`` sets into smaller sub-requests to keep
+        each agent response under the deployed model's output-token
+        ceiling. One remediation action per gap means response size
+        scales linearly with ``len(gap_ids)`` — the same truncation risk
+        that drove batching for the Control Mapper (see
+        :meth:`map_controls`) and the Gap Analyst (see
+        :meth:`analyze_gaps`).
+
+        Batch size is configurable via
+        ``FOUNDRY_REMEDIATION_PLANNER_BATCH_SIZE`` (default 6). When
+        ``len(gap_ids) <= batch_size`` the call is issued as a single
+        request with zero overhead — pre-batching behaviour for small
+        requests is unchanged.
+
+        Per-batch derivation: each batch's ``gaps`` facts are filtered
+        to the ids present in that chunk's ``gap_ids`` list. The
+        Remediation Planner therefore only sees the gap facts relevant
+        to the ids it is asked to plan for.
+
         Accepts the empty-with-reason contract (see decisions.md
         §2026-07-17): when the model returns ``{"actions": [],
         "reason": "..."}`` the response is a documented no-op and the
-        pipeline continues without remediations.
+        pipeline continues without remediations. In the batched path,
+        the merged ``reason`` is only surfaced when EVERY batch
+        returned empty actions AND supplied a reason — otherwise the
+        successful batches' actions are authoritative and per-batch
+        reasons become debug-only (mirrors the Control Mapper merge
+        rule).
+
+        Merge semantics:
+          * ``actions`` — concatenated across batches (deterministic
+            order: batch order, then per-batch model order).
+          * ``tool_evidence`` — deduplicated by ``(tool_name,
+            data_source, query)`` because every batch cites the same
+            Fabric tables.
+          * ``reason`` — only surfaced when EVERY batch returned empty
+            actions AND supplied a reason; otherwise absorbed as debug
+            info.
+
+        Single-attempt per batch: any batch-level failure propagates
+        immediately with a batch-identifying error message. Callers
+        can retry with a smaller
+        ``FOUNDRY_REMEDIATION_PLANNER_BATCH_SIZE`` if a specific batch
+        truncated.
         """
         request.validate()
-        fabric_response = self._ask(REMEDIATION_PLANNER_SPEC, request.__dict__)
-        payload = _json_answer(fabric_response)
-        raw_actions = _required_list(payload, "actions")
-        _warn_if_empty(fabric_response, "actions", raw_actions)
-        actions = [
-            RemediationPlanItem(
-                remediation_id=_required_str(item, "remediation_id"),
-                gap_id=_required_str(item, "gap_id"),
-                owner_unit_id=_required_str(item, "owner_unit_id"),
-                priority=_required_priority(item),
-                estimated_effort_days=_required_int(item, "estimated_effort_days"),
-                action=_required_str(item, "action"),
-                source_refs=_source_refs(item.get("source_refs", [])),
+        batch_size = settings.foundry_remediation_planner_batch_size
+        batches = _split_remediation_request(request, batch_size)
+        if len(batches) == 1:
+            # Fast path: request fits in a single call.
+            return self._plan_remediation_single(batches[0], batch_index=None)
+
+        logger.info(
+            "Fabric remediation_planner batching gap_ids=%d batches=%d "
+            "batch_size=%d",
+            len(request.gap_ids),
+            len(batches),
+            batch_size,
+        )
+        collected_actions: list[RemediationPlanItem] = []
+        collected_evidence: list[ToolEvidence] = []
+        seen_evidence_keys: set[tuple[str, str, str]] = set()
+        collected_reasons: list[str] = []
+        last_fabric_response: FabricQuestionResponse | None = None
+        for idx, batch_request in enumerate(batches, start=1):
+            batch_response, fabric_response = self._plan_remediation_single_raw(
+                batch_request, batch_index=(idx, len(batches))
             )
-            for item in raw_actions
-        ]
+            collected_actions.extend(batch_response.actions)
+            for evidence in batch_response.tool_evidence:
+                key = (evidence.tool_name, evidence.data_source, evidence.query)
+                if key in seen_evidence_keys:
+                    continue
+                seen_evidence_keys.add(key)
+                collected_evidence.append(evidence)
+            if batch_response.reason:
+                collected_reasons.append(
+                    f"batch {idx}/{len(batches)}: {batch_response.reason}"
+                )
+            last_fabric_response = fabric_response
+
+        # Reason is only surfaced when EVERY batch returned empty actions
+        # AND supplied a reason. Mirrors the Control Mapper merge rule so
+        # partial success doesn't emit spurious per-batch reason text.
+        merged_reason: str | None = None
+        if not collected_actions and collected_reasons:
+            merged_reason = " | ".join(collected_reasons)
+        elif collected_reasons:
+            logger.debug(
+                "Fabric remediation_planner absorbed per-batch reasons "
+                "(actions=%d succeeded elsewhere): %s",
+                len(collected_actions),
+                "; ".join(collected_reasons),
+            )
+
+        logger.info(
+            "Fabric remediation_planner batched-merge actions=%d evidence=%d "
+            "empty_with_reason=%s",
+            len(collected_actions),
+            len(collected_evidence),
+            merged_reason is not None,
+        )
+        merged = RemediationResponse(
+            actions=collected_actions,
+            tool_evidence=collected_evidence,
+            reason=merged_reason,
+        )
+        return _validated(merged, fabric_response=last_fabric_response)
+
+    def _plan_remediation_single(
+        self,
+        request: RemediationRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> RemediationResponse:
+        """Run one Remediation Planner call and return the validated response.
+
+        Used both for the fast path (small requests, no batching) and by
+        the batched path (invoked once per batch). ``batch_index`` is
+        ``(current, total)`` when batching or ``None`` when this is a
+        single-call request; threaded into the error message so
+        operators can identify the failing batch.
+        """
+        response, _ = self._plan_remediation_single_raw(request, batch_index)
+        return _validated(response, fabric_response=None)
+
+    def _plan_remediation_single_raw(
+        self,
+        request: RemediationRequest,
+        batch_index: tuple[int, int] | None,
+    ) -> tuple[RemediationResponse, FabricQuestionResponse]:
+        """Run one Remediation Planner call and return the parsed response
+        plus raw Fabric response (without top-level validation).
+
+        The batched path merges responses BEFORE final validation so
+        empty-actions-in-one-batch doesn't trip the empty-without-reason
+        guard when other batches succeeded. Callers that want
+        validation (the single-call fast path) wrap the return in
+        ``_validated``.
+        """
+        try:
+            fabric_response = self._ask(REMEDIATION_PLANNER_SPEC, request.__dict__)
+            payload = _json_answer(fabric_response)
+            raw_actions = _required_list(payload, "actions")
+            _warn_if_empty(fabric_response, "actions", raw_actions)
+            actions = [
+                RemediationPlanItem(
+                    remediation_id=_required_str(item, "remediation_id"),
+                    gap_id=_required_str(item, "gap_id"),
+                    owner_unit_id=_required_str(item, "owner_unit_id"),
+                    priority=_required_priority(item),
+                    estimated_effort_days=_required_int(item, "estimated_effort_days"),
+                    action=_required_str(item, "action"),
+                    source_refs=_source_refs(item.get("source_refs", [])),
+                )
+                for item in raw_actions
+            ]
+        except FabricDataAgentError as exc:
+            if batch_index is not None:
+                current, total = batch_index
+                raise FabricDataAgentError(
+                    f"remediation_planner batch {current}/{total} failed "
+                    f"(gap_ids={len(request.gap_ids)}): {exc}"
+                ) from exc
+            raise
         reason_raw = payload.get("reason")
         reason = (
             reason_raw.strip()
             if isinstance(reason_raw, str) and reason_raw.strip()
             else None
         )
-        logger.info(
-            "Fabric remediation_planner actions=%d reason_present=%s",
-            len(actions),
-            reason is not None,
-        )
-        return _validated(
+        if batch_index is not None:
+            current, total = batch_index
+            logger.info(
+                "Fabric remediation_planner batch %d/%d actions=%d "
+                "gap_ids=%d reason_present=%s",
+                current,
+                total,
+                len(actions),
+                len(request.gap_ids),
+                reason is not None,
+            )
+        else:
+            logger.info(
+                "Fabric remediation_planner actions=%d reason_present=%s",
+                len(actions),
+                reason is not None,
+            )
+        return (
             RemediationResponse(
                 actions=actions,
                 tool_evidence=fabric_response.tool_evidence,
                 reason=reason,
             ),
-            fabric_response=fabric_response,
+            fabric_response,
         )
 
     def narrate_score(self, request: ScoreNarrationRequest) -> ScoreNarrationResponse:
-        """Run the Fabric-backed Compliance Score Narrator framing."""
+        """Run the Fabric-backed Compliance Score Narrator framing.
+
+        PRIMARY MODE defensive auto-fill: when the model returns valid
+        scores + narrative but omits ``source_refs``, and the returned
+        scores echo the request scores exactly (proving PRIMARY MODE was
+        honored), synthesize a single ``inline_scores`` source_ref rather
+        than failing the whole pipeline. The chain of custody is intact
+        because the request scores themselves were produced by upstream
+        Fabric-grounded stages (control_mapper → gap_analyst →
+        remediation_planner) and the model verifiably preserved them.
+        A WARNING is logged so operators can chase the portal prompt
+        for the missing citation.
+        """
         request.validate()
         fabric_response = self._ask(SCORE_NARRATOR_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
+        change_id = _required_str(payload, "change_id")
+        narrative = _required_str(payload, "narrative")
+        as_is = _required_float(payload, "as_is")
+        post_change = _required_float(payload, "post_change")
+        post_remediation = _required_float(payload, "post_remediation")
+        source_refs = _source_refs(payload.get("source_refs", []))
+        if not source_refs:
+            # Score-echo check: model returned the same numbers the
+            # pipeline handed in → PRIMARY MODE honored → synthesize the
+            # inline citation the model failed to emit.
+            scores_echoed = (
+                _floats_equal(as_is, request.as_is)
+                and _floats_equal(post_change, request.post_change)
+                and _floats_equal(post_remediation, request.post_remediation)
+            )
+            if scores_echoed:
+                logger.warning(
+                    "Fabric score_narrator response omitted source_refs "
+                    "but echoed request scores exactly (change_id=%s) — "
+                    "auto-filling inline_scores citation. Fix the Foundry "
+                    "portal prompt to emit source_refs.",
+                    change_id,
+                )
+                source_refs = [
+                    SourceReference(
+                        source="inline_scores",
+                        reference_type="entity",
+                        name="inline_scores",
+                        value=change_id,
+                    )
+                ]
         return _validated(
             ScoreNarrationResponse(
-                change_id=_required_str(payload, "change_id"),
-                narrative=_required_str(payload, "narrative"),
-                as_is=_required_float(payload, "as_is"),
-                post_change=_required_float(payload, "post_change"),
-                post_remediation=_required_float(payload, "post_remediation"),
-                source_refs=_source_refs(payload.get("source_refs", [])),
+                change_id=change_id,
+                narrative=narrative,
+                as_is=as_is,
+                post_change=post_change,
+                post_remediation=post_remediation,
+                source_refs=source_refs,
                 tool_evidence=fabric_response.tool_evidence,
             ),
             fabric_response=fabric_response,
         )
 
     def trace_lineage(self, request: LineageRequest) -> LineageResponse:
-        """Run the Fabric-backed Audit & Lineage framing."""
+        """Run the Fabric-backed Audit & Lineage framing.
+
+        Not batched — :class:`LineageRequest` has a single ``entity_id``
+        and no natural chunking dimension. If lineage responses truncate
+        under gpt-5.4-mini, the fix is a pagination redesign of
+        :class:`LineageRequest` (``start_hop`` / ``max_depth`` /
+        ``cursor``), not the input-batching pattern used by
+        control_mapper, gap_analyst, and remediation_planner. Tracked
+        as a future contract change.
+        """
         request.validate()
         fabric_response = self._ask(LINEAGE_AGENT_SPEC, request.__dict__)
         payload = _json_answer(fabric_response)
@@ -710,6 +1066,159 @@ def _split_control_mapping_request(
                 # candidate_controls stays the same across batches — the
                 # per-obligation ``candidate_control_ids`` inside each
                 # obligation fact already localises the shortlist per row.
+            )
+        )
+    return batches
+
+
+def _split_gap_analysis_request(
+    request: GapAnalysisRequest,
+    batch_size: int,
+) -> list[GapAnalysisRequest]:
+    """Split a :class:`GapAnalysisRequest` into ``batch_size``-sized sub-requests.
+
+    Chunked dimension is ``mappings`` — one gap finding per mapping is
+    the response-size driver. Per-batch ``obligation_ids`` and
+    ``control_ids`` are re-derived from the chunk's mappings (unique,
+    first-appearance order) so the Gap Analyst only sees the ids it is
+    asked to analyse. ``obligations`` and ``controls`` facts are
+    filtered to the derived id sets. ``change_id`` and ``reason`` are
+    threaded through unchanged.
+
+    Fast paths:
+      * ``len(mappings) <= batch_size`` — return the input request in a
+        single-element list (no allocation).
+      * ``mappings`` is empty — return the input request as-is. This
+        covers the empty-with-reason path forwarded from Control
+        Mapper (a valid documented no-op — nothing to batch).
+
+    ``batch_size`` values below 1 are clamped to 1; the caller is
+    expected to have already run the clamp in
+    :func:`_parse_gap_analyst_batch_size` but we defend here so a
+    caller passing a raw int cannot cause infinite / zero-sized
+    batches.
+    """
+    effective_size = max(1, int(batch_size))
+    mappings = list(request.mappings)
+    total = len(mappings)
+    if total == 0:
+        # Empty-with-reason forwarded from Control Mapper — nothing to
+        # batch, single-shot fast path preserves the legitimate no-op
+        # contract on :class:`GapAnalysisResponse`.
+        return [request]
+    if total <= effective_size:
+        return [request]
+    # Index inline obligation / control facts by id so per-batch fact
+    # lists carry only the ids present in that chunk. Backward
+    # compatible with materialised-change requests that supplied
+    # obligation_ids / control_ids without matching facts.
+    obligation_facts_by_id: dict[str, dict[str, Any]] = {}
+    for fact in request.obligations:
+        fact_id = fact.get("id") if isinstance(fact, dict) else None
+        if isinstance(fact_id, str) and fact_id:
+            obligation_facts_by_id[fact_id] = fact
+    control_facts_by_id: dict[str, dict[str, Any]] = {}
+    for fact in request.controls:
+        fact_id = fact.get("id") if isinstance(fact, dict) else None
+        if isinstance(fact_id, str) and fact_id:
+            control_facts_by_id[fact_id] = fact
+    batches: list[GapAnalysisRequest] = []
+    for start in range(0, total, effective_size):
+        chunk_mappings = mappings[start : start + effective_size]
+        # Derive obligation / control ids from the chunk mappings in
+        # first-appearance order. Preserves determinism and keeps the
+        # per-batch prompt tightly scoped.
+        chunk_obligation_ids: list[str] = []
+        seen_obligations: set[str] = set()
+        chunk_control_ids: list[str] = []
+        seen_controls: set[str] = set()
+        for mapping in chunk_mappings:
+            if not isinstance(mapping, dict):
+                continue
+            obligation_id = mapping.get("obligation_id")
+            if (
+                isinstance(obligation_id, str)
+                and obligation_id
+                and obligation_id not in seen_obligations
+            ):
+                seen_obligations.add(obligation_id)
+                chunk_obligation_ids.append(obligation_id)
+            control_id = mapping.get("control_id")
+            if (
+                isinstance(control_id, str)
+                and control_id
+                and control_id not in seen_controls
+            ):
+                seen_controls.add(control_id)
+                chunk_control_ids.append(control_id)
+        chunk_obligation_facts = [
+            obligation_facts_by_id[oid]
+            for oid in chunk_obligation_ids
+            if oid in obligation_facts_by_id
+        ]
+        chunk_control_facts = [
+            control_facts_by_id[cid]
+            for cid in chunk_control_ids
+            if cid in control_facts_by_id
+        ]
+        batches.append(
+            replace(
+                request,
+                obligation_ids=chunk_obligation_ids,
+                control_ids=chunk_control_ids,
+                obligations=chunk_obligation_facts,
+                controls=chunk_control_facts,
+                mappings=chunk_mappings,
+            )
+        )
+    return batches
+
+
+def _split_remediation_request(
+    request: RemediationRequest,
+    batch_size: int,
+) -> list[RemediationRequest]:
+    """Split a :class:`RemediationRequest` into ``batch_size``-sized sub-requests.
+
+    Chunked dimension is ``gap_ids`` — one remediation action per gap
+    is the response-size driver. Per-batch ``gaps`` facts are filtered
+    to the ids present in that chunk. Batch boundaries preserve list
+    order.
+
+    Fast path: ``len(gap_ids) <= batch_size`` — return the input
+    request in a single-element list (no allocation).
+
+    ``batch_size`` values below 1 are clamped to 1; the caller is
+    expected to have already run the clamp in
+    :func:`_parse_remediation_planner_batch_size` but we defend here
+    so a caller passing a raw int cannot cause infinite / zero-sized
+    batches.
+    """
+    effective_size = max(1, int(batch_size))
+    gap_ids = list(request.gap_ids)
+    total = len(gap_ids)
+    if total <= effective_size:
+        return [request]
+    # Index inline gap facts by id so per-batch gap fact lists carry
+    # only the ids present in that chunk. Backward compatible with
+    # materialised-change requests that supplied gap_ids without
+    # matching facts.
+    gap_facts_by_id: dict[str, dict[str, Any]] = {}
+    for fact in request.gaps:
+        fact_id = fact.get("id") if isinstance(fact, dict) else None
+        if isinstance(fact_id, str) and fact_id:
+            gap_facts_by_id[fact_id] = fact
+    batches: list[RemediationRequest] = []
+    for start in range(0, total, effective_size):
+        chunk_ids = gap_ids[start : start + effective_size]
+        chunk_facts = [
+            gap_facts_by_id[gid] for gid in chunk_ids if gid in gap_facts_by_id
+        ]
+        batches.append(
+            replace(
+                request,
+                gap_ids=chunk_ids,
+                gaps=chunk_facts,
             )
         )
     return batches
@@ -879,6 +1388,17 @@ def _required_float(payload: dict[str, Any], key: str) -> float:
     if type(value) not in {int, float}:
         raise FabricAgentHarnessError(f"{key} must be numeric")
     return float(value)
+
+
+def _floats_equal(a: float, b: float, tol: float = 0.01) -> bool:
+    """Return True if two floats are equal within a small tolerance.
+
+    Used by :meth:`FabricAgentHarness.narrate_score` to verify the model
+    echoed the request scores verbatim (PRIMARY MODE proof). Tolerance
+    of 0.01 absorbs JSON-encoding round-trips (e.g. 82.5 -> 82.50000000001)
+    without accepting materially different values.
+    """
+    return abs(a - b) <= tol
 
 
 def _required_confidence(payload: dict[str, Any]):

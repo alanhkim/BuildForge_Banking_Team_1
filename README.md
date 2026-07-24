@@ -94,7 +94,25 @@ python -m ruff check .
 python -m pytest
 ```
 
-## Security and identity guardrails
+## Streamlit UI (local development)
+
+The Streamlit UI wraps the same pipeline the CLI runs (`AgentPipeline.run_text` + `run_post_pipeline_exports`), so both surfaces produce identical outputs and emit the same per-stage events.
+
+Install the UI extra (adds `streamlit>=1.36`):
+
+```bash
+python -m pip install -e ".[ui]"
+```
+
+Start the local UI server:
+
+```bash
+python -m streamlit run src/regimpact/ui/streamlit_app.py
+```
+
+The app opens at http://localhost:8501. The same Foundry / Fabric / Purview environment variables the CLI reads from `.env` (`FOUNDRY_PROJECT_ENDPOINT`, `FABRIC_WORKSPACE_ID`, `FABRIC_LAKEHOUSE_ID`, `FABRIC_ONELAKE_DFS_ENDPOINT`, etc.) apply — no separate UI config. Per-session run snapshots are cached under `.streamlit-runs/` (git-ignored) so a page refresh rehydrates without re-running the pipeline.
+
+
 
 - Use Microsoft Entra authentication only for Azure AI Foundry integration.
 - Do not add API-key authentication, API-key settings, or API-key documentation.

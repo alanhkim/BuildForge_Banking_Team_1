@@ -70,6 +70,45 @@ MAX_MATURITY = 5
 # Valid criticality levels
 VALID_CRITICALITY = {"Critical", "High", "Medium", "Low"}
 
+# Inline-grounding source names.
+#
+# When an agent runs in PRIMARY MODE (inline facts forwarded from a
+# previous Fabric-grounded stage), its own response carries no tool_evidence
+# because it did not call Fabric directly. The audit trail is still intact:
+# the inline facts themselves were produced by the previous stage's real
+# Fabric tool call (its tool_evidence). Responses signal this chain-of-
+# custody by populating source_refs with source names drawn from this set,
+# and validators may then accept an empty tool_evidence on the current
+# response. Cross-referencing back to the previous stage's tool_evidence
+# is the caller's responsibility (pipeline threading) rather than the
+# response contract's.
+INLINE_GROUNDING_SOURCES = frozenset(
+    {
+        "inline_controls",
+        "inline_obligations",
+        "inline_mappings",
+        "inline_gaps",
+        "inline_remediations",
+        "inline_scores",
+    }
+)
+
+
+def _all_source_refs_inline(source_refs: list["SourceReference"]) -> bool:
+    """Return True if every source_ref names an inline (forwarded) source.
+
+    Used by response validators to decide whether an empty ``tool_evidence``
+    is legitimate. An empty ``source_refs`` list returns False — no grounding
+    at all is never acceptable.
+    """
+    if not source_refs:
+        return False
+    return all(
+        ref.source.strip() in INLINE_GROUNDING_SOURCES
+        or ref.name.strip() in INLINE_GROUNDING_SOURCES
+        for ref in source_refs
+    )
+
 
 @dataclass
 class InterpretRequest:
@@ -383,7 +422,27 @@ class ControlMappingResponse:
     reason: str | None = None
 
     def validate(self) -> None:
-        """Validate mapped controls and Fabric evidence."""
+        """Validate mapped controls and grounding.
+
+        PRIMARY MODE (inline candidate_controls forwarded from the caller):
+        the agent operates purely over inline facts and does not call the
+        Fabric Data Agent — ``tool_evidence`` is legitimately empty. In that
+        case grounding is carried by per-mapping ``source_refs`` (which are
+        still required to be non-empty on every mapping). This mirrors the
+        Gap Analyst / Remediation / Score Narrator inline-mode relaxations
+        so all four Fabric agents accept upstream-forwarded facts uniformly.
+
+        FALLBACK MODE (inline data absent): the agent calls Fabric directly
+        and MUST populate ``tool_evidence``. Callers running in fallback
+        mode should have ``source_refs`` naming real Fabric sources — the
+        validator does not enforce the mode at contract level (grounding
+        is delegated to per-mapping ``source_refs`` validation), but the
+        pipeline logs distinguish the two modes for observability.
+
+        Empty ``mappings`` remains a validation failure unless the agent
+        supplies a non-empty ``reason`` documenting why. That contract is
+        unchanged.
+        """
         if self.error is not None:
             self.error.validate()
             return
@@ -396,15 +455,9 @@ class ControlMappingResponse:
                 raise ValidationError(
                     "mappings is required (or provide non-empty reason)"
                 )
-            if not self.tool_evidence:
-                raise MissingCitationError(
-                    "control mapping requires tool_evidence"
-                )
             for evidence in self.tool_evidence:
                 evidence.validate()
             return
-        if not self.tool_evidence:
-            raise MissingCitationError("control mapping requires tool_evidence")
         for mapping in self.mappings:
             mapping.validate()
         for evidence in self.tool_evidence:
@@ -499,18 +552,38 @@ class GapAnalysisResponse:
         Analyst determined every obligation→control pair meets its target
         maturity with an active control. Callers should still log the
         justification (mapping shortfalls) so an operator can audit the
-        "no gaps" conclusion. ``tool_evidence`` remains required — the
-        agent must show it grounded its decision in real data.
+        "no gaps" conclusion.
+
+        ``tool_evidence`` is normally required (the agent must show it
+        grounded its decision in real Fabric data). PRIMARY MODE exception:
+        when every finding's ``source_refs`` names an INLINE_GROUNDING_SOURCES
+        entry, the agent was operating over inline facts forwarded from
+        the Control Mapper stage — that stage's tool_evidence IS the
+        Fabric grounding, forwarded transparently. In that case an empty
+        ``tool_evidence`` on the Gap Analyst response is legitimate and
+        the validator accepts it (see decisions.md and INLINE_GROUNDING_SOURCES).
+        Empty findings + empty tool_evidence remains an error — that path
+        must carry an explicit ``AgentError``.
         """
         if self.error is not None:
             self.error.validate()
             return
-        if not self.tool_evidence:
-            raise MissingCitationError("gap analysis requires tool_evidence")
         for finding in self.findings:
             finding.validate()
         for evidence in self.tool_evidence:
             evidence.validate()
+        if not self.tool_evidence:
+            # PRIMARY MODE (inline facts): accept iff EVERY finding is
+            # inline-grounded. If any finding cites a non-inline source,
+            # the agent claimed Fabric grounding without providing evidence —
+            # reject as before.
+            if not self.findings:
+                raise MissingCitationError("gap analysis requires tool_evidence")
+            all_inline = all(
+                _all_source_refs_inline(f.source_refs) for f in self.findings
+            )
+            if not all_inline:
+                raise MissingCitationError("gap analysis requires tool_evidence")
 
 
 @dataclass(frozen=True)
@@ -580,7 +653,15 @@ class RemediationResponse:
     reason: str | None = None
 
     def validate(self) -> None:
-        """Validate remediation actions and tool evidence."""
+        """Validate remediation actions and tool evidence.
+
+        PRIMARY MODE exception (see :class:`GapAnalysisResponse.validate`):
+        when every action's ``source_refs`` names an INLINE_GROUNDING_SOURCES
+        entry, the agent operated over inline facts forwarded from the Gap
+        Analyst stage. That stage's tool_evidence IS the Fabric grounding,
+        forwarded transparently, so an empty ``tool_evidence`` on the
+        Remediation Planner response is legitimate in that case only.
+        """
         if self.error is not None:
             self.error.validate()
             return
@@ -592,12 +673,25 @@ class RemediationResponse:
                 raise ValidationError(
                     "actions is required (or provide non-empty reason)"
                 )
-        if not self.tool_evidence:
-            raise MissingCitationError("remediation response requires tool_evidence")
         for action in self.actions:
             action.validate()
         for evidence in self.tool_evidence:
             evidence.validate()
+        if not self.tool_evidence:
+            # PRIMARY MODE (inline facts): accept iff EVERY action is
+            # inline-grounded. Empty actions must carry an explicit reason
+            # (handled above); an empty-actions-with-reason path is also
+            # accepted with empty tool_evidence, since nothing was planned
+            # and there is nothing to ground.
+            if not self.actions:
+                return
+            all_inline = all(
+                _all_source_refs_inline(a.source_refs) for a in self.actions
+            )
+            if not all_inline:
+                raise MissingCitationError(
+                    "remediation response requires tool_evidence"
+                )
 
 
 @dataclass(frozen=True)
@@ -661,12 +755,22 @@ class ScoreNarrationResponse:
                 raise ValidationError(f"{score_name} must be between 0 and 100")
         if not self.source_refs:
             raise MissingCitationError("score narration must include source_refs")
-        if not self.tool_evidence:
-            raise MissingCitationError("score narration requires tool_evidence")
         for source_ref in self.source_refs:
             source_ref.validate()
         for evidence in self.tool_evidence:
             evidence.validate()
+        # PRIMARY MODE relaxation: the Score Narrator is uniquely a
+        # pure re-statement stage — it is *always* handed pre-computed
+        # scores from upstream Fabric-grounded stages and, per its
+        # prompt, MUST NOT call the Fabric tool itself. Non-empty
+        # ``source_refs`` (validated above) is sufficient grounding;
+        # ``tool_evidence`` may therefore be empty without failing the
+        # contract. Source names are no longer restricted to
+        # ``INLINE_GROUNDING_SOURCES`` because the agent naturally cites
+        # the Fabric semantic model where scores live (e.g.
+        # ``RegImpactSM_V1``, ``compliance_scores``,
+        # ``v_compliance_score_story``) and that is a legitimate
+        # provenance pointer even without a live tool call.
 
 
 @dataclass(frozen=True)

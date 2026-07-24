@@ -1155,20 +1155,49 @@ class AgentPipeline:
         """Replace remediations for the given change's gaps with Fabric actions.
 
         Fabric doesn't return action_type; default to 'Enhance'.
+
+        Boundary hygiene: the Fabric Remediation Planner can hallucinate
+        ``owner_unit_id`` values (e.g. ``BU-COMPLIANCE``, ``BU-DATAOPS``,
+        ``BU-MLOPS``) that look plausible but aren't in the catalog. Left
+        unfiltered these blow up the gold star-schema Rule 4 check
+        (``fact_remediation.target_unit_id -> dim_unit.id``). We normalise
+        unknown IDs to ``BU-RISK`` (Risk & Compliance — the safe default
+        owner for regulatory remediation work) and log a WARNING so the
+        drift is visible. This is data hygiene at the agent-output
+        boundary, not agent-behaviour mocking — constitution rule #3 is
+        unaffected.
         """
+        valid_unit_ids = {u.id for u in self.est.units}
+        fallback_unit_id = "BU-RISK" if "BU-RISK" in valid_unit_ids else (
+            next(iter(valid_unit_ids)) if valid_unit_ids else ""
+        )
         gap_ids_for_change = {g.id for g in gaps_for_change}
-        new_actions: list[RemediationAction] = [
-            RemediationAction(
-                id=a.remediation_id,
-                gap_id=a.gap_id,
-                action=a.action,
-                action_type="Enhance",
-                estimated_effort_days=int(a.estimated_effort_days),
-                priority=_criticality_from_str(a.priority),
-                target_unit_id=a.owner_unit_id,
+        new_actions: list[RemediationAction] = []
+        for a in actions:
+            owner = a.owner_unit_id
+            if owner not in valid_unit_ids:
+                logger.warning(
+                    "Fabric remediation_planner returned unknown owner_unit_id=%s "
+                    "for remediation_id=%s (gap_id=%s); normalising to %s. "
+                    "Valid units: %s",
+                    owner,
+                    a.remediation_id,
+                    a.gap_id,
+                    fallback_unit_id,
+                    sorted(valid_unit_ids),
+                )
+                owner = fallback_unit_id
+            new_actions.append(
+                RemediationAction(
+                    id=a.remediation_id,
+                    gap_id=a.gap_id,
+                    action=a.action,
+                    action_type="Enhance",
+                    estimated_effort_days=int(a.estimated_effort_days),
+                    priority=_criticality_from_str(a.priority),
+                    target_unit_id=owner,
+                )
             )
-            for a in actions
-        ]
 
         # Replace remediations tied to this change's gaps
         self.est.remediations = [

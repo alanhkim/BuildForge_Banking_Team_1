@@ -30,6 +30,9 @@ fabric = [
     "azure-identity>=1.16",
     "deltalake>=0.17",
 ]
+ui = [
+    "streamlit>=1.36",
+]
 
 [project.scripts]
 regimpact = "regimpact.cli:app"

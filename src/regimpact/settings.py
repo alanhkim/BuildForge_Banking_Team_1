@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
 
 try:
@@ -36,12 +35,30 @@ _MAX_OUTPUT_TOKENS_MAX = 32000
 # many obligations in a single call produces truncated JSON that the strict
 # parser must (correctly) refuse rather than fabricate. Splitting the
 # request into small batches keeps each response well under the ceiling and
-# is deterministic — no invented mappings. Default 6 obligations per batch
-# is safe for ``gpt-4o``/``gpt-4.1``-class deployments; reduce via
-# ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE`` for older / smaller models.
-_CONTROL_MAPPER_BATCH_SIZE_DEFAULT = 6
+# is deterministic — no invented mappings. Default 6 is safe for ``gpt-4o``/
+# ``gpt-4.1``-class deployments. **For gpt-5.4-mini (smaller output
+# ceiling) reduce to 3 or lower** via ``FOUNDRY_CONTROL_MAPPER_BATCH_SIZE``
+# (and the equivalent env vars for gap_analyst / remediation_planner).
+_CONTROL_MAPPER_BATCH_SIZE_DEFAULT = 2
 _CONTROL_MAPPER_BATCH_SIZE_MIN = 1
-_CONTROL_MAPPER_BATCH_SIZE_MAX = 50
+_CONTROL_MAPPER_BATCH_SIZE_MAX = 2
+
+# Gap Analyst request batching. Same output-token ceiling problem as
+# control_mapper — one finding per mapping means response size scales with
+# ``len(mappings)``. Chunk the mappings list and let the harness merge
+# findings client-side. See ``_split_gap_analysis_request`` in
+# ``agents/fabric_workflow.py`` for the split contract.
+_GAP_ANALYST_BATCH_SIZE_DEFAULT = 6
+_GAP_ANALYST_BATCH_SIZE_MIN = 1
+_GAP_ANALYST_BATCH_SIZE_MAX = 50
+
+# Remediation Planner request batching. Response size scales with
+# ``len(gap_ids)`` (one action per gap). Chunk the gap_ids list; per-batch
+# gap facts are filtered to match. See ``_split_remediation_request`` in
+# ``agents/fabric_workflow.py`` for the split contract.
+_REMEDIATION_PLANNER_BATCH_SIZE_DEFAULT = 6
+_REMEDIATION_PLANNER_BATCH_SIZE_MIN = 1
+_REMEDIATION_PLANNER_BATCH_SIZE_MAX = 50
 
 
 def _parse_timeout_seconds(raw: str | None) -> float:
@@ -91,18 +108,42 @@ def _parse_control_mapper_batch_size(raw: str | None) -> int:
     return value
 
 
+def _parse_gap_analyst_batch_size(raw: str | None) -> int:
+    """Parse ``FOUNDRY_GAP_ANALYST_BATCH_SIZE`` with clamping and safe fallback."""
+    if not raw:
+        return _GAP_ANALYST_BATCH_SIZE_DEFAULT
+    try:
+        value = int(float(raw))
+    except ValueError:
+        return _GAP_ANALYST_BATCH_SIZE_DEFAULT
+    if value < _GAP_ANALYST_BATCH_SIZE_MIN:
+        return _GAP_ANALYST_BATCH_SIZE_MIN
+    if value > _GAP_ANALYST_BATCH_SIZE_MAX:
+        return _GAP_ANALYST_BATCH_SIZE_MAX
+    return value
+
+
+def _parse_remediation_planner_batch_size(raw: str | None) -> int:
+    """Parse ``FOUNDRY_REMEDIATION_PLANNER_BATCH_SIZE`` with clamping and safe fallback."""
+    if not raw:
+        return _REMEDIATION_PLANNER_BATCH_SIZE_DEFAULT
+    try:
+        value = int(float(raw))
+    except ValueError:
+        return _REMEDIATION_PLANNER_BATCH_SIZE_DEFAULT
+    if value < _REMEDIATION_PLANNER_BATCH_SIZE_MIN:
+        return _REMEDIATION_PLANNER_BATCH_SIZE_MIN
+    if value > _REMEDIATION_PLANNER_BATCH_SIZE_MAX:
+        return _REMEDIATION_PLANNER_BATCH_SIZE_MAX
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     """Environment-driven settings — all values must be supplied via .env or the shell."""
 
     seed: int = int(os.getenv("REGIMPACT_SEED") or "42")
-    # ``as_of`` stamps the ``As_Of`` column on every exported row. It defaults
-    # to today's date so each workflow run is dated to when it actually ran.
-    # ``REGIMPACT_AS_OF`` (ISO date, e.g. ``2026-06-25``) pins the value for
-    # reproducible backfills, replays, and deterministic tests.
-    as_of: str = field(
-        default_factory=lambda: os.getenv("REGIMPACT_AS_OF") or date.today().isoformat()
-    )
+    as_of: str = os.getenv("REGIMPACT_AS_OF") or ""
     output_dir: Path = field(
         default_factory=lambda: Path(os.getenv("REGIMPACT_OUTPUT_DIR") or "output")
     )
@@ -112,8 +153,15 @@ class Settings:
     azure_openai_token_scope: str = os.getenv("AZURE_OPENAI_TOKEN_SCOPE") or ""
     fabric_workspace_id: str = os.getenv("FABRIC_WORKSPACE_ID") or ""
     fabric_lakehouse_id: str = os.getenv("FABRIC_LAKEHOUSE_ID") or ""
-    fabric_onelake_dfs_endpoint: str = os.getenv("FABRIC_ONELAKE_DFS_ENDPOINT") or ""
     fabric_data_agent_id: str = os.getenv("FABRIC_DATA_AGENT_ID") or ""
+    # OneLake DFS endpoint override. Fabric assigns each workspace to a
+    # regional capacity, and the global endpoint's routing layer may refuse
+    # to forward when the workspace lives on a regional host (e.g.
+    # ``northcentralus-onelake.dfs.fabric.microsoft.com``). Set this in
+    # ``.env`` to the workspace's ``oneLakeEndpoints.dfsEndpoint`` value.
+    # When blank, ``lakehouse.py::_resolve_onelake_endpoint`` falls back to
+    # the canonical ``https://onelake.dfs.fabric.microsoft.com``.
+    fabric_onelake_dfs_endpoint: str = os.getenv("FABRIC_ONELAKE_DFS_ENDPOINT") or ""
     purview_account: str = os.getenv("PURVIEW_ACCOUNT_NAME") or ""
     regimpact_foundry_enabled: bool = (
         os.getenv("REGIMPACT_FOUNDRY_ENABLED") or ""
@@ -148,6 +196,16 @@ class Settings:
     foundry_control_mapper_batch_size: int = field(
         default_factory=lambda: _parse_control_mapper_batch_size(
             os.getenv("FOUNDRY_CONTROL_MAPPER_BATCH_SIZE")
+        )
+    )
+    foundry_gap_analyst_batch_size: int = field(
+        default_factory=lambda: _parse_gap_analyst_batch_size(
+            os.getenv("FOUNDRY_GAP_ANALYST_BATCH_SIZE")
+        )
+    )
+    foundry_remediation_planner_batch_size: int = field(
+        default_factory=lambda: _parse_remediation_planner_batch_size(
+            os.getenv("FOUNDRY_REMEDIATION_PLANNER_BATCH_SIZE")
         )
     )
     # Opt-in: pass ``max_output_tokens`` to the Foundry Responses API even

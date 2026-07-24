@@ -7,6 +7,8 @@ from regimpact.agents.fabric_workflow import (
     FabricAgentHarness,
     FabricAgentHarnessError,
     _json_answer,
+    _split_gap_analysis_request,
+    _split_remediation_request,
     _validated,
 )
 from regimpact.agents.fabric_control_mapper import FabricControlMapperAgent
@@ -31,10 +33,13 @@ from regimpact.contracts import (
     ControlMappingResponse,
     FabricQuestionRequest,
     FabricQuestionResponse,
+    GapAnalysisFinding,
     GapAnalysisRequest,
     GapAnalysisResponse,
     LineageRequest,
+    RemediationPlanItem,
     RemediationRequest,
+    RemediationResponse,
     ScoreNarrationRequest,
     ScoreNarrationResponse,
     SourceReference,
@@ -804,18 +809,21 @@ def test_control_mapping_response_empty_without_reason_rejected(reason):
         response.validate()
 
 
-def test_control_mapping_response_empty_with_reason_but_no_evidence_rejected():
-    # Regression: tool_evidence stays required even when reason justifies
-    # an empty mappings list. Grounding is non-negotiable.
+def test_control_mapping_response_empty_with_reason_no_evidence_accepted():
+    # 2026-07-24 contract relaxation: ControlMapper runs in PRIMARY MODE
+    # over inline candidate_controls and does not call the Fabric tool, so
+    # ``tool_evidence`` may legitimately be empty. Grounding is delegated
+    # to per-mapping ``source_refs`` (and, on the empty-with-reason path,
+    # to the non-empty ``reason`` string). Mirrors the Gap Analyst /
+    # Remediation / Score Narrator inline-mode contract.
     response = ControlMappingResponse(
         mappings=[],
         tool_evidence=[],
         reason="Shortlist exhausted.",
     )
 
-    # validate() raises MissingCitationError (a subclass of ValidationError).
-    with pytest.raises(ValidationError, match="tool_evidence"):
-        response.validate()
+    # Should not raise.
+    response.validate()
 
 
 def test_control_mapping_response_nonempty_no_reason_still_valid():

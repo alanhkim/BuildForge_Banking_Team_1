@@ -1,23 +1,23 @@
 ID,Name,Domain,As_Of
-CAP-DG,Data Governance,Data,2026-07-21
-CAP-LIN,Data Lineage,Data,2026-07-21
-CAP-DQ,Data Quality,Data,2026-07-21
-CAP-MDM,Metadata & Catalog,Data,2026-07-21
-CAP-PII,PII Protection,Privacy,2026-07-21
-CAP-RET,Data Retention,Data,2026-07-21
-CAP-AC,Access Control,Security,2026-07-21
-CAP-AUD,Auditability & Evidence,Governance,2026-07-21
-CAP-REP,Regulatory Reporting,Finance,2026-07-21
-CAP-MRM,Model Risk Management,AI,2026-07-21
-CAP-AIG,AI Governance,AI,2026-07-21
-CAP-TDQ,Training Data Quality,AI,2026-07-21
-CAP-TRACE,Traceability & Explainability,AI,2026-07-21
-CAP-RES,Operational Resilience,Resilience,2026-07-21
-CAP-INC,Incident Management,Resilience,2026-07-21
-CAP-TPR,Third-Party / ICT Dependency,Resilience,2026-07-21
-CAP-CYBER,Cyber Security,Security,2026-07-21
-CAP-FC,Financial Crime Detection,FinCrime,2026-07-21
-CAP-SANCT,Sanctions Screening,FinCrime,2026-07-21
-CAP-AUTH,Strong Authentication,Security,2026-07-21
-CAP-CAPITAL,Capital & RWA,Prudential,2026-07-21
-CAP-COND,Conduct & Fair Value,Conduct,2026-07-21
+CAP-DG,Data Governance,Data,2026-07-24
+CAP-LIN,Data Lineage,Data,2026-07-24
+CAP-DQ,Data Quality,Data,2026-07-24
+CAP-MDM,Metadata & Catalog,Data,2026-07-24
+CAP-PII,PII Protection,Privacy,2026-07-24
+CAP-RET,Data Retention,Data,2026-07-24
+CAP-AC,Access Control,Security,2026-07-24
+CAP-AUD,Auditability & Evidence,Governance,2026-07-24
+CAP-REP,Regulatory Reporting,Finance,2026-07-24
+CAP-MRM,Model Risk Management,AI,2026-07-24
+CAP-AIG,AI Governance,AI,2026-07-24
+CAP-TDQ,Training Data Quality,AI,2026-07-24
+CAP-TRACE,Traceability & Explainability,AI,2026-07-24
+CAP-RES,Operational Resilience,Resilience,2026-07-24
+CAP-INC,Incident Management,Resilience,2026-07-24
+CAP-TPR,Third-Party / ICT Dependency,Resilience,2026-07-24
+CAP-CYBER,Cyber Security,Security,2026-07-24
+CAP-FC,Financial Crime Detection,FinCrime,2026-07-24
+CAP-SANCT,Sanctions Screening,FinCrime,2026-07-24
+CAP-AUTH,Strong Authentication,Security,2026-07-24
+CAP-CAPITAL,Capital & RWA,Prudential,2026-07-24
+CAP-COND,Conduct & Fair Value,Conduct,2026-07-24

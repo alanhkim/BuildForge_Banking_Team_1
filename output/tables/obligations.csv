@@ -1,48 +1,48 @@
 ID,Change_ID,Regulation_ID,Statement,Article,Theme,Criticality,Target_Maturity,As_Of
-OBL-EUAIACT-01,CHG-EUAIACT,REG-AIACT,"Ensure high-risk AI training, validation and testing data sets are relevant, representative and subject to data governance.",Art. 10,TRAINING_DATA,Critical,4,2026-07-21
-OBL-EUAIACT-02,CHG-EUAIACT,REG-AIACT,Maintain documented provenance and lineage of data used to train high-risk AI systems.,Art. 10,DATA_LINEAGE,High,4,2026-07-21
-OBL-EUAIACT-03,CHG-EUAIACT,REG-AIACT,Automatically record events over the lifetime of high-risk AI systems to ensure traceability.,Art. 12,TRACEABILITY,High,4,2026-07-21
-OBL-EUAIACT-04,CHG-EUAIACT,REG-AIACT,Provide effective human oversight of high-risk AI systems during their use.,Art. 14,AI_GOVERNANCE,Critical,4,2026-07-21
-OBL-EUAIACT-05,CHG-EUAIACT,REG-AIACT,"Ensure accuracy, robustness and cybersecurity of high-risk AI systems and monitor performance.",Art. 15,MODEL_RISK,High,4,2026-07-21
-OBL-NISTAIRMF-01,CHG-NISTAIRMF,REG-NIST,"Establish AI governance structures, policies and accountability for AI risk.",GOVERN,AI_GOVERNANCE,High,4,2026-07-21
-OBL-NISTAIRMF-02,CHG-NISTAIRMF,REG-NIST,"Measure AI system performance, robustness and trustworthiness over time.",MEASURE,MODEL_RISK,High,4,2026-07-21
-OBL-NISTAIRMF-03,CHG-NISTAIRMF,REG-NIST,Document and trace AI system decisions to support contestability and oversight.,MANAGE,TRACEABILITY,Medium,3,2026-07-21
-OBL-DORA-01,CHG-DORA,REG-DORA,Maintain a documented ICT risk management framework with mapped important business services and impact tolerances.,Art. 6,ICT_RESILIENCE,Critical,4,2026-07-21
-OBL-DORA-02,CHG-DORA,REG-DORA,"Detect, manage and classify ICT-related incidents and report major incidents to regulators within mandated timeframes.",Art. 17,INCIDENT_MGMT,Critical,4,2026-07-21
-OBL-DORA-03,CHG-DORA,REG-DORA,Perform advanced digital operational resilience testing including threat-led penetration testing.,Art. 24,ICT_SECURITY,High,4,2026-07-21
-OBL-DORA-04,CHG-DORA,REG-DORA,Maintain a register of ICT third-party providers and document exit strategies for critical providers.,Art. 28,THIRD_PARTY_RISK,High,3,2026-07-21
-OBL-BASEL-01,CHG-BASEL,REG-BASEL,Calculate risk-weighted assets under the revised approaches and maintain required capital ratios.,CRR Art. 92,CAPITAL_ADEQUACY,Critical,4,2026-07-21
-OBL-BASEL-02,CHG-BASEL,REG-BASEL,Ensure data feeding capital calculations meets defined data quality thresholds.,CRR Art. 174,DATA_QUALITY,High,3,2026-07-21
-OBL-BASEL-03,CHG-BASEL,REG-BASEL,Produce accurate prudential reporting with auditable sign-off.,CRR Art. 430,REG_REPORTING,High,3,2026-07-21
-OBL-BCBS239-01,CHG-BCBS239,REG-BCBS239,"Govern critical data elements with accuracy, completeness and timeliness controls.",Principle 3,DATA_QUALITY,High,4,2026-07-21
-OBL-BCBS239-02,CHG-BCBS239,REG-BCBS239,Aggregate risk data accurately across the group with full traceability and reconciliation.,Principle 2,DATA_LINEAGE,High,4,2026-07-21
-OBL-BCBS239-03,CHG-BCBS239,REG-BCBS239,Maintain an enterprise catalog and glossary of critical risk data elements.,Principle 1,METADATA,Medium,3,2026-07-21
-OBL-GDPR-01,CHG-GDPR,REG-GDPR,Maintain lawful basis and consent records for all processing of personal data.,Art. 6,PRIVACY,High,4,2026-07-21
-OBL-GDPR-02,CHG-GDPR,REG-GDPR,Fulfil data subject access and erasure requests within statutory timeframes.,Art. 15,PRIVACY,High,3,2026-07-21
-OBL-GDPR-03,CHG-GDPR,REG-GDPR,Detect and notify personal data breaches to authorities within 72 hours.,Art. 33,PRIVACY,Critical,4,2026-07-21
-OBL-GDPR-04,CHG-GDPR,REG-GDPR,Retain personal data no longer than necessary and enforce retention schedules.,Art. 5,RETENTION,Medium,3,2026-07-21
-OBL-PSD2-01,CHG-PSD2,REG-PSD2,Apply strong customer authentication to electronic payment transactions.,Art. 97,SCA,Critical,4,2026-07-21
-OBL-PSD2-02,CHG-PSD2,REG-PSD2,Support transaction risk analysis exemptions with monitored fraud thresholds.,RTS Art. 18,SCA,High,3,2026-07-21
-OBL-PSD2-03,CHG-PSD2,REG-PSD2,Monitor payment fraud rates and report against regulatory reference fraud rates.,Art. 96,TXN_MONITORING,High,3,2026-07-21
-OBL-CONSDUTY-01,CHG-CONSDUTY,REG-CONSDUTY,Assess and evidence fair value across the product lifecycle for retail customers.,PRIN 2A.4,CONDUCT,High,4,2026-07-21
-OBL-CONSDUTY-02,CHG-CONSDUTY,REG-CONSDUTY,Monitor customer outcomes and act on evidence of foreseeable harm.,PRIN 2A.9,CONDUCT,High,3,2026-07-21
-OBL-FCAOPRES-01,CHG-FCAOPRES,REG-FCAOPRES,Identify important business services and set impact tolerances for severe disruption.,SYSC 15A,ICT_RESILIENCE,High,4,2026-07-21
-OBL-FCAOPRES-02,CHG-FCAOPRES,REG-FCAOPRES,Test the ability to remain within impact tolerances and remediate vulnerabilities.,SYSC 15A,INCIDENT_MGMT,High,3,2026-07-21
-OBL-SEC-01,CHG-SEC,REG-SEC,Disclose material cybersecurity incidents promptly after determining materiality.,Item 1.05,INCIDENT_MGMT,Critical,4,2026-07-21
-OBL-SEC-02,CHG-SEC,REG-SEC,"Describe processes for assessing, identifying and managing material cybersecurity risks.",Reg S-K 106,CYBER,High,3,2026-07-21
-OBL-SEC-03,CHG-SEC,REG-SEC,Maintain board oversight evidence of cybersecurity risk governance.,Reg S-K 106,AUDITABILITY,Medium,3,2026-07-21
-OBL-OCC-01,CHG-OCC,REG-OCC,Maintain an effective model risk management framework with independent validation.,12 CFR 30 App D,MODEL_RISK,High,4,2026-07-21
-OBL-OCC-02,CHG-OCC,REG-OCC,Provide independent audit assurance over the risk governance framework.,12 CFR 30 App D,AUDITABILITY,High,3,2026-07-21
-OBL-OCC-03,CHG-OCC,REG-OCC,Ensure risk data supporting the framework is accurate and complete.,12 CFR 30 App D,DATA_QUALITY,Medium,3,2026-07-21
-OBL-MASTRM-01,CHG-MASTRM,REG-MAS,Implement robust cyber security controls and continuous security monitoring.,TRM 9,CYBER,High,4,2026-07-21
-OBL-MASTRM-02,CHG-MASTRM,REG-MAS,"Ensure system resilience, availability and recoverability of critical systems.",TRM 8,ICT_RESILIENCE,High,4,2026-07-21
-OBL-MASTRM-03,CHG-MASTRM,REG-MAS,Enforce strong access controls and privileged access management.,TRM 11,ACCESS_CONTROL,High,3,2026-07-21
-OBL-AMLD-01,CHG-AMLD,REG-AMLD,Apply risk-based customer due diligence including verified beneficial ownership.,Art. 13,KYC_CDD,Critical,4,2026-07-21
-OBL-AMLD-02,CHG-AMLD,REG-AMLD,Monitor transactions for suspicious patterns using risk-tuned detection scenarios.,Art. 18,TXN_MONITORING,Critical,4,2026-07-21
-OBL-AMLD-03,CHG-AMLD,REG-AMLD,Screen customers and payments against current sanctions and watchlists in real time.,Art. 9,SANCTIONS,Critical,4,2026-07-21
-OBL-AMLD-04,CHG-AMLD,REG-AMLD,Investigate alerts and file suspicious activity reports within regulatory deadlines.,Art. 33,SAR_REPORTING,High,3,2026-07-21
-OBL-CHG-EUAIACT-UPLOAD-01,CHG-EUAIACT-UPLOAD,REG-EUAIACT,"Establish data governance controls for training, validation, and testing data used in high-risk AI systems so datasets are relevant, representative, accurate, and complete.",Source text paragraph 1,DATA_QUALITY,High,4,2026-07-21
-OBL-CHG-EUAIACT-UPLOAD-02,CHG-EUAIACT-UPLOAD,REG-EUAIACT,"Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",Source text paragraph 2,DATA_LINEAGE,High,4,2026-07-21
-OBL-CHG-EUAIACT-UPLOAD-03,CHG-EUAIACT-UPLOAD,REG-EUAIACT,"Automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",Source text paragraph 3,LOGGING_MONITORING,High,4,2026-07-21
-OBL-CHG-EUAIACT-UPLOAD-04,CHG-EUAIACT-UPLOAD,REG-EUAIACT,"Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",Source text paragraph 4,AI_GOVERNANCE,High,3,2026-07-21
-OBL-CHG-EUAIACT-UPLOAD-05,CHG-EUAIACT-UPLOAD,REG-EUAIACT,"Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.",Source text paragraph 5,MODEL_RISK,High,4,2026-07-21
+OBL-EUAIACT-01,CHG-EUAIACT,REG-AIACT,"Ensure high-risk AI training, validation and testing data sets are relevant, representative and subject to data governance.",Art. 10,TRAINING_DATA,Critical,4,2026-07-24
+OBL-EUAIACT-02,CHG-EUAIACT,REG-AIACT,Maintain documented provenance and lineage of data used to train high-risk AI systems.,Art. 10,DATA_LINEAGE,High,4,2026-07-24
+OBL-EUAIACT-03,CHG-EUAIACT,REG-AIACT,Automatically record events over the lifetime of high-risk AI systems to ensure traceability.,Art. 12,TRACEABILITY,High,4,2026-07-24
+OBL-EUAIACT-04,CHG-EUAIACT,REG-AIACT,Provide effective human oversight of high-risk AI systems during their use.,Art. 14,AI_GOVERNANCE,Critical,4,2026-07-24
+OBL-EUAIACT-05,CHG-EUAIACT,REG-AIACT,"Ensure accuracy, robustness and cybersecurity of high-risk AI systems and monitor performance.",Art. 15,MODEL_RISK,High,4,2026-07-24
+OBL-NISTAIRMF-01,CHG-NISTAIRMF,REG-NIST,"Establish AI governance structures, policies and accountability for AI risk.",GOVERN,AI_GOVERNANCE,High,4,2026-07-24
+OBL-NISTAIRMF-02,CHG-NISTAIRMF,REG-NIST,"Measure AI system performance, robustness and trustworthiness over time.",MEASURE,MODEL_RISK,High,4,2026-07-24
+OBL-NISTAIRMF-03,CHG-NISTAIRMF,REG-NIST,Document and trace AI system decisions to support contestability and oversight.,MANAGE,TRACEABILITY,Medium,3,2026-07-24
+OBL-DORA-01,CHG-DORA,REG-DORA,Maintain a documented ICT risk management framework with mapped important business services and impact tolerances.,Art. 6,ICT_RESILIENCE,Critical,4,2026-07-24
+OBL-DORA-02,CHG-DORA,REG-DORA,"Detect, manage and classify ICT-related incidents and report major incidents to regulators within mandated timeframes.",Art. 17,INCIDENT_MGMT,Critical,4,2026-07-24
+OBL-DORA-03,CHG-DORA,REG-DORA,Perform advanced digital operational resilience testing including threat-led penetration testing.,Art. 24,ICT_SECURITY,High,4,2026-07-24
+OBL-DORA-04,CHG-DORA,REG-DORA,Maintain a register of ICT third-party providers and document exit strategies for critical providers.,Art. 28,THIRD_PARTY_RISK,High,3,2026-07-24
+OBL-BASEL-01,CHG-BASEL,REG-BASEL,Calculate risk-weighted assets under the revised approaches and maintain required capital ratios.,CRR Art. 92,CAPITAL_ADEQUACY,Critical,4,2026-07-24
+OBL-BASEL-02,CHG-BASEL,REG-BASEL,Ensure data feeding capital calculations meets defined data quality thresholds.,CRR Art. 174,DATA_QUALITY,High,3,2026-07-24
+OBL-BASEL-03,CHG-BASEL,REG-BASEL,Produce accurate prudential reporting with auditable sign-off.,CRR Art. 430,REG_REPORTING,High,3,2026-07-24
+OBL-BCBS239-01,CHG-BCBS239,REG-BCBS239,"Govern critical data elements with accuracy, completeness and timeliness controls.",Principle 3,DATA_QUALITY,High,4,2026-07-24
+OBL-BCBS239-02,CHG-BCBS239,REG-BCBS239,Aggregate risk data accurately across the group with full traceability and reconciliation.,Principle 2,DATA_LINEAGE,High,4,2026-07-24
+OBL-BCBS239-03,CHG-BCBS239,REG-BCBS239,Maintain an enterprise catalog and glossary of critical risk data elements.,Principle 1,METADATA,Medium,3,2026-07-24
+OBL-GDPR-01,CHG-GDPR,REG-GDPR,Maintain lawful basis and consent records for all processing of personal data.,Art. 6,PRIVACY,High,4,2026-07-24
+OBL-GDPR-02,CHG-GDPR,REG-GDPR,Fulfil data subject access and erasure requests within statutory timeframes.,Art. 15,PRIVACY,High,3,2026-07-24
+OBL-GDPR-03,CHG-GDPR,REG-GDPR,Detect and notify personal data breaches to authorities within 72 hours.,Art. 33,PRIVACY,Critical,4,2026-07-24
+OBL-GDPR-04,CHG-GDPR,REG-GDPR,Retain personal data no longer than necessary and enforce retention schedules.,Art. 5,RETENTION,Medium,3,2026-07-24
+OBL-PSD2-01,CHG-PSD2,REG-PSD2,Apply strong customer authentication to electronic payment transactions.,Art. 97,SCA,Critical,4,2026-07-24
+OBL-PSD2-02,CHG-PSD2,REG-PSD2,Support transaction risk analysis exemptions with monitored fraud thresholds.,RTS Art. 18,SCA,High,3,2026-07-24
+OBL-PSD2-03,CHG-PSD2,REG-PSD2,Monitor payment fraud rates and report against regulatory reference fraud rates.,Art. 96,TXN_MONITORING,High,3,2026-07-24
+OBL-CONSDUTY-01,CHG-CONSDUTY,REG-CONSDUTY,Assess and evidence fair value across the product lifecycle for retail customers.,PRIN 2A.4,CONDUCT,High,4,2026-07-24
+OBL-CONSDUTY-02,CHG-CONSDUTY,REG-CONSDUTY,Monitor customer outcomes and act on evidence of foreseeable harm.,PRIN 2A.9,CONDUCT,High,3,2026-07-24
+OBL-FCAOPRES-01,CHG-FCAOPRES,REG-FCAOPRES,Identify important business services and set impact tolerances for severe disruption.,SYSC 15A,ICT_RESILIENCE,High,4,2026-07-24
+OBL-FCAOPRES-02,CHG-FCAOPRES,REG-FCAOPRES,Test the ability to remain within impact tolerances and remediate vulnerabilities.,SYSC 15A,INCIDENT_MGMT,High,3,2026-07-24
+OBL-SEC-01,CHG-SEC,REG-SEC,Disclose material cybersecurity incidents promptly after determining materiality.,Item 1.05,INCIDENT_MGMT,Critical,4,2026-07-24
+OBL-SEC-02,CHG-SEC,REG-SEC,"Describe processes for assessing, identifying and managing material cybersecurity risks.",Reg S-K 106,CYBER,High,3,2026-07-24
+OBL-SEC-03,CHG-SEC,REG-SEC,Maintain board oversight evidence of cybersecurity risk governance.,Reg S-K 106,AUDITABILITY,Medium,3,2026-07-24
+OBL-OCC-01,CHG-OCC,REG-OCC,Maintain an effective model risk management framework with independent validation.,12 CFR 30 App D,MODEL_RISK,High,4,2026-07-24
+OBL-OCC-02,CHG-OCC,REG-OCC,Provide independent audit assurance over the risk governance framework.,12 CFR 30 App D,AUDITABILITY,High,3,2026-07-24
+OBL-OCC-03,CHG-OCC,REG-OCC,Ensure risk data supporting the framework is accurate and complete.,12 CFR 30 App D,DATA_QUALITY,Medium,3,2026-07-24
+OBL-MASTRM-01,CHG-MASTRM,REG-MAS,Implement robust cyber security controls and continuous security monitoring.,TRM 9,CYBER,High,4,2026-07-24
+OBL-MASTRM-02,CHG-MASTRM,REG-MAS,"Ensure system resilience, availability and recoverability of critical systems.",TRM 8,ICT_RESILIENCE,High,4,2026-07-24
+OBL-MASTRM-03,CHG-MASTRM,REG-MAS,Enforce strong access controls and privileged access management.,TRM 11,ACCESS_CONTROL,High,3,2026-07-24
+OBL-AMLD-01,CHG-AMLD,REG-AMLD,Apply risk-based customer due diligence including verified beneficial ownership.,Art. 13,KYC_CDD,Critical,4,2026-07-24
+OBL-AMLD-02,CHG-AMLD,REG-AMLD,Monitor transactions for suspicious patterns using risk-tuned detection scenarios.,Art. 18,TXN_MONITORING,Critical,4,2026-07-24
+OBL-AMLD-03,CHG-AMLD,REG-AMLD,Screen customers and payments against current sanctions and watchlists in real time.,Art. 9,SANCTIONS,Critical,4,2026-07-24
+OBL-AMLD-04,CHG-AMLD,REG-AMLD,Investigate alerts and file suspicious activity reports within regulatory deadlines.,Art. 33,SAR_REPORTING,High,3,2026-07-24
+OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01,CHG-EU-AI-ACT-HIGH-RISK-UPLOAD,REG-EU-AI-ACT-HIGH-RISK,"Establish data governance controls for training, validation, and testing data used by high-risk AI systems so datasets are relevant, representative, accurate, and complete.",EU AI Act high-risk banking model update: paragraph 2,DATA_QUALITY,High,4,2026-07-24
+OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02,CHG-EU-AI-ACT-HIGH-RISK-UPLOAD,REG-EU-AI-ACT-HIGH-RISK,"Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",EU AI Act high-risk banking model update: paragraph 3,DATA_LINEAGE,High,4,2026-07-24
+OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03,CHG-EU-AI-ACT-HIGH-RISK-UPLOAD,REG-EU-AI-ACT-HIGH-RISK,"Ensure high-risk AI systems automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",EU AI Act high-risk banking model update: paragraph 4,LOGGING_MONITORING,High,4,2026-07-24
+OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04,CHG-EU-AI-ACT-HIGH-RISK-UPLOAD,REG-EU-AI-ACT-HIGH-RISK,"Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",EU AI Act high-risk banking model update: paragraph 5,AI_GOVERNANCE,High,3,2026-07-24
+OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05,CHG-EU-AI-ACT-HIGH-RISK-UPLOAD,REG-EU-AI-ACT-HIGH-RISK,"Ensure robustness, accuracy, cybersecurity, and ongoing performance monitoring of high-risk AI systems through validation, backtesting, drift detection, and documented remediation when performance falls below approved thresholds.",EU AI Act high-risk banking model update: paragraph 6,MODEL_RISK,Critical,4,2026-07-24

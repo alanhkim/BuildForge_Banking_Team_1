@@ -157,16 +157,16 @@
       "Description": "Customer due diligence, ongoing monitoring, sanctions and suspicious activity reporting obligations."
     },
     {
-      "id": "REG-EUAIACT",
+      "id": "REG-EU-AI-ACT-HIGH-RISK",
       "node_type": "Regulation",
-      "label": "EU AI Act",
-      "ID": "REG-EUAIACT",
-      "Name": "EU AI Act",
-      "Short_Code": "EUAIACT",
+      "label": "Eu Ai Act High Risk",
+      "ID": "REG-EU-AI-ACT-HIGH-RISK",
+      "Name": "Eu Ai Act High Risk",
+      "Short_Code": "EU-AI-ACT-HIGH-RISK",
       "Regulator": "(uploaded)",
       "Jurisdiction": "(uploaded)",
       "Domain": "Regulatory Change",
-      "Description": "Injected via Regulation Interpreter agent: EU AI Act."
+      "Description": "Injected via Regulation Interpreter agent: Eu Ai Act High Risk."
     },
     {
       "id": "CHG-EUAIACT",
@@ -351,13 +351,13 @@
       "Criticality": "Critical"
     },
     {
-      "id": "CHG-EUAIACT-UPLOAD",
+      "id": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
       "node_type": "RegulatoryChange",
-      "label": "High-Risk AI Systems - EU AI Act Requirements",
-      "ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Title": "High-Risk AI Systems - EU AI Act Requirements",
-      "Reference": "EU AI Act (uploaded)",
+      "label": "Uploaded: eu_ai_act_high_risk.txt",
+      "ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
+      "Title": "Uploaded: eu_ai_act_high_risk.txt",
+      "Reference": "Eu Ai Act High Risk (uploaded)",
       "Summary": "Interpreted from uploaded text: 5 obligations.",
       "Change_Type": "New",
       "Published_Date": "2026-06-25",
@@ -911,68 +911,68 @@
       "Target_Maturity": 3
     },
     {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-01",
+      "id": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
       "node_type": "Obligation",
       "label": "Establish data governance controls for training, validation, and testing data us",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-01",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Establish data governance controls for training, validation, and testing data used in high-risk AI systems so datasets are relevant, representative, accurate, and complete.",
-      "Article": "Source text paragraph 1",
+      "ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
+      "Statement": "Establish data governance controls for training, validation, and testing data used by high-risk AI systems so datasets are relevant, representative, accurate, and complete.",
+      "Article": "EU AI Act high-risk banking model update: paragraph 2",
       "Theme": "DATA_QUALITY",
       "Criticality": "High",
       "Target_Maturity": 4
     },
     {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-02",
+      "id": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
       "node_type": "Obligation",
       "label": "Maintain documented lineage and provenance for data used to train high-risk AI s",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-02",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
+      "ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
       "Statement": "Maintain documented lineage and provenance for data used to train high-risk AI systems, including source systems, transformation history, quality checks, approvals, and retained evidence for regulatory review.",
-      "Article": "Source text paragraph 2",
+      "Article": "EU AI Act high-risk banking model update: paragraph 3",
       "Theme": "DATA_LINEAGE",
       "Criticality": "High",
       "Target_Maturity": 4
     },
     {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-03",
+      "id": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
       "node_type": "Obligation",
-      "label": "Automatically record events and logs throughout the model lifecycle so decisions",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-03",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",
-      "Article": "Source text paragraph 3",
+      "label": "Ensure high-risk AI systems automatically record events and logs throughout the ",
+      "ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
+      "Statement": "Ensure high-risk AI systems automatically record events and logs throughout the model lifecycle so decisions, model outputs, human interventions, and system changes remain traceable for audit and supervisory investigation.",
+      "Article": "EU AI Act high-risk banking model update: paragraph 4",
       "Theme": "LOGGING_MONITORING",
       "Criticality": "High",
       "Target_Maturity": 4
     },
     {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-04",
+      "id": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
       "node_type": "Obligation",
       "label": "Provide effective human oversight for high-risk AI decisions, including clear es",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
+      "ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
       "Statement": "Provide effective human oversight for high-risk AI decisions, including clear escalation paths, authority to override automated outcomes, and evidence that reviewers understand model limitations.",
-      "Article": "Source text paragraph 4",
+      "Article": "EU AI Act high-risk banking model update: paragraph 5",
       "Theme": "AI_GOVERNANCE",
       "Criticality": "High",
       "Target_Maturity": 3
     },
     {
-      "id": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "id": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
       "node_type": "Obligation",
-      "label": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monito",
-      "ID": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "Change_ID": "CHG-EUAIACT-UPLOAD",
-      "Regulation_ID": "REG-EUAIACT",
-      "Statement": "Ensure model robustness, accuracy, cybersecurity, and ongoing performance monitoring through validation, backtesting, drift detection, and documented remediation when model performance falls below approved thresholds.",
-      "Article": "Source text paragraph 5",
+      "label": "Ensure robustness, accuracy, cybersecurity, and ongoing performance monitoring o",
+      "ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Regulation_ID": "REG-EU-AI-ACT-HIGH-RISK",
+      "Statement": "Ensure robustness, accuracy, cybersecurity, and ongoing performance monitoring of high-risk AI systems through validation, backtesting, drift detection, and documented remediation when performance falls below approved thresholds.",
+      "Article": "EU AI Act high-risk banking model update: paragraph 6",
       "Theme": "MODEL_RISK",
-      "Criticality": "High",
+      "Criticality": "Critical",
       "Target_Maturity": 4
     },
     {
@@ -3454,6 +3454,198 @@
       "Name": "Model / AI Risk",
       "Category": "Compliance",
       "Inherent_Rating": "High"
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-DQ-1",
+      "Severity": "Critical",
+      "Maturity_Shortfall": 3,
+      "Rationale": "Data quality monitoring is immature for accurate, complete high-risk AI datasets."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-DQ-2",
+      "Severity": "High",
+      "Maturity_Shortfall": 2,
+      "Rationale": "Critical data element catalog is below target for representative, complete AI datasets."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-LIN-1",
+      "Severity": "High",
+      "Maturity_Shortfall": 2,
+      "Rationale": "Data lineage is only partially implemented and falls short for high-risk AI provenance evidence."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-LIN-2",
+      "Severity": "Critical",
+      "Maturity_Shortfall": 3,
+      "Rationale": "Aggregation controls are immature for documented lineage, quality checks, approvals, and evidence."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-TR-1",
+      "Severity": "Critical",
+      "Maturity_Shortfall": 4,
+      "Rationale": "Planned traceability logging leaves high-risk AI lifecycle events and interventions insufficiently traceable."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-TR-2",
+      "Severity": "High",
+      "Maturity_Shortfall": 2,
+      "Rationale": "Explainability reporting is too immature to support human oversight and model limitation awareness."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-MR-2",
+      "Severity": "Medium",
+      "Maturity_Shortfall": 1,
+      "Rationale": "Validation and backtesting need stronger maturity to evidence ongoing performance and remediation."
+    },
+    {
+      "id": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "node_type": "Gap",
+      "label": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "Obligation_ID": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "Change_ID": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "Control_ID": "CTL-MR-3",
+      "Severity": "Critical",
+      "Maturity_Shortfall": 3,
+      "Rationale": "Performance monitoring is only partially implemented for critical high-risk AI model risk duties."
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "Action": "Implement automated data quality monitoring for high-risk AI datasets with completeness, accuracy, and exception thresholds.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 30,
+      "Priority": "Critical",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "Action": "Document and complete a critical data element catalog for representative, complete high-risk AI datasets.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 20,
+      "Priority": "High",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "Action": "Implement end-to-end data lineage capture and retention for high-risk AI provenance evidence.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 20,
+      "Priority": "High",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "Action": "Automate lineage aggregation controls with quality checks, approval workflow, and auditable evidence collection.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 30,
+      "Priority": "Critical",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "Action": "Implement end-to-end lifecycle and intervention logging with immutable audit trails for high-risk AI operations.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 20,
+      "Priority": "Critical",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "Action": "Document and deploy explainability reports that surface model limits, key factors, and human oversight guidance.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 15,
+      "Priority": "High",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "Action": "Implement periodic validation and backtesting with remediation tracking for high-risk AI performance evidence.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 20,
+      "Priority": "Medium",
+      "Target_Unit_ID": "BU-RISK"
+    },
+    {
+      "id": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "node_type": "RemediationAction",
+      "label": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "ID": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "Gap_ID": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "Action": "Deploy continuous performance monitoring with alerting and escalation for critical high-risk AI model risk controls.",
+      "Action_Type": "Enhance",
+      "Estimated_Effort_Days": 35,
+      "Priority": "Critical",
+      "Target_Unit_ID": "BU-RISK"
     }
   ],
   "edges": [
@@ -3733,33 +3925,33 @@
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "REG-EUAIACT",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "REG-EU-AI-ACT-HIGH-RISK",
       "rel_type": "CHANGE_OF_REGULATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-01",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-02",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-03",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-04",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
-      "source": "CHG-EUAIACT-UPLOAD",
-      "target": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "source": "CHG-EU-AI-ACT-HIGH-RISK-UPLOAD",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
       "rel_type": "INTRODUCES_OBLIGATION"
     },
     {
@@ -4633,48 +4825,63 @@
       "rel_type": "OBLIGATION_CONCERNS_DATA_DOMAIN"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-01",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
       "target": "CTL-DQ-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-02",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "target": "CTL-DQ-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
       "target": "CTL-LIN-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-03",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "target": "CTL-LIN-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
       "target": "CTL-TR-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-03",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
       "target": "CTL-AU-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-04",
-      "target": "CTL-AI-2",
-      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
-    },
-    {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-04",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
       "target": "CTL-AU-2",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
+      "target": "CTL-AI-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
+      "target": "CTL-TR-2",
+      "rel_type": "OBLIGATION_REQUIRES_CONTROL"
+    },
+    {
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
       "target": "CTL-MR-2",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
       "target": "CTL-MR-3",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
-      "source": "OBL-CHG-EUAIACT-UPLOAD-05",
-      "target": "CTL-MR-1",
+      "source": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "target": "CTL-AI-1",
       "rel_type": "OBLIGATION_REQUIRES_CONTROL"
     },
     {
@@ -7811,6 +8018,126 @@
       "source": "PRD-INVEST",
       "target": "BU-WEALTH",
       "rel_type": "PRODUCT_OWNED_BY_UNIT"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "target": "CTL-DQ-1",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "target": "CTL-DQ-2",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "target": "CTL-LIN-1",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "target": "CTL-LIN-2",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "target": "CTL-TR-1",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "target": "CTL-TR-2",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "target": "CTL-MR-2",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "target": "OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05",
+      "rel_type": "GAP_FOR_OBLIGATION"
+    },
+    {
+      "source": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "target": "CTL-MR-3",
+      "rel_type": "GAP_AGAINST_CONTROL"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-1",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-01-CTL-DQ-2",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-1",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-02-CTL-LIN-2",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-03-CTL-TR-1",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-04-CTL-TR-2",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-2",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
+    },
+    {
+      "source": "REM-GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "target": "GAP-OBL-CHG-EU-AI-ACT-HIGH-RISK-UPLOAD-05-CTL-MR-3",
+      "rel_type": "REMEDIATION_RESOLVES_GAP"
     }
   ]
 }

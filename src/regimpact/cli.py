@@ -14,7 +14,6 @@ Usage (from project root, after `pip install -r requirements.txt`):
 from __future__ import annotations
 
 import sys
-import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,6 +26,7 @@ from rich.table import Table
 
 from .agents import AgentPipeline
 from .agents.events import PipelineEvent
+from .agents.exports import run_post_pipeline_exports
 from .agents.foundry_client import (
     FabricDataAgentClient,
     FabricDataAgentError,
@@ -37,12 +37,6 @@ from .export import export_graph, export_report, export_tables
 from .generator import generate_estate
 from .gold import export_gold
 from .impact import ImpactEngine
-from .lakehouse import (
-    LakehouseNotConfiguredError,
-    LakehouseWriteError,
-    export_regimpact_lakehouse,
-    export_regimpact_tables,
-)
 from .purview import export_purview
 from .scoring import score_change as score_change_fn
 from .settings import settings
@@ -134,6 +128,7 @@ _STREAM_STAGES: tuple[tuple[str, str], ...] = (
     ("gap_analyst",         "Gap Analyst"),
     ("remediation_planner", "Remediation Planner"),
     ("score_narrator",      "Score Narrator"),
+    ("local_exports",       "Local exports (tables/gold/graph)"),
     ("onelake_files",       "OneLake Files/"),
     ("onelake_tables",      "OneLake Tables/"),
     ("purview",             "Purview export"),
@@ -264,62 +259,6 @@ def _streaming_renderer(verbose: bool):
         yield _callback
 
 
-def _emit_cli_stage(callback, stage: str, message: str) -> "float":
-    """Emit stage_start for a CLI-level stage and return the start time."""
-    if callback is None:
-        return 0.0
-    callback(PipelineEvent(kind="stage_start", stage=stage, message=message))
-    return time.perf_counter()
-
-
-def _emit_cli_stage_end(
-    callback,
-    stage: str,
-    started: float,
-    *,
-    details: dict | None = None,
-) -> None:
-    if callback is None:
-        return
-    callback(
-        PipelineEvent(
-            kind="stage_end",
-            stage=stage,
-            duration_ms=int((time.perf_counter() - started) * 1000),
-            details=details or {},
-        )
-    )
-
-
-def _emit_cli_stage_skipped(callback, stage: str, reason: str) -> None:
-    if callback is None:
-        return
-    callback(PipelineEvent(kind="stage_start", stage=stage, message="Skipped"))
-    callback(
-        PipelineEvent(
-            kind="stage_end",
-            stage=stage,
-            duration_ms=0,
-            details={"skipped": True, "reason": reason},
-        )
-    )
-
-
-def _emit_cli_stage_error(
-    callback, stage: str, started: float, message: str
-) -> None:
-    if callback is None:
-        return
-    callback(
-        PipelineEvent(
-            kind="stage_error",
-            stage=stage,
-            message=message,
-            duration_ms=int((time.perf_counter() - started) * 1000),
-        )
-    )
-
-
 @app.command()
 def interpret(
     file: Path = typer.Option(..., help="Path to a regulation text file"),
@@ -406,112 +345,21 @@ def _run_interpret(
             console.print(f"[red]Fabric pipeline failed:[/] {exc}")
         raise typer.Exit(code=1) from exc
 
-    export_tables(est, settings.tables_dir)
-    export_gold(est, settings.gold_dir)
-    export_graph(est, settings.graph_dir)
-
-    # Push Parquet tables to the configured Fabric lakehouse (best-effort).
-    # Uploads raw entity tables to Files/regimpact_raw/ and the gold star
-    # schema to Files/regimpact_gold/, matching the layout the PySpark
-    # loader notebook (src/regimpact/01_load_lakehouse.ipynb) reads.
-    # Delta table + view materialization is owned by that notebook inside
-    # Fabric; Python's responsibility ends at Parquet-in-Files/.
-    _t = _emit_cli_stage(on_event, "onelake_files", "Uploading Parquet to Files/")
-    try:
-        uploaded = export_regimpact_lakehouse(
-            settings.tables_dir,
-            settings.gold_dir,
-            workspace_id=settings.fabric_workspace_id,
-            lakehouse_id=settings.fabric_lakehouse_id,
-            onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
-        )
-        _emit_cli_stage_end(
-            on_event,
-            "onelake_files",
-            _t,
-            details={
-                "raw": len(uploaded["raw"]),
-                "gold": len(uploaded["gold"]),
-                "message": f"{len(uploaded['raw'])} raw + "
-                f"{len(uploaded['gold'])} gold file(s)",
-            },
-        )
-        if not silent:
-            console.print(
-                f"[green]Uploaded to OneLake:[/] "
-                f"[cyan]{len(uploaded['raw'])}[/] raw + "
-                f"[cyan]{len(uploaded['gold'])}[/] gold file(s) into "
-                f"[cyan]{settings.fabric_lakehouse_id}/Files/"
-                f"{{regimpact_raw,regimpact_gold}}[/]"
-            )
-    except LakehouseNotConfiguredError:
-        _emit_cli_stage_skipped(on_event, "onelake_files", "FABRIC_* not configured")
-        if not silent:
-            console.print(
-                "[yellow]OneLake upload skipped:[/] "
-                "set FABRIC_WORKSPACE_ID and FABRIC_LAKEHOUSE_ID to enable."
-            )
-    except LakehouseWriteError as exc:
-        _emit_cli_stage_error(on_event, "onelake_files", _t, str(exc))
-        if not silent:
-            console.print(f"[red]OneLake upload failed:[/] {exc}")
-        # Do NOT raise — local export succeeded, this is best-effort writeback.
-
-    # Materialise Parquet files as Delta tables directly in the lakehouse
-    # ``Tables/`` area via delta-rs. Append mode — rows accumulate across
-    # ``interpret`` runs. Views (v_impact / v_compliance /
-    # v_capability_health) still live in the notebook because they need
-    # SQL, but the tables they read from now materialise without any
-    # notebook click.
-    _t = _emit_cli_stage(on_event, "onelake_tables", "Appending Delta tables")
-    try:
-        delta_uploaded = export_regimpact_tables(
-            settings.tables_dir,
-            settings.gold_dir,
-            workspace_id=settings.fabric_workspace_id,
-            lakehouse_id=settings.fabric_lakehouse_id,
-            onelake_endpoint=settings.fabric_onelake_dfs_endpoint,
-        )
-        _emit_cli_stage_end(
-            on_event,
-            "onelake_tables",
-            _t,
-            details={
-                "raw": len(delta_uploaded["raw"]),
-                "gold": len(delta_uploaded["gold"]),
-                "message": f"{len(delta_uploaded['raw'])} raw + "
-                f"{len(delta_uploaded['gold'])} gold table(s)",
-            },
-        )
-        if not silent:
-            console.print(
-                f"[green]📊 Wrote {len(delta_uploaded['raw'])} raw + "
-                f"{len(delta_uploaded['gold'])} gold Delta table(s) to "
-                f"lakehouse Tables/[/] (append)"
-            )
-    except LakehouseNotConfiguredError as exc:
-        _emit_cli_stage_skipped(on_event, "onelake_tables", str(exc)[:80])
-        if not silent:
-            console.print(f"[yellow]OneLake Delta writeback skipped:[/] {exc}")
-    except LakehouseWriteError as exc:
-        _emit_cli_stage_error(on_event, "onelake_tables", _t, str(exc))
-        if not silent:
-            console.print(f"[red]OneLake Delta writeback failed:[/] {exc}")
-        # Do NOT raise — Files/ upload above already succeeded, this is
-        # a best-effort additional writeback for automatic table
-        # materialisation.
-
-    _t = _emit_cli_stage(on_event, "purview", "Exporting Purview glossary + lineage")
-    export_purview(est, settings.purview_dir)
-    _emit_cli_stage_end(on_event, "purview", _t)
-
-    # Report is built from Fabric-persisted gaps/remediations in the estate.
-    # We deliberately do NOT re-run ImpactEngine.analyze_change() here — that
-    # would overwrite Fabric's authoritative outputs with local Python analysis.
-    _t = _emit_cli_stage(on_event, "report", "Building impact report")
-    engine_summary = pipeline.build_engine_summary(report["change_id"])
-    export_report(est, engine_summary, settings.reports_dir)
-    _emit_cli_stage_end(on_event, "report", _t)
+    # Post-pipeline exports (local Parquet + OneLake writeback + Purview +
+    # report). Shared with the Streamlit UI worker via
+    # ``regimpact.agents.exports.run_post_pipeline_exports`` so both surfaces
+    # emit the same four tail-stage events (onelake_files, onelake_tables,
+    # purview, report) and honour the same failure-class contract:
+    # ``LakehouseNotConfiguredError`` = soft skip, ``LakehouseWriteError`` =
+    # non-fatal error, everything else propagates.
+    run_post_pipeline_exports(
+        estate=est,
+        pipeline=pipeline,
+        report=report,
+        settings=settings,
+        on_event=on_event,
+        silent=silent,
+    )
 
     if not silent:
         # Legacy read-out — only shown when the live renderer is off, to

@@ -1,11 +1,11 @@
 ID,Name,Classification,Contains_PII,As_Of
-DD-CUSTPII,Customer PII,Restricted,True,2026-07-21
-DD-KYC,KYC / CDD Data,Confidential,True,2026-07-21
-DD-TXN,Transactions,Confidential,False,2026-07-21
-DD-ACCT,Account Data,Confidential,False,2026-07-21
-DD-CREDIT,Credit & Risk Data,Confidential,False,2026-07-21
-DD-TRADE,Trade & Position Data,Confidential,False,2026-07-21
-DD-MODEL,AI / Model Data,Confidential,False,2026-07-21
-DD-REF,Reference Data,Internal,False,2026-07-21
-DD-FIN,Financial / GL Data,Confidential,False,2026-07-21
-DD-PAYMT,Payments Data,Confidential,False,2026-07-21
+DD-CUSTPII,Customer PII,Restricted,True,2026-07-24
+DD-KYC,KYC / CDD Data,Confidential,True,2026-07-24
+DD-TXN,Transactions,Confidential,False,2026-07-24
+DD-ACCT,Account Data,Confidential,False,2026-07-24
+DD-CREDIT,Credit & Risk Data,Confidential,False,2026-07-24
+DD-TRADE,Trade & Position Data,Confidential,False,2026-07-24
+DD-MODEL,AI / Model Data,Confidential,False,2026-07-24
+DD-REF,Reference Data,Internal,False,2026-07-24
+DD-FIN,Financial / GL Data,Confidential,False,2026-07-24
+DD-PAYMT,Payments Data,Confidential,False,2026-07-24
